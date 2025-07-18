@@ -1,0 +1,32 @@
+#!/bin/bash
+
+local_branch_name="$(git rev-parse --abbrev-ref HEAD)"
+
+message="You cannot push directly to dev"
+
+if [ -z "$BASH_VERSION" ]; then
+    exec bash "$0" "$@"
+fi
+
+# if [[ $local_branch_name == 'dev' ]]; then
+#     echo "$message"
+#     exit 1
+# fi
+
+echo "Running Husky pre-commits..."
+chmod +x app/.husky/check-lint.sh && sh app/.husky/check-lint.sh
+if [ $? -ne 0 ]; then
+    echo "Lint check failed"
+    exit 1
+fi
+
+echo "Pre-push hooks passed"
+echo "Building app..."
+cd app && npm run build
+if [ $? -ne 0 ]; then
+    echo "Build failed"
+    exit 1
+fi
+
+echo "Build passed"
+echo "Husky pre-commits done"
