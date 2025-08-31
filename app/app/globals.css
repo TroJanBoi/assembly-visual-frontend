@@ -1,12 +1,13 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 
 :root {
   --color-primary: #687FE5;
   --color-bg: #ffffff;
-  --color-text: #404040;
-  --color-sub-text: #8C8C8C;
+  --color-text: #2e2e2e;
+  --color-sub-text: #5e5e5e;
   --color-border: rgba(41, 41, 58, 0.23); /* 23% opacity */
 }
 
@@ -18,11 +19,14 @@
   --color-border: rgba(255, 255, 255, 0.23);
 }
 
-.text-primary { color: var(--color-primary); }
+.brand-text { color: var(--color-primary); }
+.text-primary { color: var(--color-text); }
 .text-sub { color: var(--color-sub-text); }
 .border-primary { border-color: var(--color-border); }
 .bg-primary { background-color: var(--color-primary); }
 
 body {
-  @apply bg-[var(--color-bg)] text-[var(--color-text)] font-poppins;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Poppins', sans-serif;
 }
