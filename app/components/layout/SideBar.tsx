@@ -39,15 +39,22 @@ export default function SideBar({
 }) {
   const pathname = usePathname();
 
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return collapsed;
+  // Initialize from the prop so server and initial client render match.
+  // Read localStorage only after mount to avoid hydration mismatches.
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsed);
+
+  useEffect(() => {
     try {
       const v = localStorage.getItem("sidebar-collapsed");
-      return v === null ? collapsed : v === "1";
-    } catch {
-      return collapsed;
-    }
-  });
+      if (v !== null) {
+        const stored = v === "1";
+        // Update state after mount to reflect user's preference.
+        if (stored !== isCollapsed) setIsCollapsed(stored);
+      }
+    } catch {}
+    // run only on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     try {
