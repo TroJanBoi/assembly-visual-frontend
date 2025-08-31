@@ -27,7 +27,7 @@ export default function TopNav() {
   return (
     <header
       role="banner"
-      className="fixed top-0 z-30 flex items-center gap-4 px-4 shadow-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-gray-100 dark:border-slate-800"
+      className="fixed top-0 z-30 flex items-center gap-4 px-4 shadow-sm bg-white dark:bg-slate-900/80 backdrop-blur border-b border-gray-100 dark:border-slate-800"
       style={{
         left: "var(--sidebar-width, 240px)",
         right: 0,

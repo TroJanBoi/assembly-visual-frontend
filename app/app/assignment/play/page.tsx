@@ -7,7 +7,7 @@ export default function AssignmentPlayPage() {
   // It mounts a full-bleed workplane for the React Flow editor.
 
   return (
-    <div className="w-full h-screen">
+    <div className="w-full h-full">
       <WorkPlane />
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
+import NodeToolbox from "./NodeToolbox";
 import ReactFlow, {
   Background,
   Controls,
@@ -40,6 +41,50 @@ export default function WorkPlane({ children }: WorkPlaneProps) {
     [setEdges]
   );
 
+  const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
+  const rfInstance = useRef<any>(null);
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      if (!reactFlowWrapper.current) return;
+
+      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+      const data = event.dataTransfer.getData("application/reactflow");
+      if (!data) return;
+
+      let nodeDef: any;
+      try {
+        nodeDef = JSON.parse(data);
+      } catch {
+        return;
+      }
+
+      const clientX = event.clientX;
+      const clientY = event.clientY;
+
+      const position = rfInstance.current?.project
+        ? rfInstance.current.project({
+            x: clientX - reactFlowBounds.left,
+            y: clientY - reactFlowBounds.top,
+          })
+        : {
+            x: clientX - reactFlowBounds.left,
+            y: clientY - reactFlowBounds.top,
+          };
+
+      const id = `${nodeDef.id}-${Date.now()}`;
+      const newNode: Node = { id, data: { label: nodeDef.label }, position };
+      setNodes((nds) => nds.concat(newNode));
+    },
+    [setNodes]
+  );
+
   const containerStyle: React.CSSProperties = {
     height: "100%",
     width: "100%",
@@ -47,8 +92,12 @@ export default function WorkPlane({ children }: WorkPlaneProps) {
   };
 
   return (
-    <div className="w-full h-screen">
-      <div className="w-full h-full" style={containerStyle}>
+    <div className="w-full h-full flex">
+      <div
+        ref={reactFlowWrapper}
+        className="w-full h-full relative"
+        style={{ ...containerStyle, height: "100%" }}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -56,14 +105,20 @@ export default function WorkPlane({ children }: WorkPlaneProps) {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           fitView
+          onInit={(rfi) => (rfInstance.current = rfi)}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
         >
-          <Background />
+          <Background  />
           <MiniMap zoomable={true} pannable={true} />
           <Controls />
         </ReactFlow>
 
         {/* render children on top so pages can provide UI overlays */}
         <div className="absolute inset-0 pointer-events-none">{children}</div>
+
+        {/* Floating toolbox */}
+        <NodeToolbox />
       </div>
     </div>
   );
