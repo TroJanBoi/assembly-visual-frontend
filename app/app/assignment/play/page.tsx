@@ -1,6 +1,6 @@
 "use client";
 
-import WorkPlane from "./WorkPlane";
+import WorkPlane from "../../../components/nodes/WorkPlane";
 
 export default function AssignmentPlayPage() {
   // This page intentionally does not render the app sidebar/topnav.
