@@ -1,6 +1,31 @@
+@import "react-phone-number-input/style.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+
+
+@layer components {
+  .PhoneInput {
+    @apply flex gap-2;
+  }
+  .PhoneInputCountry {
+    @apply h-11 rounded-lg border border-[var(--color-border)] bg-white px-3
+           inline-flex items-center gap-2 text-sm hover:bg-neutral-50;
+  }
+  .PhoneInputCountrySelectArrow {
+
+    width: 0; height: 0; border-left: 5px solid transparent;
+    border-right: 5px solid transparent; border-top: 6px solid rgb(115 115 115);
+    margin-left: .25rem;
+  }
+  .PhoneInputInput {
+    @apply flex-1 h-11 rounded-lg border border-[var(--color-border)] px-3 text-sm
+           outline-none focus:border-[var(--color-primary)] focus:ring-4
+           focus:ring-[color:rgba(104,127,229,0.18)];
+  }
+}
 
 
 :root {
