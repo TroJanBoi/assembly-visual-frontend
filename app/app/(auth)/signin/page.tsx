@@ -135,10 +135,10 @@ export default function SignInPage() {
             </form>
 
             {/* OAuth */}
-            <button
-            type="button"
-            className="h-11 w-full rounded-lg border border-[var(--color-border)] bg-white text-sm font-medium
-                        hover:bg-neutral-50 inline-flex items-center justify-center gap-2"
+            <a
+            
+            className="h-11 w-full text-sm font-medium
+                        inline-flex items-center justify-center gap-2"
             >
             <svg
                 width="18" height="18" viewBox="0 0 18 18" aria-hidden
@@ -150,7 +150,7 @@ export default function SignInPage() {
                 <path fill="#EA4335" d="M9 3.542c1.322 0 2.512.455 3.447 1.35l2.59-2.59C13.463.86 11.426 0 9 0 5.481 0 2.438 2.022.957 4.953l3.007 2.332C3.67 5.157 5.656 3.542 9 3.542z"/>
             </svg>
               Sign In with Google
-            </button>
+            </a>
 
             <p className="text-center text-xs text-sub">
               Don’t have an account?{" "}
