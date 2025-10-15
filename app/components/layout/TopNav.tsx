@@ -58,9 +58,12 @@ export default function TopNav() {
         <button className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800">
           <HiOutlineBell size={20} />
         </button>
-        <button className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800">
-          <HiOutlineUser size={20}/>
-        </button>
+        <Link
+          href="/profile"
+          className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800"
+        >
+          <HiOutlineUser size={20} />
+        </Link>
       </nav>
     </header>
   );

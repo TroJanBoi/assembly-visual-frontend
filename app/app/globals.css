@@ -1,4 +1,8 @@
-@import "react-phone-number-input/style.css";
+
+@import "react-phone-input-2/lib/style.css";
+@import "sweetalert2/dist/sweetalert2.min.css";
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
