@@ -6,6 +6,7 @@ export type Profile = {
   email?: string;
   name?: string;
   tel?: string;
+  picture_path?: string;
   // ไม่ส่ง/ไม่แสดง password ที่หน้าโปรไฟล์
 };
 
@@ -23,6 +24,11 @@ export async function updateProfile(payload: Partial<Profile>): Promise<Profile>
       tel: payload.tel,
     }),
   });
+}
+
+// helper สำหรับอัปเดตรูปโปรไฟล์อย่างเดียว
+export async function updateProfilePicture(picture_path: string): Promise<Profile> {
+  return updateProfile({ picture_path });
 }
 
 export async function deleteProfile(): Promise<{ message?: string }> {

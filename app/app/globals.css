@@ -63,3 +63,16 @@ body {
   color: var(--color-text);
   font-family: 'Poppins', sans-serif;
 }
+
+/* --- Subtle grid background --- */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(41,41,58,0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(41,41,58,0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.dark .bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+}

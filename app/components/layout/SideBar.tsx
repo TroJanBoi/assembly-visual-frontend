@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo,useState } from "react";
 import { motion } from "framer-motion";
 
 import Link from "next/link";
@@ -21,6 +21,8 @@ import {
 } from "react-icons/hi";
 import { Icon } from "lucide-react";
 
+import { getProfile, type Profile } from "@/lib/api/profile";
+
 type NavItem = {
   href: string;
   label: string;
@@ -39,21 +41,41 @@ export default function SideBar({
 }) {
   const pathname = usePathname();
 
+  const [me, setMe] = useState<Profile | null>(null);
+  const [email, setEmail] = useState("");
+
   // Initialize from the prop so server and initial client render match.
   // Read localStorage only after mount to avoid hydration mismatches.
   const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsed);
 
   useEffect(() => {
+    let cancelled = false;
     try {
       const v = localStorage.getItem("sidebar-collapsed");
       if (v !== null) {
         const stored = v === "1";
         // Update state after mount to reflect user's preference.
-        if (stored !== isCollapsed) setIsCollapsed(stored);
+        if (!cancelled && stored !== isCollapsed) setIsCollapsed(stored);
       }
     } catch {}
     // run only on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    (async () => {
+      try {
+        const data = await getProfile();
+        if (!cancelled && data) {
+          setMe(data);
+          setEmail(data.email ?? "");
+        }
+      } catch {
+        // swallow – keep UI usable even if profile fails
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   useEffect(() => {
@@ -79,7 +101,7 @@ export default function SideBar({
   }, [isCollapsed]);
 
   const navItems: NavItem[] = items ?? [
-    { href: "/app", label: "Home", iconOutline: HiOutlineHome, iconSolid: HiHome },
+    { href: "/", label: "Home", iconOutline: HiOutlineHome, iconSolid: HiHome },
     {
       href: "/class",
       label: "Class",
@@ -111,6 +133,11 @@ export default function SideBar({
       iconSolid: HiClock,
     },
   ];
+
+  const initials =
+    (email?.trim()?.[0]?.toUpperCase() ||
+      me?.name?.trim()?.[0]?.toUpperCase() ||
+      "U");
 
   return (
     <motion.aside
@@ -212,7 +239,7 @@ export default function SideBar({
             isCollapsed ? "text-center" : "text-left"
           }`}
         >
-          {!isCollapsed ? (
+          {/* {!isCollapsed ? (
             <div className="transition-opacity duration-150">
               Signed in as{" "}
               <strong className="text-gray-700">user@example.com</strong>
@@ -220,6 +247,19 @@ export default function SideBar({
           ) : (
             <div className="w-6 h-6 rounded-full bg-gray-200 grid place-items-center text-xs font-semibold text-gray-600 mx-auto transition-opacity duration-150">
               U
+            </div>
+          )} */}
+          {!isCollapsed ? (
+            <div className="transition-opacity duration-150 truncate">
+              Signed in as{" "}
+              <strong className="text-gray-700 dark:text-gray-200">{email || "—"}</strong>
+            </div>
+          ) : (
+            <div
+              className="w-6 h-6 rounded-full bg-gray-200 dark:bg-slate-700 grid place-items-center text-xs font-semibold text-gray-600 dark:text-gray-200 mx-auto transition-opacity duration-150"
+              title={email || ""}
+            >
+              {initials}
             </div>
           )}
         </div>

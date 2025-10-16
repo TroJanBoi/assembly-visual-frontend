@@ -16,6 +16,8 @@ import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+import LandingNav from "@/components/layout/TopNav";
+
 const MySwal = withReactContent(Swal);
 
 function PhoneField({
@@ -114,8 +116,10 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen bg-white text-neutral-800">
+
       {/* TOP BAR */}
-      <header className="h-14 flex items-center justify-between px-6 border-gray-200 shadow-sm bg-white">
+      <LandingNav />
+      {/* <header className="h-14 flex items-center justify-between px-6 border-gray-200 shadow-sm bg-white">
         <Link href="/" className="font-extrabold tracking-tight text-xl">
           <span className="text-indigo-500">BLYLAB.</span>
         </Link>
@@ -143,12 +147,10 @@ export default function SignUpPage() {
             SIGN UP
           </Link>
         </nav>
-      </header>
+      </header> */}
 
       {/* BODY */}
-      <main className="min-h-[calc(100vh-56px)] md:h-[calc(100vh-56px)]
-                       flex flex-col gap-6 md:flex-row md:items-center md:justify-center
-                       p-6 md:overflow-hidden">
+      <main className="min-h-screen pt-[var(--topbar-height,64px)] flex flex-col gap-6 md:flex-row md:items-center p-6">
 
         {/* LEFT */}
         <section className="flex-1 rounded-xl p-4">
