@@ -119,36 +119,6 @@ export default function SignUpPage() {
 
       {/* TOP BAR */}
       <LandingNav />
-      {/* <header className="h-14 flex items-center justify-between px-6 border-gray-200 shadow-sm bg-white">
-        <Link href="/" className="font-extrabold tracking-tight text-xl">
-          <span className="text-indigo-500">BLYLAB.</span>
-        </Link>
-
-        <nav className="flex items-center gap-2 text-sm font-bold">
-          <Link
-            href="/signin"
-            className={`px-3 py-1 rounded-md transition ${
-              pathname === "/signin"
-                ? "bg-indigo-500 text-white"
-                : "text-indigo-500 hover:bg-indigo-100"
-            }`}
-          >
-            SIGN IN
-          </Link>
-
-          <Link
-            href="/signup"
-            className={`px-3 py-1 rounded-md transition ${
-              pathname === "/signup"
-                ? "bg-indigo-500 text-white"
-                : "text-indigo-500 hover:bg-indigo-100"
-            }`}
-          >
-            SIGN UP
-          </Link>
-        </nav>
-      </header> */}
-
       {/* BODY */}
       <main className="min-h-screen pt-[var(--topbar-height,64px)] flex flex-col gap-6 md:flex-row md:items-center p-6">
 

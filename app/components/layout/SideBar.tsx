@@ -101,7 +101,12 @@ export default function SideBar({
   }, [isCollapsed]);
 
   const navItems: NavItem[] = items ?? [
-    { href: "/", label: "Home", iconOutline: HiOutlineHome, iconSolid: HiHome },
+    { 
+      href: "/home",
+       label: "Home",
+        iconOutline: HiOutlineHome,
+         iconSolid: HiHome 
+    },
     {
       href: "/class",
       label: "Class",
