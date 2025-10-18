@@ -55,6 +55,7 @@ export async function signin(data: SigninInput): Promise<SigninResponse> {
   if (res && typeof window !== "undefined" && res.token) {
     console.log("🔑 Token received:", res.token);   // ✅
     localStorage.setItem("authToken", res.token);
+    
   }
 
   if (res?.token) setToken(res.token);
@@ -64,23 +65,15 @@ export async function signin(data: SigninInput): Promise<SigninResponse> {
   return res;
 }
 
-/** 🚪 Sign out */
-export async function signout(): Promise<{ message?: string }> {
-  // ถ้า backend มี endpoint logout:
-  // const result = await apiFetch<{ message?: string }>("/api/v2/auth/logout", { method: "POST" });
-  // clearToken();
-  // return result;
-
-  // ถ้า backend ไม่มี endpoint: เคลียร์ฝั่ง client พอ
-  clearToken();
-  return { message: "signed out" };
-}
-
-/** 👤 ดึงข้อมูลตัวเอง (ต้องแนบ token อัตโนมัติผ่าน apiFetch) */
-export async function getMe(): Promise<{ id?: string; email?: string; name?: string }> {
-  return apiFetch<{ id?: string; email?: string; name?: string }>("/api/v2/users/me", {
-    method: "GET",
-  });
+export async function signout(): Promise<void> {
+  try {
+    localStorage.removeItem("authToken")
+    window.location.href = "/signin";
+  } catch {
+    // ถ้า backend ไม่มี endpoint นี้ก็ไม่เป็นไร
+  } finally {
+    clearToken();
+  }
 }
 
 
@@ -88,5 +81,11 @@ export async function changePassword(new_password: string) {
   return apiFetch<{ message?: string }>("/api/v2/profile/change-password", {
     method: "PUT",
     body: JSON.stringify({ new_password }),
+  });
+}
+
+export async function oauthLogin(provider: string, code: string) {
+  return apiFetch<SigninResponse>(`/api/v2/auth/oauth/${provider}/login?code=${encodeURIComponent(code)}`, {
+    method: "GET",
   });
 }

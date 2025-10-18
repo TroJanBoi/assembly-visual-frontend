@@ -3,15 +3,19 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { use, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { signin } from "@/lib/api/auth";
+import { oauthLogin, signin } from "@/lib/api/auth";
 
 // SweetAlert2
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import "sweetalert2/dist/sweetalert2.min.css";
 import LandingNav from "@/components/layout/TopNav";
+
+function authSuccess() {
+  window.location.href="http://localhost:9090/api/v2/oauth/google/login"
+}
 
 const MySwal = withReactContent(Swal);
 
@@ -39,18 +43,10 @@ export default function SignInPage() {
 
     try {
       setLoading(true);
-      // await MySwal.fire({
-      //   title: "Signing in...",
-      //   allowOutsideClick: false,
-      //   didOpen: () => MySwal.showLoading(),
-      // });
+
 
       // 🔐 เรียก backend ผ่าน lib/api/auth.ts
       const res = await signin({ email, password, remember });
-
-      // กรณี backend ส่ง token และตั้ง cookie ฝั่ง server แล้ว:
-      // - ถ้ามี token และอยากเก็บ client-side:
-      //   if (res.token) localStorage.setItem("access_token", res.token);
 
       await MySwal.fire({
         icon: "success",
@@ -61,7 +57,7 @@ export default function SignInPage() {
         timerProgressBar: true
       });
 
-      router.push("/"); // แก้เส้นทางหลังล็อกอินสำเร็จตามต้องการ
+      router.push("/home"); // แก้เส้นทางหลังล็อกอินสำเร็จตามต้องการ
     } catch (err: any) {
       MySwal.close();
       MySwal.fire({
@@ -189,11 +185,10 @@ export default function SignInPage() {
 
             {/* OAuth (ถ้ามี route จริงค่อยเชื่อม) */}
             <button
-              // แก้เป็นเส้นทาง OAuth ของคุณ เช่น window.location.href = "/api/v2/auth/google"
               onClick={() => {
-                const url = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_URL!;
-                window.location.href = url;          // หรือ window.location.assign(url)
+                authSuccess();
               }}
+              
               className="h-11 w-full text-sm font-medium border border-[var(--color-border)] rounded-lg hover:bg-neutral-50
                          inline-flex items-center justify-center gap-2"
             >

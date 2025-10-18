@@ -1,4 +1,5 @@
 /* app/page.tsx */
+"use client";
 import Image from "next/image";
 import LandingNav from "@/components/layout/TopNav";
 
@@ -17,6 +18,15 @@ function NodeChip({ children }: { children: React.ReactNode }) {
       {children}
     </span>
   );
+}
+
+function checkKey() {
+    localStorage.getItem("authToken");
+    if (localStorage.getItem("authToken") == null) {
+      window.location.href = "/signin";
+    } else {
+        window.location.href = "/class";
+    }
 }
 
 function NodeCard({
@@ -41,7 +51,6 @@ function NodeCard({
   };
 
   const t = tones[tone];
-
   return (
     <div
       className={`rounded-xl border border-gray-200 dark:border-slate-700 bg-white shadow-sm ring-1 ${t.ring} ${className}`}
@@ -96,13 +105,13 @@ export default function Overview() {
 
                         <div className="mt-8 flex gap-3">
                             <a
-                                href="/class"
+                                onClick={() => checkKey()}
                                 className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-white shadow hover:opacity-90"
                             >
                                 Start learning
                             </a>
                             <a
-                                href="/bookmark"
+                                onClick={() => checkKey()}
                                 className="rounded-lg border px-4 py-2 hover:bg-gray-50 dark:hover:bg-slate-800"
                             >
                                 Browse examples
