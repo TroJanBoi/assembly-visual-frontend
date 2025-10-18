@@ -9,18 +9,24 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@multiavatar/multiavatar": "^1.0.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@xyflow/react": "^12.8.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "echarts": "^5.6.0",
     "framer-motion": "^12.23.12",
+    "libphonenumber-js": "^1.12.24",
     "lucide-react": "^0.525.0",
     "next": "15.4.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
+    "react-phone-input-2": "^2.15.1",
+    "react-phone-number-input": "^3.4.12",
     "reactflow": "^11.11.4",
+    "sweetalert2": "^11.26.2",
+    "sweetalert2-react-content": "^5.1.0",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
