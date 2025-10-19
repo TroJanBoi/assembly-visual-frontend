@@ -1,9 +1,8 @@
-// app/class/page.tsx
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   HiOutlineUserGroup,
   HiOutlineHeart,
@@ -14,75 +13,40 @@ import {
 } from "react-icons/hi";
 
 import { Modal } from "@/components/ui/Modal";
+import { getClasses, Class } from "@/lib/api/class";
+import "sweetalert2/dist/sweetalert2.min.css";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 
-type ClassItem = {
-  id: string;
-  title: string;
-  desc: string;
-  cover: string;
-  members: string; // e.g. "2.14K"
-  liked?: boolean;
-};
-
-const sampleMy: ClassItem[] = [
-  {
-    id: "c1",
-    title: "Lorem Ipsum",
-    desc:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have…",
-    cover: "/images/p3.png",
-    members: "2.14K",
-  },
-  {
-    id: "c2",
-    title: "Lorem Ipsum",
-    desc:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have…",
-    cover: "/images/p1.png",
-    members: "2.14K",
-  },
-  {
-    id: "c2",
-    title: "Lorem Ipsum",
-    desc:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have…",
-    cover: "/images/p2.png",
-    members: "2.14K",
-  },
-];
-
-const sampleJoin: ClassItem[] = [
-  {
-    id: "c3",
-    title: "Lorem Ipsum",
-    desc:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have…",
-    cover: "/images/Image.png",
-    members: "2.14K",
-  },
-  {
-    id: "c4",
-    title: "Lorem Ipsum",
-    desc:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have…",
-    cover: "/images/p3.png",
-    members: "2.14K",
-  },
-  {
-    id: "c4",
-    title: "Lorem Ipsum",
-    desc:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have…",
-    cover: "/images/p1.png",
-    members: "2.14K",
-  },
-];
+const MySwal = withReactContent(Swal);
 
 export default function ClassPage() {
-
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        setPageLoading(true);
+        const fetchedClasses = await getClasses();
+        setClasses(fetchedClasses);
+      } catch (err: any) {
+        setError(err.message || "Failed to fetch classes.");
+        MySwal.fire({
+          icon: "error",
+          title: "Error",
+          text: err.message || "Failed to fetch classes.",
+        });
+      } finally {
+        setPageLoading(false);
+      }
+    };
+    fetchClasses();
+  }, []);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +54,6 @@ export default function ClassPage() {
     try {
       setLoading(true);
       // TODO: call your API here, e.g. await joinClass({ code: joinCode.trim() })
-      // สมมติสำเร็จ:
       alert(`Joined with code: ${joinCode.trim()}`);
       setJoinOpen(false);
       setJoinCode("");
@@ -98,6 +61,19 @@ export default function ClassPage() {
       setLoading(false);
     }
   };
+
+  if (pageLoading) {
+    return <div className="p-6 text-center">Loading classes...</div>;
+  }
+
+  if (error) {
+    return <div className="p-6 text-center text-red-500">Error: {error}</div>;
+  }
+
+  // Note: The distinction between "My class" and "Join class" might need logic based on the owner field.
+  // For now, I'll list all classes under "My class" for simplicity.
+  const myClasses = classes;
+  const joinedClasses: Class[] = []; // Placeholder for classes joined by the user
 
   return (
     <div className="p-6 space-y-12">
@@ -107,7 +83,7 @@ export default function ClassPage() {
         viewAllHref="/class/my"
         leadingCard={<CreateCard />}
       >
-        {sampleMy.map((item) => (
+        {myClasses.map((item) => (
           <ClassCard key={item.id} item={item} />
         ))}
       </Section>
@@ -118,13 +94,17 @@ export default function ClassPage() {
         viewAllHref="/class/join"
         leadingCard={<JoinPrivateCard onOpen={() => setJoinOpen(true)} />}
       >
-        {sampleJoin.map((item) => (
+        {joinedClasses.map((item) => (
           <ClassCard key={item.id} item={item} />
         ))}
       </Section>
 
       {/* MODAL: Join private class */}
-      <Modal open={joinOpen} onClose={() => setJoinOpen(false)} title="Join private class">
+      <Modal
+        open={joinOpen}
+        onClose={() => setJoinOpen(false)}
+        title="Join private class"
+      >
         <form onSubmit={handleJoin} className="space-y-4">
           <input
             type="text"
@@ -146,7 +126,6 @@ export default function ClassPage() {
           </button>
         </form>
       </Modal>
-
     </div>
   );
 }
@@ -189,7 +168,7 @@ function CreateCard() {
   return (
     <Link
       href="/class/create"
-      className="h-full rounded-2xl border border-gray-200 dark:border-slate-700 
+      className="h-full rounded-2xl border border-gray-200 dark:border-slate-700
                  bg-white dark:bg-slate-900 p-6 grid place-items-center text-center
                  hover:shadow-md hover:-translate-y-1 transition-all duration-200"
     >
@@ -206,7 +185,6 @@ function CreateCard() {
   );
 }
 
-
 function JoinPrivateCard({ onOpen }: { onOpen: () => void }) {
   return (
     <button
@@ -217,8 +195,16 @@ function JoinPrivateCard({ onOpen }: { onOpen: () => void }) {
     >
       <div className="flex flex-col items-center gap-3 text-gray-600">
         <span className="grid place-items-center w-12 h-12 rounded-xl border border-gray-200">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </span>
@@ -229,19 +215,17 @@ function JoinPrivateCard({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-
-
 /* ---------- Normal class card ---------- */
-function ClassCard({ item }: { item: ClassItem }) {
-  const [liked, setLiked] = useState(Boolean(item.liked));
+function ClassCard({ item }: { item: Class }) {
+  const [liked, setLiked] = useState(Boolean(item.fav_score > 0));
 
   return (
     <article className="rounded-2xl border border-gray-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900">
       {/* cover */}
       <div className="relative h-40 w-full">
         <Image
-          src={item.cover}
-          alt={item.title}
+          src={"/images/p1.png"} // Using a placeholder image
+          alt={item.topic}
           fill
           className="object-cover"
           sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
@@ -250,16 +234,16 @@ function ClassCard({ item }: { item: ClassItem }) {
 
       {/* content */}
       <div className="p-4 space-y-2">
-        <h3 className="font-semibold line-clamp-1">{item.title}</h3>
+        <h3 className="font-semibold line-clamp-1">{item.topic}</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-          {item.desc}
+          {item.description}
         </p>
 
         {/* meta + like */}
         <div className="flex items-center justify-between pt-2">
           <div className="inline-flex items-center gap-2 text-xs text-gray-500">
             <HiOutlineUserGroup />
-            {item.members}
+            N/A
           </div>
 
           <button
