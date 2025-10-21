@@ -1,10 +1,23 @@
-// next.config.ts
-import { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
-  experimental: {
-    // Add supported experimental options here if needed
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:9090/api/:path*",
+      },
+    ];
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "placehold.co",
+        port: "",
+        pathname: "/**",
+      },
+    ],
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

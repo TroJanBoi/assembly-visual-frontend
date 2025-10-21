@@ -24,6 +24,14 @@ export interface Class {
   status: number;
 }
 
+export interface Member {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+}
+
+/* --- API function --- */
 export async function createClass(
   data: CreateClassInput,
 ): Promise<CreateClassResponse> {
@@ -35,4 +43,40 @@ export async function createClass(
 
 export async function getClasses(): Promise<Class[]> {
   return apiFetch<Class[]>("/api/v2/classes/");
+}
+
+export async function getClassById(id: string | number): Promise<Class> {
+  const pathId = typeof id === "number" ? id.toString() : id;
+  return apiFetch<Class>(`/api/v2/classes/${pathId}`);
+}
+
+/**
+ * Fetches all public classes.
+ */
+export async function getPublicClasses(): Promise<Class[]> {
+  return apiFetch<Class[]>("/api/v2/classes/public");
+}
+
+/**
+ * Fetches member in class.
+ */
+export async function getClassMembers(
+  classId: string | number,
+): Promise<Member[]> {
+  const pathId = typeof classId === "number" ? classId.toString() : classId;
+  return apiFetch<Member[]>(`/api/v2/classes/${pathId}/members`);
+}
+
+/**
+ * Joins the current user to a class by its ID or code.
+ */
+export async function joinClass(
+  classIdOrCode: string,
+): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(
+    `/api/v2/classes/${classIdOrCode}/join`,
+    {
+      method: "POST",
+    },
+  );
 }

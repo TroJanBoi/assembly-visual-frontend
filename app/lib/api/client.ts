@@ -16,8 +16,6 @@ export async function apiFetch<T>(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
-    // ถ้าหลังบ้านใช้ cookie ด้วย ให้เปิดบรรทัดนี้
-    // credentials: "include",
     ...options,
   });
 

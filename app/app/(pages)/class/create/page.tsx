@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClass } from "@/lib/api/class";
+import { AssignmentFormData } from "@/types/assignment";
 
 // SweetAlert2
 import Swal from "sweetalert2";
@@ -74,8 +75,7 @@ export default function CreateClassPage() {
       const classData = {
         topic: name.trim(),
         description: desc.trim(),
-        // Assuming status 0 is the default, and other fields are optional
-        status: 0,
+        status: privacy === "public" ? 1 : 0,
         google_course_id:
           syncGC && inviteCode.trim() ? inviteCode.trim() : undefined,
         google_course_link:
@@ -83,6 +83,8 @@ export default function CreateClassPage() {
             ? `https://classroom.google.com/c/${inviteCode.trim()}`
             : undefined,
       };
+
+      console.log(classData);
 
       const res = await createClass(classData);
 
@@ -171,7 +173,6 @@ export default function CreateClassPage() {
             className="absolute inset-0 z-10 opacity-0 cursor-pointer"
           />
 
-          {/* เนื้อหาด้านใน (ให้ pointer-events-none เพื่อไม่แย่งคลิก) */}
           {previewUrl ? (
             <div className="relative w-full h-40 sm:h-56 lg:h-64 rounded-xl overflow-hidden ring-1 ring-gray-200 pointer-events-none">
               <Image
