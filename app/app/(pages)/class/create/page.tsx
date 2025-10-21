@@ -4,10 +4,21 @@
 import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClass } from "@/lib/api/class";
+import { AssignmentFormData } from "@/types/assignment";
+
+// SweetAlert2
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+import "sweetalert2/dist/sweetalert2.min.css";
+
+const MySwal = withReactContent(Swal);
 
 type Privacy = "public" | "private";
 
 export default function CreateClassPage() {
+  const router = useRouter();
   const [privacy, setPrivacy] = useState<Privacy>("public");
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
@@ -34,8 +45,13 @@ export default function CreateClassPage() {
   const validateAndSet = (file: File) => {
     const okType = /image\/(png|jpeg)/.test(file.type);
     const okSize = file.size <= 4 * 1024 * 1024; // 4MB
-    if (!okType) return alert("Only JPG or PNG is supported.");
-    if (!okSize) return alert("Max file size is 4MB.");
+    if (!okType)
+      return MySwal.fire({
+        icon: "warning",
+        title: "Only JPG or PNG is supported.",
+      });
+    if (!okSize)
+      return MySwal.fire({ icon: "warning", title: "Max file size is 4MB." });
     setBanner(file);
   };
 
@@ -46,28 +62,49 @@ export default function CreateClassPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return alert("Please enter a class name.");
+    if (!name.trim()) {
+      return MySwal.fire({
+        icon: "warning",
+        title: "Please enter a class name.",
+      });
+    }
 
     try {
       setSubmitting(true);
 
-      // --- demo submit: compose form data ---
-      const fd = new FormData();
-      fd.append("name", name.trim());
-      fd.append("description", desc.trim());
-      fd.append("privacy", privacy);
-      fd.append("syncGoogle", String(syncGC));
-      if (syncGC && inviteCode.trim()) fd.append("inviteCode", inviteCode.trim());
-      if (banner) fd.append("banner", banner);
+      const classData = {
+        topic: name.trim(),
+        description: desc.trim(),
+        status: privacy === "public" ? 1 : 0,
+        google_course_id:
+          syncGC && inviteCode.trim() ? inviteCode.trim() : undefined,
+        google_course_link:
+          syncGC && inviteCode.trim()
+            ? `https://classroom.google.com/c/${inviteCode.trim()}`
+            : undefined,
+      };
 
-      // TODO: call your API here, e.g.:
-      // const res = await fetch("/api/classes", { method: "POST", body: fd });
-      // if (!res.ok) throw new Error("Create failed");
+      console.log(classData);
 
-      alert("Class created (demo). Replace with real API call.");
-      // router.push(`/class/${newId}`);
+      const res = await createClass(classData);
+
+      await MySwal.fire({
+        icon: "success",
+        title: "Class Created!",
+        text: res.message || "The new class has been created successfully.",
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true,
+      });
+
+      router.push("/class");
     } catch (err: any) {
-      alert(err?.message || "Something went wrong.");
+      MySwal.fire({
+        icon: "error",
+        title: "Creation Failed",
+        text: err?.message || "Something went wrong.",
+        confirmButtonText: "Close",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +123,9 @@ export default function CreateClassPage() {
 
         {/* Privacy selector */}
         <div className="text-sm">
-          <div className="text-gray-500 mb-2 text-right">Selected class privacy</div>
+          <div className="text-gray-500 mb-2 text-right">
+            Selected class privacy
+          </div>
           <div className="flex items-center gap-4">
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
@@ -118,51 +157,68 @@ export default function CreateClassPage() {
       <form onSubmit={onSubmit} className="mt-6 space-y-6 pb-28">
         {/* Banner uploader – ทั้งกรอบคลิกได้ */}
         <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={onDrop}
-        className="relative rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={onDrop}
+          className="relative rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700
                     bg-white dark:bg-slate-900 p-8 cursor-pointer focus-within:ring-2
                     focus-within:ring-[color:rgba(104,127,229,0.35)]"
         >
-        {/* input ทับทั้งกรอบ */}
-        <input
+          {/* input ทับทั้งกรอบ */}
+          <input
             ref={inputRef}
             type="file"
             accept="image/png,image/jpeg"
             onChange={onFileChange}
             aria-label="Upload class banner"
             className="absolute inset-0 z-10 opacity-0 cursor-pointer"
-        />
+          />
 
-        {/* เนื้อหาด้านใน (ให้ pointer-events-none เพื่อไม่แย่งคลิก) */}
-        {previewUrl ? (
+          {previewUrl ? (
             <div className="relative w-full h-40 sm:h-56 lg:h-64 rounded-xl overflow-hidden ring-1 ring-gray-200 pointer-events-none">
-            <Image src={previewUrl} alt="Banner preview" fill className="object-cover" />
-            <div className="absolute inset-0 bg-black/20" />
+              <Image
+                src={previewUrl}
+                alt="Banner preview"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-black/20" />
             </div>
-        ) : (
+          ) : (
             <div className="text-center text-gray-500 pointer-events-none">
-            <div className="mx-auto w-14 h-14 rounded-xl grid place-items-center text-[var(--color-primary)] bg-indigo-50 mb-3">
-                <svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="1.8">
-                <path d="M12 5v14M5 12h14" />
+              <div className="mx-auto w-14 h-14 rounded-xl grid place-items-center text-[var(--color-primary)] bg-indigo-50 mb-3">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  fill="none"
+                  strokeWidth="1.8"
+                >
+                  <path d="M12 5v14M5 12h14" />
                 </svg>
-            </div>
-            <div className="font-medium">
-                Upload your banner class, <span className="text-[var(--color-primary)] underline underline-offset-4">Browse</span>
-            </div>
-            <p className="text-xs mt-1">Image files must be a maximum of 4MB in size.</p>
-            <div className="mt-3 text-xs text-gray-400 flex items-center justify-center gap-6">
+              </div>
+              <div className="font-medium">
+                Upload your banner class,{" "}
+                <span className="text-[var(--color-primary)] underline underline-offset-4">
+                  Browse
+                </span>
+              </div>
+              <p className="text-xs mt-1">
+                Image files must be a maximum of 4MB in size.
+              </p>
+              <div className="mt-3 text-xs text-gray-400 flex items-center justify-center gap-6">
                 <span>*Supported jpg, png</span>
                 <span>*Recommended size 1200×400</span>
+              </div>
             </div>
-            </div>
-        )}
+          )}
         </div>
-
 
         {/* Class name */}
         <div>
-          <label htmlFor="name" className="text-sm font-medium">Class name</label>
+          <label htmlFor="name" className="text-sm font-medium">
+            Class name
+          </label>
           <input
             id="name"
             value={name}
@@ -177,7 +233,9 @@ export default function CreateClassPage() {
 
         {/* Description */}
         <div>
-          <label htmlFor="desc" className="text-sm font-medium">Description</label>
+          <label htmlFor="desc" className="text-sm font-medium">
+            Description
+          </label>
           <textarea
             id="desc"
             rows={7}
@@ -202,7 +260,8 @@ export default function CreateClassPage() {
             <div>
               <div className="font-medium">Sync with Google Classroom</div>
               <p className="text-xs text-gray-500">
-                You can connect Google Classroom with Blylab Classroom to add assignments and submit grades to Google Classroom.
+                You can connect Google Classroom with Blylab Classroom to add
+                assignments and submit grades to Google Classroom.
               </p>
             </div>
           </label>

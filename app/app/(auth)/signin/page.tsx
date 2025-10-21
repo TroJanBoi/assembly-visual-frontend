@@ -14,7 +14,7 @@ import "sweetalert2/dist/sweetalert2.min.css";
 import LandingNav from "@/components/layout/TopNav";
 
 function authSuccess() {
-  window.location.href="http://localhost:9090/api/v2/oauth/google/login"
+  window.location.href = "http://localhost:9090/api/v2/oauth/google/login";
 }
 
 const MySwal = withReactContent(Swal);
@@ -35,15 +35,20 @@ export default function SignInPage() {
 
     // validate ง่ายๆ
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      return MySwal.fire({ icon: "warning", title: "Please enter a valid email." });
+      return MySwal.fire({
+        icon: "warning",
+        title: "Please enter a valid email.",
+      });
     }
     if (!password) {
-      return MySwal.fire({ icon: "warning", title: "Please enter your password." });
+      return MySwal.fire({
+        icon: "warning",
+        title: "Please enter your password.",
+      });
     }
 
     try {
       setLoading(true);
-
 
       // 🔐 เรียก backend ผ่าน lib/api/auth.ts
       const res = await signin({ email, password, remember });
@@ -54,7 +59,7 @@ export default function SignInPage() {
         text: res?.user?.email || "Signed in successfully.",
         showConfirmButton: false,
         timer: 1300,
-        timerProgressBar: true
+        timerProgressBar: true,
       });
 
       router.push("/home"); // แก้เส้นทางหลังล็อกอินสำเร็จตามต้องการ
@@ -94,18 +99,22 @@ export default function SignInPage() {
         <section className="flex-1 rounded-xl p-4  flex flex-col gap-6 justify-center items-center">
           <div className="w-full max-w-sm space-y-3 text-left">
             <h1 className="text-2xl font-extrabold">
-              Welcome back to <span className="text-[var(--color-primary)]">BLYLAB.</span>
+              Welcome back to{" "}
+              <span className="text-[var(--color-primary)]">BLYLAB.</span>
             </h1>
 
             <p className="text-sm text-sub">
-              Time to learn! <span className="sr-only">Please</span> Please enter your details.
+              Time to learn! <span className="sr-only">Please</span> Please
+              enter your details.
             </p>
 
             {/* FORM */}
             <form onSubmit={onSubmit} className="space-y-4">
               {/* Email */}
               <div>
-                <label htmlFor="email" className="text-sm font-medium">Email</label>
+                <label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </label>
                 <input
                   id="email"
                   name="email"
@@ -121,7 +130,9 @@ export default function SignInPage() {
 
               {/* Password + toggle */}
               <div>
-                <label htmlFor="password" className="text-sm font-medium">Password</label>
+                <label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </label>
                 <div className="relative">
                   <input
                     id="password"
@@ -143,14 +154,32 @@ export default function SignInPage() {
                   >
                     {show ? (
                       // Eye-off
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="18"
+                        height="18"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M3 3l18 18" />
                         <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
                         <circle cx="12" cy="12" r="3" />
                       </svg>
                     ) : (
                       // Eye
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="18"
+                        height="18"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
                         <circle cx="12" cy="12" r="3" />
                       </svg>
@@ -160,7 +189,11 @@ export default function SignInPage() {
 
                 <div className="flex items-center justify-between pt-1">
                   <label className="inline-flex items-center gap-2 text-xs text-sub">
-                    <input type="checkbox" name="remember" className="h-4 w-4 align-middle accent-[var(--color-primary)]" />
+                    <input
+                      type="checkbox"
+                      name="remember"
+                      className="h-4 w-4 align-middle accent-[var(--color-primary)]"
+                    />
                     Remember for 30 days
                   </label>
                   <Link
@@ -188,22 +221,42 @@ export default function SignInPage() {
               onClick={() => {
                 authSuccess();
               }}
-              
               className="h-11 w-full text-sm font-medium border border-[var(--color-border)] rounded-lg hover:bg-neutral-50
                          inline-flex items-center justify-center gap-2"
             >
-              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="-ml-1 shrink-0">
-                <path fill="#4285F4" d="M17.64 9.204c0-.638-.057-1.252-.163-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.797 2.718v2.258h2.908c1.699-1.565 2.685-3.87 2.685-6.617z"/>
-                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.179l-2.908-2.258c-.806.54-1.836.86-3.048.86-2.344 0-4.33-1.58-5.036-3.708H.957v2.332C2.438 15.978 5.481 18 9 18z"/>
-                <path fill="#FBBC05" d="M3.964 10.715A5.41 5.41 0 013.684 9c0-.6.103-1.181.28-1.715V4.953H.957A9.01 9.01 0 000 9c0 1.477.354 2.872.957 4.047l3.007-2.332z"/>
-                <path fill="#EA4335" d="M9 3.542c1.322 0 2.512.455 3.447 1.35l2.59-2.59C13.463.86 11.426 0 9 0 5.481 0 2.438 2.022.957 4.953l3.007 2.332C3.67 5.157 5.656 3.542 9 3.542z"/>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 18 18"
+                aria-hidden
+                className="-ml-1 shrink-0"
+              >
+                <path
+                  fill="#4285F4"
+                  d="M17.64 9.204c0-.638-.057-1.252-.163-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.797 2.718v2.258h2.908c1.699-1.565 2.685-3.87 2.685-6.617z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M9 18c2.43 0 4.467-.806 5.956-2.179l-2.908-2.258c-.806.54-1.836.86-3.048.86-2.344 0-4.33-1.58-5.036-3.708H.957v2.332C2.438 15.978 5.481 18 9 18z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M3.964 10.715A5.41 5.41 0 013.684 9c0-.6.103-1.181.28-1.715V4.953H.957A9.01 9.01 0 000 9c0 1.477.354 2.872.957 4.047l3.007-2.332z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M9 3.542c1.322 0 2.512.455 3.447 1.35l2.59-2.59C13.463.86 11.426 0 9 0 5.481 0 2.438 2.022.957 4.953l3.007 2.332C3.67 5.157 5.656 3.542 9 3.542z"
+                />
               </svg>
               Sign In with Google
             </button>
 
             <p className="text-center text-xs text-sub">
               Don’t have an account?{" "}
-              <Link href="/signup" className="text-[var(--color-primary)] underline underline-offset-2">
+              <Link
+                href="/signup"
+                className="text-[var(--color-primary)] underline underline-offset-2"
+              >
                 Sign Up
               </Link>
             </p>

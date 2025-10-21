@@ -6,7 +6,7 @@ export const API_BASE =
 /** generic fetch wrapper ที่จัดการ JSON/ข้อความ + error ให้ */
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
 
@@ -16,14 +16,16 @@ export async function apiFetch<T>(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
-    // ถ้าหลังบ้านใช้ cookie ด้วย ให้เปิดบรรทัดนี้
-    // credentials: "include",
     ...options,
   });
 
   const text = await res.text();
   let data: any = null;
-  try { data = JSON.parse(text); } catch { data = text; }
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = text;
+  }
 
   if (!res.ok) {
     // จัดการกรณี token หมดอายุ/ไม่ถูกต้อง
