@@ -162,7 +162,7 @@ export const instructionCategories: {
         operands: ["label"],
       },
       { name: "NOP", color: "gray", icon: HiOutlineClock, layout: "zero" },
-      { name: "HLT", color: "red", icon: HiStop, layout: "zero" }, // <- RED
+      { name: "HLT", color: "red", icon: HiStop, layout: "zero" },
     ],
   },
   {

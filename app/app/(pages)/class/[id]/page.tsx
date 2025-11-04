@@ -68,9 +68,11 @@ export default function ViewClassPage() {
         if (decoded && decoded.user_id) {
           const currentUserId = decoded.user_id;
           const owner = currentUserId === classResult.owner;
-          const member = membersResult.some((m) => m.id === currentUserId);
+          const member = Array.isArray(membersResult)
+            ? membersResult.some((m) => m && m.id === currentUserId)
+            : false;
           setIsOwner(owner);
-          setIsMember(owner || member);
+          setIsMember(owner || Boolean(member));
         }
       }
     } catch (err: any) {

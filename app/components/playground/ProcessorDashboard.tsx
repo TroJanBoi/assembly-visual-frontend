@@ -91,7 +91,6 @@ export default function ProcessorDashboard({
 }: ProcessorDashboardProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // ----- NEW: เก็บพิกัดเมาส์แบบ relative ต่อ container -----
   const rootRef = useRef<HTMLDivElement>(null);
   const [hoveredInfo, setHoveredInfo] = useState<{
     address: number;

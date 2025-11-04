@@ -1,47 +1,119 @@
+// lib/api/client.ts
 import { getToken, clearToken } from "../auth/token";
+import type { Playground } from "@/lib/api/playground";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
 
-/** generic fetch wrapper ที่จัดการ JSON/ข้อความ + error ให้ */
+const DEBUG_API =
+  process.env.NEXT_PUBLIC_DEBUG_API === "1" ||
+  process.env.NODE_ENV !== "production";
+
+function maskAuth(h: Record<string, any> = {}) {
+  const c = { ...h };
+  if (c.Authorization) {
+    const t = String(c.Authorization);
+    c.Authorization = t.length > 16 ? t.slice(0, 12) + "...(masked)" : "(set)";
+  }
+  return c;
+}
+
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit = {},
+  init: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(init.headers as Record<string, string> | undefined),
+  };
 
+  const url = `${API_BASE}${path}`;
+  const reqInit: RequestInit = {
+    ...init,
+    headers,
+  };
+
+  if (DEBUG_API) {
+    let bodyPreview: any = undefined;
+    try {
+      bodyPreview =
+        typeof reqInit.body === "string"
+          ? JSON.parse(reqInit.body)
+          : reqInit.body;
+    } catch {
+      bodyPreview = reqInit.body;
+    }
+    // Request log
+    // eslint-disable-next-line no-console
+    console.log("[API] ⇢", reqInit.method || "GET", url, {
+      headers: maskAuth(headers),
+      body: bodyPreview,
+    });
+  }
+
+  const res = await fetch(url, reqInit);
   const text = await res.text();
-  let data: any = null;
+
+  if (DEBUG_API) {
+    // eslint-disable-next-line no-console
+    console.log("[API] ⇠", res.status, url, text);
+  }
+
+  let data: any;
   try {
-    data = JSON.parse(text);
+    data = text ? JSON.parse(text) : null;
   } catch {
     data = text;
   }
 
   if (!res.ok) {
-    // จัดการกรณี token หมดอายุ/ไม่ถูกต้อง
     if (res.status === 401) {
       clearToken();
-      // เลือก redirect หรือปล่อยให้หน้าปัจจุบัน handle เองก็ได้
-      if (typeof window !== "undefined") {
-        // ป้องกันวนลูป ถ้าอยู่หน้า signin ก็ไม่ต้องเด้ง
-        if (!window.location.pathname.startsWith("/signin")) {
-          window.location.href = "/signin";
-        }
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.startsWith("/signin")
+      ) {
+        window.location.href = "/signin";
       }
     }
     const detail = data?.detail || data?.error || text || `HTTP ${res.status}`;
-    throw new Error(String(detail));
+    const err: any = new Error(String(detail));
+    err.status = res.status; // ให้ caller ตรวจจับ 500/404 ได้
+    err.data = data; // ติด payload error กลับไปให้ debug
+    err.url = url; // ไว้ตรวจ endpoint ที่ error
+    throw err;
   }
 
   return data as T;
 }
+
+export function get<T>(path: string): Promise<T> {
+  return apiFetch<T>(path, { method: "GET" });
+}
+
+export function post<T>(path: string, body?: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "POST",
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
+export function put<T>(path: string, body?: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "PUT",
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
+export function del<T>(path: string): Promise<T> {
+  return apiFetch<T>(path, { method: "DELETE" });
+}
+
+export const updatePlayground = async (
+  playground: Playground,
+): Promise<Playground> => {
+  return await put<Playground>("/api/v2/playgrounds/me", playground);
+};

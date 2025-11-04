@@ -1,5 +1,6 @@
 // app/components/playground/InstructionNode.tsx
 "use client";
+
 import React, { memo } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,6 @@ const instructionMap = new Map<string, InstructionDef>(
   allInstructions.map((inst) => [inst.name.toUpperCase(), inst]),
 );
 
-// Pill cell
 function Pill({
   children,
   toneClass,
@@ -49,6 +49,7 @@ export default memo(function InstructionNode({
   const instrName = String(data?.instructionType || "NOP").toUpperCase();
   const def = instructionMap.get(instrName);
 
+  // ---- Guard unknown instruction early
   if (!def) {
     return (
       <div className="inline-flex items-center px-3 py-2 rounded-lg border-2 bg-white text-gray-600">
@@ -61,14 +62,48 @@ export default memo(function InstructionNode({
   const isZero = def.layout === "zero" || zeroOperandNames.has(def.name);
   const isStart = def.name === "START";
   const isHlt = def.name === "HLT";
+  const isLoad = def.name === "LOAD";
+  const isStore = def.name === "STORE";
 
-  // demo values
-  const dest = data?.dest ?? (def.layout === "ds" ? "R0" : "");
-  const src =
-    data?.src ??
-    (def.layout === "ds" ? (def.operands?.[1] === "mem" ? "[R0]" : "0") : "");
+  const destReg = data?.dest ?? "R0";
+
+  const memMode: "imm" | "reg" = data?.memMode ?? "imm";
+  const memText =
+    memMode === "imm"
+      ? `[${Number.isFinite(data?.memImm) ? data.memImm : 0}]`
+      : `[${data?.memReg ?? "R0"}]`;
+
+  const srcMode: "imm" | "reg" = data?.srcMode ?? "imm";
+
+  const srcText =
+    srcMode === "reg"
+      ? (data?.srcReg ?? "R0")
+      : Number.isFinite(data?.srcImm)
+        ? data.srcImm
+        : 0;
+
+  let displayLeft: string;
+  let displayRight: string | number;
+
+  if (isLoad) {
+    // LOAD  REG <- [ADDR]
+    displayLeft = destReg;
+    displayRight = memText;
+  } else if (isStore) {
+    // STORE [ADDR] <- REG
+    displayLeft = memText;
+    displayRight = data?.srcReg ?? "R0";
+  } else if (def.layout === "ds") {
+    displayLeft = destReg;
+    displayRight = srcText;
+  } else {
+    displayLeft = "";
+    displayRight = "";
+  }
+
   const labelVal = data?.label ?? (def.layout === "label" ? "LABEL" : "");
 
+  // Left icon renderer
   const IconBox = () => {
     const { icon } = def as { icon?: any };
     if (!icon) return null;
@@ -78,7 +113,7 @@ export default memo(function InstructionNode({
     return <IconComp />;
   };
 
-  // Match center-arrow border to left icon border color
+  // Arrow pill border matches left icon's border-* class
   const borderColorClass =
     styles.iconBox.match(/border-[\w-]+-\d+/)?.[0] || "border-gray-300";
 
@@ -90,10 +125,6 @@ export default memo(function InstructionNode({
         styles.button,
       )}
     >
-      {/* Connection handles:
-          START: only bottom (source)
-          HLT  : only top (target)
-          Others: both */}
       {!isStart && (
         <Handle
           type="target"
@@ -113,7 +144,6 @@ export default memo(function InstructionNode({
         />
       )}
 
-      {/* Left icon */}
       <span
         className={cn(
           "w-8 h-8 grid place-items-center rounded-md border shrink-0",
@@ -123,29 +153,32 @@ export default memo(function InstructionNode({
         <IconBox />
       </span>
 
-      {/* Title + content */}
       <div className="flex items-center gap-3">
         <span className={cn("text-sm font-bold tracking-wide", styles.title)}>
           {def.name}
         </span>
         <span className={cn("h-6 border-l", styles.divider)} />
-
         {def.layout === "ds" && (
           <div className="flex items-center gap-2">
-            <Pill toneClass={styles.pill}>{dest}</Pill>
-            <Pill toneClass={styles.pill} square borderColor={borderColorClass}>
+            <Pill toneClass={styles.pill}>{displayLeft}</Pill>
+            <Pill
+              toneClass={styles.pill}
+              square
+              borderColor={
+                styles.iconBox.match(/border-[\w-]+-\d+/)?.[0] ||
+                "border-gray-300"
+              }
+            >
               <HiOutlineArrowLeft className="w-4 h-4" />
             </Pill>
-            <Pill toneClass={styles.pill}>{src}</Pill>
+            <Pill toneClass={styles.pill}>{String(displayRight)}</Pill>
           </div>
         )}
-
         {def.layout === "label" && (
           <div className="flex items-center gap-2">
-            <Pill toneClass={styles.pill}>{labelVal}</Pill>
+            <Pill toneClass={styles.pill}>{data?.label ?? "LABEL"}</Pill>
           </div>
         )}
-
         {isZero && <div className="text-xs text-gray-500 italic" />}
       </div>
     </div>
