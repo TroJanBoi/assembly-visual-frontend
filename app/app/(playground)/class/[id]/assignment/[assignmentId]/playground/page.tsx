@@ -27,12 +27,12 @@ import {
   checkPlayground,
   createPlayground,
   updatePlayground,
-  executePlayground,
   type ExecutionState,
   ProgramItem,
   Operand,
   UIPosition,
 } from "@/lib/api/playground";
+import { executeProgram } from "@/lib/playground/executor";
 
 import BottomTerminal from "@/components/playground/BottomTerminal";
 
@@ -720,10 +720,14 @@ export default function AssignmentPlaygroundPage() {
         return;
       }
 
-      // 10) Execute (RUN mode first)
-      appendLog("Posting execute request...");
-      const execRes = await executePlayground(playgroundIdRef.current);
-      const execution_state: ExecutionState = execRes.execution_state;
+      // 10) Execute (CLIENT-SIDE)
+      appendLog("Executing program (client-side)...");
+      const execution_state = executeProgram(items, cpu);
+
+      // Log execution results
+      if (execution_state.logs) {
+        execution_state.logs.forEach((log) => appendLog(`  ${log}`));
+      }
 
       // update real state
       setExecRegisters(execution_state.registers || {});
