@@ -18,12 +18,12 @@ type BottomTerminalProps = {
   maxHeightPx?: number; // default 260
 };
 
-export default function BottomTerminal({
+export default React.memo(function BottomTerminal({
   labName,
   logs,
   onClear,
   defaultOpen = true,
-  maxHeightPx = 260,
+  maxHeightPx = 180,
 }: BottomTerminalProps) {
   const [open, setOpen] = useState(defaultOpen);
   const endRef = useRef<HTMLDivElement>(null);
@@ -78,7 +78,7 @@ export default function BottomTerminal({
 
       {/* View-only log area */}
       {open && (
-        <div className="bg-black text-gray-100 font-mono text-[13px] leading-relaxed overflow-y-auto border-t border-gray-800 h-60">
+        <div className="bg-black text-gray-100 font-mono text-[13px] leading-relaxed overflow-y-auto border-t border-gray-800 h-40">
           <div className="px-3 py-2 space-y-1">
             {rendered.length === 0 ? (
               <div className="text-gray-500">
@@ -98,4 +98,4 @@ export default function BottomTerminal({
       )}
     </div>
   );
-}
+});

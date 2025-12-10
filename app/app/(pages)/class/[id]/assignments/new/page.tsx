@@ -44,6 +44,7 @@ const allInstructionsByCategory = {
   data_movement: ["MOV", "LOAD", "STORE"],
   arithmetic: ["ADD", "SUB", "MUL", "DIV", "INC", "DEC"],
   comparison_and_conditional: ["CMP", "JMP", "JZ", "JNZ", "JC", "JNC", "JN"],
+  stack: ["PUSH", "POP"],
 };
 
 export default function CreateAssignmentPage() {
@@ -215,15 +216,41 @@ export default function CreateAssignmentPage() {
         JSON.stringify(mainAssignmentPayload, null, 2),
       );
 
-      // We will skip the API calls for now as per your request
-      // const createdAssignment = await createMainAssignment(id, mainAssignmentPayload);
-      // const newAssignmentId = createdAssignment?.id;
-      // if (!newAssignmentId) throw new Error("API did not return an ID for the new assignment.");
-
-      addToast(
-        "Assignment creation initiated! (API call is currently skipped)",
-        "success",
+      // 1. Create Main Assignment
+      const createdAssignment = await createMainAssignment(
+        id,
+        mainAssignmentPayload,
       );
+      const newAssignmentId = createdAssignment?.id;
+
+      if (!newAssignmentId) {
+        throw new Error("API did not return an ID for the new assignment.");
+      }
+
+      // 2. Create Test Suites & Cases (if any)
+      if (formData.testSuites && formData.testSuites.length > 0) {
+        for (const suite of formData.testSuites) {
+          // Create Test Suite
+          const createdSuite = await addTestSuite(id, newAssignmentId, {
+            name: suite.name,
+          });
+          const suiteId = createdSuite?.id;
+
+          if (suiteId && suite.testCases && suite.testCases.length > 0) {
+            // Create Test Cases under this suite
+            for (const testCase of suite.testCases) {
+              const testCasePayload = {
+                name: testCase.name || "Untitled Case",
+                init: transformConditionsToState(testCase.initialState || []),
+                assert: transformConditionsToState(testCase.expectedState || []),
+              };
+              await addTestCase(id, newAssignmentId, suiteId, testCasePayload);
+            }
+          }
+        }
+      }
+
+      addToast("Assignment created successfully!", "success");
 
       setTimeout(() => {
         router.push(`/class/${id}`);

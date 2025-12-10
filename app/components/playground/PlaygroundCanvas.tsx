@@ -12,6 +12,7 @@ import ReactFlow, {
   OnEdgesChange,
   OnConnect,
   ReactFlowInstance,
+  ConnectionLineType,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -35,7 +36,7 @@ export type PlaygroundCanvasProps = {
   onNodeDragStop?: (e: any, node: Node) => void;
 };
 
-export default function PlaygroundCanvas({
+export default React.memo(function PlaygroundCanvas({
   nodes,
   edges,
   nodeTypes,
@@ -70,4 +71,4 @@ export default function PlaygroundCanvas({
       </ReactFlow>
     </div>
   );
-}
+});

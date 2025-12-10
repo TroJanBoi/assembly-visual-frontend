@@ -90,6 +90,13 @@ const instructionCategories = [
       },
     ],
   },
+  {
+    title: "Stack",
+    instructions: [
+      { name: "PUSH", icon: <HiOutlineUpload />, color: "teal" },
+      { name: "POP", icon: <HiOutlineDownload />, color: "cyan" },
+    ],
+  },
 ];
 
 const colorStyles: { [key: string]: { button: string; iconBox: string } } = {

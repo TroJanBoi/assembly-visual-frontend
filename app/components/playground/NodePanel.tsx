@@ -19,7 +19,7 @@ type Props = {
   hideHlt?: boolean;
 };
 
-export default function NodePanel({
+export default React.memo(function NodePanel({
   allowedInstructions,
   hideStart,
   hideHlt,
@@ -54,10 +54,7 @@ export default function NodePanel({
   }, [allow, hideStart, hideHlt]);
 
   return (
-    <div className="p-4 h-full overflow-y-auto bg-white border-r border-gray-200">
-      <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">
-        Instructions
-      </h2>
+    <div className="max-w-64 p-4 h-full overflow-y-auto bg-white border-r border-gray-200">
 
       {filtered.length === 0 ? (
         <p className="text-sm text-gray-400">
@@ -114,4 +111,4 @@ export default function NodePanel({
       )}
     </div>
   );
-}
+});

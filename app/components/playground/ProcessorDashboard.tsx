@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { HiSearch, HiViewGrid, HiViewList } from "react-icons/hi";
 import { cn } from "@/lib/utils";
@@ -84,7 +84,7 @@ const AddressTooltip = ({
   );
 };
 
-export default function ProcessorDashboard({
+export default React.memo(function ProcessorDashboard({
   registers,
   flags,
   memory,
@@ -149,7 +149,7 @@ export default function ProcessorDashboard({
   const regCols = Math.min(4, Math.max(1, regNames.length));
 
   return (
-    <div ref={rootRef} className="p-6 h-full overflow-y-auto bg-white relative">
+    <div ref={rootRef} className="w-96 p-6 h-full overflow-y-auto bg-white relative">
       {hoveredInfo && (
         <AddressTooltip
           address={hoveredInfo.address}
@@ -275,4 +275,4 @@ export default function ProcessorDashboard({
       </section>
     </div>
   );
-}
+});

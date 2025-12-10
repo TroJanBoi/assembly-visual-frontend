@@ -30,10 +30,12 @@ export type PlaygroundItem = {
 };
 
 export type Playground = {
+  id?: number; // sometimes returned at top level
   assignment_id: number;
   attempt_no?: number;
   status: "in_progress" | "submitted" | "done" | string;
   item: PlaygroundItem;
+  Data?: any; // legacy or wrapper structure
 };
 
 export type PlaygroundCreateBody = {
@@ -105,8 +107,10 @@ export async function updateMyPlayground(body: PlaygroundUpdateBody) {
   });
 }
 
-export async function checkPlayground(assignmentId: number) {
-  return apiFetch("/api/v2/playgrounds/me", {
+export async function checkPlayground(
+  assignmentId: number,
+): Promise<Playground | null> {
+  return apiFetch<Playground>("/api/v2/playgrounds/me", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ assignment_id: assignmentId }),

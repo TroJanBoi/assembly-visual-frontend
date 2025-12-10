@@ -1,0 +1,202 @@
+{
+    "assignments": [
+        {
+            "id": 1,
+            "class_id": 101,
+            "title": "Basic Arithmetic Operations",
+            "description": "Learn to use MOV, ADD, SUB instructions",
+            "due_date": "2025-12-31T23:59:59Z",
+            "max_attempt": 3,
+            "grade": 100,
+            "settings": {
+                "grade_policy": {
+                    "mode": "auto",
+                    "weight": {
+                        "test_case": 70,
+                        "number_of_node_used": 30
+                    }
+                },
+                "test_case_policy": {
+                    "visible_to_student": true
+                },
+                "fe_behavior": {
+                    "lock_after_submit": false,
+                    "allow_resubmit_after_due": true
+                }
+            },
+            "condition": {
+                "allowed_instructions": {
+                    "Data Transfer": {
+                        "MOV": 1,
+                        "LOAD": 1,
+                        "STORE": 1
+                    },
+                    "Arithmetic": {
+                        "ADD": 1,
+                        "SUB": 1
+                    },
+                    "Control": {
+                        "HLT": 1
+                    }
+                },
+                "execution_constraints": {
+                    "max_nodes": 10,
+                    "register_count": 4
+                },
+                "initial_state": {
+                    "registers": {
+                        "R0": 0,
+                        "R1": 5,
+                        "R2": 10
+                    },
+                    "memory": [
+                        {
+                            "address": 0,
+                            "value": 100
+                        },
+                        {
+                            "address": 1,
+                            "value": 200
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": 2,
+            "class_id": 101,
+            "title": "Control Flow & Branching",
+            "description": "Practice using JMP, JZ, JNZ with labels",
+            "due_date": null,
+            "max_attempt": 5,
+            "grade": 100,
+            "settings": {
+                "grade_policy": {
+                    "mode": "auto",
+                    "weight": {
+                        "test_case": 80,
+                        "number_of_node_used": 20
+                    }
+                },
+                "test_case_policy": {
+                    "visible_to_student": true
+                },
+                "fe_behavior": {
+                    "lock_after_submit": false,
+                    "allow_resubmit_after_due": false
+                }
+            },
+            "condition": {
+                "allowed_instructions": {
+                    "Data Transfer": {
+                        "MOV": 1
+                    },
+                    "Comparison": {
+                        "CMP": 1
+                    },
+                    "Branching": {
+                        "JMP": 1,
+                        "JZ": 1,
+                        "JNZ": 1,
+                        "LABEL": 1
+                    },
+                    "Control": {
+                        "HLT": 1
+                    }
+                },
+                "execution_constraints": {
+                    "max_nodes": 15,
+                    "register_count": 8
+                },
+                "initial_state": {
+                    "registers": {},
+                    "memory": []
+                }
+            }
+        }
+    ],
+    "playgrounds": [
+        {
+            "id": 1,
+            "assignment_id": 1,
+            "user_id": 1,
+            "attempt_no": 1,
+            "status": "in_progress",
+            "item": {
+                "items": [
+                    {
+                        "id": 1,
+                        "instruction": "MOV",
+                        "label": "",
+                        "next": 2,
+                        "next_true": null,
+                        "next_false": null,
+                        "operands": [
+                            {
+                                "type": "Register",
+                                "value": "R0"
+                            },
+                            {
+                                "type": "Immediate",
+                                "value": "#10"
+                            }
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "instruction": "HLT",
+                        "label": "",
+                        "next": null,
+                        "next_true": null,
+                        "next_false": null,
+                        "operands": []
+                    }
+                ],
+                "meta_data": {
+                    "author_id": 1,
+                    "program_name": "Test Program",
+                    "timestamp": "2025-12-10T12:00:00Z"
+                },
+                "ui": {
+                    "pan": {
+                        "x": 0,
+                        "y": 0
+                    },
+                    "position": {
+                        "1": {
+                            "x": 100,
+                            "y": 100
+                        },
+                        "2": {
+                            "x": 100,
+                            "y": 200
+                        }
+                    },
+                    "zoom": 1
+                }
+            }
+        }
+    ],
+    "users": [
+        {
+            "id": 1,
+            "username": "student1",
+            "email": "student1@example.com",
+            "role": "student"
+        },
+        {
+            "id": 2,
+            "username": "teacher1",
+            "email": "teacher1@example.com",
+            "role": "teacher"
+        }
+    ],
+    "classes": [
+        {
+            "id": 101,
+            "name": "Computer Architecture 101",
+            "description": "Introduction to Assembly Programming",
+            "teacher_id": 2
+        }
+    ]
+}

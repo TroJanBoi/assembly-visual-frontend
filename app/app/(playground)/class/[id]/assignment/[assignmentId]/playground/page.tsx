@@ -200,11 +200,48 @@ export default function AssignmentPlaygroundPage() {
     [],
   );
 
+  // Auto-generate dashed edges for label jumps
+  useEffect(() => {
+    const branchInstructions = new Set(['JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN']);
+    const labelEdges: Edge[] = [];
+
+    nodes.forEach(node => {
+      const instr = getInstr(node);
+      if (branchInstructions.has(instr)) {
+        const labelName = node.data?.label;
+        if (labelName) {
+          const targetLabel = nodes.find(n =>
+            getInstr(n) === 'LABEL' && n.data?.label === labelName
+          );
+          if (targetLabel) {
+            labelEdges.push({
+              id: `label-${node.id}-${targetLabel.id}`,
+              source: node.id,
+              target: targetLabel.id,
+              sourceHandle: 'left',
+              targetHandle: 'left',
+              type: 'default',
+              animated: true,
+              style: { strokeDasharray: '5 5', stroke: '#9333ea' },
+              zIndex: -1,
+            });
+          }
+        }
+      }
+    });
+
+    setEdges(eds => {
+      const regularEdges = eds.filter(e => !e.id.startsWith('label-'));
+      return [...regularEdges, ...labelEdges];
+    });
+  }, [nodes]);
+
   const onConnect: OnConnect = useCallback((connection) => {
     if (!connection.source || !connection.target) return;
 
     setEdges((eds) => {
-      if (!canConnectEdge(eds, connection.source!, connection.target!)) {
+      // Pass handles to allow multi-handle connections (e.g. separate 'out' and 'left' handles)
+      if (!canConnectEdge(eds, connection.source!, connection.target!, connection.sourceHandle, connection.targetHandle)) {
         // optionally toast: "Each node can only have one connection."
         return eds;
       }
@@ -257,13 +294,34 @@ export default function AssignmentPlaygroundPage() {
   const onNodeDragStop = useCallback(
     (_: any, node: Node) => {
       if (proximityNode) {
-        // check first to avoid firing a blocked onConnect
-        if (canConnectEdge(edges, proximityNode.id, node.id)) {
+        const draggedY = node.position.y;
+        const proximityY = proximityNode.position.y;
+
+        // Determine Source/Target based on vertical position
+        let sourceId: string;
+        let targetId: string;
+
+        if (draggedY < proximityY) {
+          sourceId = node.id;
+          targetId = proximityNode.id;
+        } else {
+          sourceId = proximityNode.id;
+          targetId = node.id;
+        }
+
+        const sourceHandle = "out";
+        const targetHandle = "in";
+
+        const isDuplicate = edges.some(e =>
+          e.source === sourceId && e.target === targetId
+        );
+
+        if (!isDuplicate && canConnectEdge(edges, sourceId, targetId, sourceHandle, targetHandle)) {
           onConnect({
-            source: proximityNode.id,
-            target: node.id,
-            sourceHandle: null,
-            targetHandle: null,
+            source: sourceId,
+            target: targetId,
+            sourceHandle,
+            targetHandle,
           });
         }
       }
@@ -277,7 +335,7 @@ export default function AssignmentPlaygroundPage() {
         }),
       );
     },
-    [proximityNode, onConnect],
+    [proximityNode, onConnect, edges],
   );
 
   const onDragOver = useCallback((event: DragEvent) => {
@@ -294,8 +352,8 @@ export default function AssignmentPlaygroundPage() {
       if (!type) return;
       const key = type.toLowerCase();
 
-  // allow HLT และ START เสมอ; ที่เหลือเช็คตาม allowed
-  const isCore = key === "hlt" || key === "start";
+      // allow HLT และ START เสมอ; ที่เหลือเช็คตาม allowed
+      const isCore = key === "hlt" || key === "start";
       if (!isCore && allowed.size && !allowed.has(key)) {
         alert(`Instruction "${type}" is not allowed for this assignment.`);
         return;
@@ -746,8 +804,24 @@ export default function AssignmentPlaygroundPage() {
       return false;
     }
 
-    if (oneOutgoing && eds.some((e) => e.source === source)) return false;
-    if (oneIncoming && eds.some((e) => e.target === target)) return false;
+    if (
+      oneOutgoing &&
+      eds.some(
+        (e) =>
+          e.source === source &&
+          (sourceHandle ? e.sourceHandle === sourceHandle : true), // Only block if same handle
+      )
+    )
+      return false;
+    if (
+      oneIncoming &&
+      eds.some(
+        (e) =>
+          e.target === target &&
+          (targetHandle ? e.targetHandle === targetHandle : true), // Only block if same handle
+      )
+    )
+      return false;
 
     return true;
   }
@@ -761,7 +835,7 @@ export default function AssignmentPlaygroundPage() {
           zoom: Number(vp.zoom ?? 1),
         };
       }
-    } catch {}
+    } catch { }
     return { pan: { x: 0, y: 0 }, zoom: 1 };
   }
 
@@ -773,11 +847,11 @@ export default function AssignmentPlaygroundPage() {
   const displayMemory =
     Object.keys(execMemorySparse).length > 0
       ? Object.entries(execMemorySparse)
-          .map(([addr, val]) => ({
-            address: Number(addr),
-            value: Number(val),
-          }))
-          .sort((a, b) => a.address - b.address)
+        .map(([addr, val]) => ({
+          address: Number(addr),
+          value: Number(val),
+        }))
+        .sort((a, b) => a.address - b.address)
       : cpu.memory;
 
   return (

@@ -7,6 +7,7 @@ import { HiPlus, HiSearch } from "react-icons/hi";
 import { cn } from "@/lib/utils";
 
 import { AssignmentFormData } from "@/types/assignment";
+import { MEMORY_CONFIG } from "@/lib/constants/playground";
 
 interface SectionMemoryProps {
   formData: AssignmentFormData;
@@ -84,24 +85,38 @@ export default function SectionMemory({
         <div className="md:col-span-2">
           <div className="grid grid-cols-16 border border-gray-300 rounded-lg">
             {Array.from({ length: 256 }).map((_, i) => {
+              const isStack = i >= MEMORY_CONFIG.STACK_START; // 0xE0 - 0xFF
               const isSet = formData.initialMemory.some((m) => m.address === i);
               const isSelected = selectedAddress === i;
               return (
                 <button
                   key={i}
                   type="button"
+                  disabled={isStack}
                   onClick={() => setSelectedAddress(i)}
                   className={cn(
-                    "w-full aspect-square text-[9px] text-gray-400 border-r border-b border-gray-200",
-                    isSet && "bg-green-200 text-green-800",
+                    "w-full aspect-square text-[9px] border-r border-b border-gray-200",
+                    isStack
+                      ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                      : "text-gray-400",
+                    isSet && !isStack && "bg-green-200 text-green-800",
                     isSelected && "ring-2 ring-blue-500 z-10 relative",
-                    !isSet && "hover:bg-gray-100",
+                    !isSet && !isStack && "hover:bg-gray-100",
                   )}
-                  title={`Address ${i} (0x${i.toString(16).toUpperCase().padStart(2, "0")})`}
+                  title={
+                    isStack
+                      ? `Address ${i} (Stack Reserved)`
+                      : `Address ${i} (0x${i
+                        .toString(16)
+                        .toUpperCase()
+                        .padStart(2, "0")})`
+                  }
                 >
-                  {isSet
+                  {isSet && !isStack
                     ? formData.initialMemory.find((m) => m.address === i)?.value
-                    : i}
+                    : isStack
+                      ? ""
+                      : i}
                 </button>
               );
             })}
@@ -117,8 +132,8 @@ export default function SectionMemory({
                 <Input
                   type="number"
                   min="0"
-                  max="255"
-                  placeholder="0-255"
+                  max="223"
+                  placeholder="0-223"
                   value={searchValue}
                   onChange={handleSearchChange}
                   className="pl-8"
@@ -129,6 +144,11 @@ export default function SectionMemory({
             <div className="text-sm space-y-1">
               <p>
                 Address : <strong className="text-base">0x{hexAddress}</strong>
+                {selectedAddress >= MEMORY_CONFIG.STACK_START && (
+                  <span className="text-red-500 text-xs ml-2">
+                    (Stack Reserved)
+                  </span>
+                )}
               </p>
               <p>
                 Value (DEC) :{" "}

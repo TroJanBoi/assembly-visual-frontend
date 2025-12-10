@@ -15,7 +15,7 @@ import {
   HiStop,
 } from "react-icons/hi";
 
-export type NodeLayout = "ds" | "label" | "zero";
+export type NodeLayout = "ds" | "label" | "zero" | "single";
 export type OperandKind = "reg" | "imm" | "mem" | "label";
 export type IconDef = ElementType | string;
 
@@ -150,146 +150,186 @@ export const instructionCategories: {
   title: string;
   instructions: InstructionDef[];
 }[] = [
-  {
-    title: "System",
-    instructions: [
-      { name: "START", color: "startGreen", icon: HiFlag, layout: "zero" },
-      {
-        name: "LABEL",
-        color: "green",
-        icon: HiCheck,
-        layout: "label",
-        operands: ["label"],
-      },
-      { name: "NOP", color: "gray", icon: HiOutlineClock, layout: "zero" },
-      { name: "HLT", color: "red", icon: HiStop, layout: "zero" },
-    ],
-  },
-  {
-    title: "Data Movement",
-    instructions: [
-      {
-        name: "MOV",
-        color: "blue",
-        icon: HiOutlineDatabase,
-        layout: "ds",
-        operands: ["reg", "imm"],
-      },
-      {
-        name: "LOAD",
-        color: "cyan",
-        icon: HiOutlineDownload,
-        layout: "ds",
-        operands: ["reg", "mem"],
-      },
-      {
-        name: "STORE",
-        color: "teal",
-        icon: HiOutlineUpload,
-        layout: "ds",
-        operands: ["mem", "reg"],
-      },
-    ],
-  },
-  {
-    title: "Arithmetic",
-    instructions: [
-      {
-        name: "ADD",
-        color: "orange",
-        icon: HiPlus,
-        layout: "ds",
-        operands: ["reg", "imm"],
-      },
-      {
-        name: "SUB",
-        color: "purple",
-        icon: HiMinus,
-        layout: "ds",
-        operands: ["reg", "imm"],
-      },
-      {
-        name: "MUL",
-        color: "pink",
-        icon: HiX,
-        layout: "ds",
-        operands: ["reg", "imm"],
-      },
-      {
-        name: "DIV",
-        color: "violet",
-        icon: "÷",
-        layout: "ds",
-        operands: ["reg", "imm"],
-      },
-      {
-        name: "INC",
-        color: "lightBlue",
-        icon: "+1",
-        layout: "ds",
-        operands: ["reg", "imm"],
-      },
-      {
-        name: "DEC",
-        color: "lightBlue",
-        icon: "-1",
-        layout: "ds",
-        operands: ["reg", "imm"],
-      },
-      {
-        name: "CMP",
-        color: "slate",
-        icon: HiOutlineSwitchHorizontal,
-        layout: "ds",
-        operands: ["reg", "reg"],
-      },
-    ],
-  },
-  {
-    title: "Comparison/Conditional",
-    instructions: [
-      {
-        name: "JMP",
-        color: "indigo",
-        icon: HiOutlineArrowRight,
-        layout: "label",
-        operands: ["label"],
-      },
-      {
-        name: "JZ",
-        color: "indigo",
-        icon: "JZ",
-        layout: "label",
-        operands: ["label"],
-      },
-      {
-        name: "JNZ",
-        color: "indigo",
-        icon: "JNZ",
-        layout: "label",
-        operands: ["label"],
-      },
-      {
-        name: "JC",
-        color: "purple",
-        icon: "JC",
-        layout: "label",
-        operands: ["label"],
-      },
-      {
-        name: "JNC",
-        color: "purple",
-        icon: "JNC",
-        layout: "label",
-        operands: ["label"],
-      },
-      {
-        name: "JN",
-        color: "black",
-        icon: "JN",
-        layout: "label",
-        operands: ["label"],
-      },
-    ],
-  },
-];
+    {
+      title: "System",
+      instructions: [
+        { name: "START", color: "startGreen", icon: HiFlag, layout: "zero" },
+        {
+          name: "LABEL",
+          color: "green",
+          icon: HiCheck,
+          layout: "label",
+          operands: ["label"],
+        },
+        { name: "NOP", color: "gray", icon: HiOutlineClock, layout: "zero" },
+        { name: "HLT", color: "red", icon: HiStop, layout: "zero" },
+      ],
+    },
+    {
+      title: "Data Movement",
+      instructions: [
+        {
+          name: "MOV",
+          color: "blue",
+          icon: HiOutlineDatabase,
+          layout: "ds",
+          operands: ["reg", "imm"],
+        },
+        {
+          name: "LOAD",
+          color: "cyan",
+          icon: HiOutlineDownload,
+          layout: "ds",
+          operands: ["reg", "mem"],
+        },
+        {
+          name: "STORE",
+          color: "teal",
+          icon: HiOutlineUpload,
+          layout: "ds",
+          operands: ["mem", "reg"],
+        },
+      ],
+    },
+    {
+      title: "Arithmetic",
+      instructions: [
+        {
+          name: "ADD",
+          color: "orange",
+          icon: HiPlus,
+          layout: "ds",
+          operands: ["reg", "imm"],
+        },
+        {
+          name: "SUB",
+          color: "purple",
+          icon: HiMinus,
+          layout: "ds",
+          operands: ["reg", "imm"],
+        },
+        {
+          name: "MUL",
+          color: "pink",
+          icon: HiX,
+          layout: "ds",
+          operands: ["reg", "imm"],
+        },
+        {
+          name: "DIV",
+          color: "violet",
+          icon: "÷",
+          layout: "ds",
+          operands: ["reg", "imm"],
+        },
+        {
+          name: "INC",
+          color: "lightBlue",
+          icon: "+1",
+          layout: "single",
+          operands: ["reg"],
+        },
+        {
+          name: "DEC",
+          color: "lightBlue",
+          icon: "-1",
+          layout: "single",
+          operands: ["reg"],
+        },
+        {
+          name: "CMP",
+          color: "slate",
+          icon: HiOutlineSwitchHorizontal,
+          layout: "ds",
+          operands: ["reg", "reg"],
+        },
+      ],
+    },
+    {
+      title: "Comparison/Conditional",
+      instructions: [
+        {
+          name: "JMP",
+          color: "indigo",
+          icon: HiOutlineArrowRight,
+          layout: "label",
+          operands: ["label"],
+        },
+        {
+          name: "JZ",
+          color: "indigo",
+          icon: "JZ",
+          layout: "label",
+          operands: ["label"],
+        },
+        {
+          name: "JNZ",
+          color: "indigo",
+          icon: "JNZ",
+          layout: "label",
+          operands: ["label"],
+        },
+        {
+          name: "JC",
+          color: "purple",
+          icon: "JC",
+          layout: "label",
+          operands: ["label"],
+        },
+        {
+          name: "JNC",
+          color: "purple",
+          icon: "JNC",
+          layout: "label",
+          operands: ["label"],
+        },
+        {
+          name: "JN",
+          color: "black",
+          icon: "JN",
+          layout: "label",
+          operands: ["label"],
+        },
+      ],
+    },
+    {
+      title: "Stack",
+      instructions: [
+        {
+          name: "PUSH",
+          color: "teal",
+          icon: HiOutlineUpload,
+          layout: "single",
+          operands: ["reg"],
+        },
+        {
+          name: "POP",
+          color: "cyan",
+          icon: HiOutlineDownload,
+          layout: "single",
+          operands: ["reg"],
+        },
+      ],
+    },
+    {
+      title: "Input/Output",
+      instructions: [
+        {
+          name: "IN",
+          color: "green",
+          icon: HiOutlineDownload,
+          layout: "ds",
+          operands: ["reg", "imm"],
+        },
+        {
+          name: "OUT",
+          color: "orange",
+          icon: HiOutlineUpload,
+          layout: "ds",
+          operands: ["imm", "reg"],
+        },
+      ],
+    },
+  ];
+
+

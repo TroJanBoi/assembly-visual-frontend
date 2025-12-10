@@ -1,7 +1,7 @@
 // app/components/playground/PropertyPanel.tsx
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
   instructionCategories,
@@ -24,7 +24,7 @@ const defs = instructionCategories.flatMap((c) => c.instructions);
 const findDef = (name?: string): InstructionDef | undefined =>
   defs.find((d) => d.name.toUpperCase() === String(name || "").toUpperCase());
 
-export default function PropertyPanel({
+export default React.memo(function PropertyPanel({
   open,
   onClose,
   node,
@@ -255,10 +255,10 @@ export default function PropertyPanel({
 
   // Render -----------------------------------------------------------
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 ">
       <div
         ref={panelRef}
-        className="w-[380px] rounded-2xl bg-white shadow-xl p-5"
+        className="w-[320px] relative top-48 rounded-2xl bg-white shadow-xl p-5"
         role="dialog"
         aria-modal="true"
       >
@@ -473,4 +473,4 @@ export default function PropertyPanel({
       </div>
     </div>
   );
-}
+});

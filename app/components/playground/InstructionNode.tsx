@@ -121,7 +121,7 @@ export default memo(function InstructionNode({
     <div
       className={cn(
         "inline-flex items-center gap-2 rounded-xl border-2 shadow-sm px-3 py-2",
-        "h-auto w-auto max-w-max",
+        "h-auto min-w-[200px] justify-start", // Fixed width for consistent grid alignment
         styles.button,
       )}
     >
@@ -141,6 +141,28 @@ export default memo(function InstructionNode({
           id="out"
           className="!bg-gray-400"
           isConnectable={isConnectable}
+        />
+      )}
+
+      {/* Left handle for label jumps - Branch is SOURCE */}
+      {['JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN'].includes(instrName) && (
+        <Handle
+          type="source"
+          position={Position.Left}
+          id="left"
+          className="!bg-purple-500"
+          isConnectable={false}
+        />
+      )}
+
+      {/* Left handle for label jumps - LABEL is TARGET */}
+      {instrName === 'LABEL' && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="left"
+          className="!bg-purple-500"
+          isConnectable={false}
         />
       )}
 
@@ -172,6 +194,11 @@ export default memo(function InstructionNode({
               <HiOutlineArrowLeft className="w-4 h-4" />
             </Pill>
             <Pill toneClass={styles.pill}>{String(displayRight)}</Pill>
+          </div>
+        )}
+        {def.layout === "single" && (
+          <div className="flex items-center gap-2">
+            <Pill toneClass={styles.pill}>{destReg}</Pill>
           </div>
         )}
         {def.layout === "label" && (

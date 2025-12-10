@@ -119,38 +119,41 @@ export async function createAssignment(
 /**
  * Adds a test suite to an existing assignment.
  */
-// export async function addTestSuite(
-//   classId: string | number,
-//   assignmentId: number,
-//   data: AddTestSuitePayload,
-// ): Promise<{ id: number }> {
-//   const pathClassId =
-//     typeof classId === "number" ? classId.toString() : classId;
-//   return apiFetch<{ id: number }>(
-//     `/api/v2/classes/${pathClassId}/assignments/${assignmentId}/test-suites`,
-//     {
-//       method: "POST",
-//       body: JSON.stringify(data),
-//     },
-//   );
-// }
+/**
+ * Adds a test suite to an existing assignment.
+ */
+export async function addTestSuite(
+  classId: string | number,
+  assignmentId: number,
+  data: AddTestSuitePayload,
+): Promise<{ id: number }> {
+  const pathClassId =
+    typeof classId === "number" ? classId.toString() : classId;
+  return apiFetch<{ id: number }>(
+    `/api/v2/classes/${pathClassId}/assignments/${assignmentId}/test-suites`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
+}
 
 /**
  * Adds a test case to an existing test suite.
  */
-// export async function addTestCase(
-//   classId: string | number,
-//   assignmentId: number,
-//   suiteId: number,
-//   data: AddTestCasePayload,
-// ): Promise<any> {
-//   const pathClassId =
-//     typeof classId === "number" ? classId.toString() : classId;
-//   return apiFetch<any>(
-//     `/api/v2/classes/${pathClassId}/assignments/${assignmentId}/test-suites/${suiteId}/test-cases`,
-//     {
-//       method: "POST",
-//       body: JSON.stringify(data),
-//     },
-//   );
-// }
+export async function addTestCase(
+  classId: string | number,
+  assignmentId: number,
+  suiteId: number,
+  data: AddTestCasePayload,
+): Promise<any> {
+  const pathClassId =
+    typeof classId === "number" ? classId.toString() : classId;
+  return apiFetch<any>(
+    `/api/v2/classes/${pathClassId}/assignments/${assignmentId}/test-suites/${suiteId}/test-cases`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
+}

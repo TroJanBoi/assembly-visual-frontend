@@ -11,7 +11,7 @@ interface DraggablePanelProps {
   defaultPosition: { x: number; y: number };
 }
 
-export default function DraggablePanel({
+export default React.memo(function DraggablePanel({
   title,
   children,
   defaultPosition,
@@ -29,10 +29,10 @@ export default function DraggablePanel({
       <div
         ref={nodeRef}
         className={cn(
-          "absolute z-10 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-2xl flex flex-col transition-all duration-300",
+          "absolute z-10 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-2xl flex flex-col transition-[width,height] duration-300",
           isCollapsed
             ? "w-auto h-auto"
-            : "w-96 max-w-[90vw] h-[70vh] max-h-[700px]",
+            : "w-auto max-w-[90vw] h-[70vh] max-h-[700px]",
         )}
       >
         <div className="drag-handle flex items-center justify-between p-3 border-b bg-gray-50/50 cursor-move rounded-t-lg gap-4">
@@ -56,4 +56,4 @@ export default function DraggablePanel({
       </div>
     </Draggable>
   );
-}
+});
