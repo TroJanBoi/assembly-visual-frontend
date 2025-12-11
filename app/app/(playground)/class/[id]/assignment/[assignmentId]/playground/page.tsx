@@ -220,7 +220,7 @@ export default function AssignmentPlaygroundPage() {
               target: targetLabel.id,
               sourceHandle: 'left',
               targetHandle: 'left',
-              type: 'default',
+              type: 'smoothstep',
               animated: true,
               style: { strokeDasharray: '5 5', stroke: '#9333ea' },
               zIndex: -1,
@@ -231,7 +231,10 @@ export default function AssignmentPlaygroundPage() {
     });
 
     setEdges(eds => {
-      const regularEdges = eds.filter(e => !e.id.startsWith('label-'));
+      // Force all regular edges to use smoothstep type
+      const regularEdges = eds
+        .filter(e => !e.id.startsWith('label-'))
+        .map(e => ({ ...e, type: 'smoothstep' }));
       return [...regularEdges, ...labelEdges];
     });
   }, [nodes]);
@@ -519,49 +522,36 @@ export default function AssignmentPlaygroundPage() {
       const instr = String(it.instruction || "").toUpperCase();
       const ops = Array.isArray(it.operands) ? it.operands : [];
 
-      const need2 = new Set(["MOV", "LOAD", "STORE", "ADD", "SUB", "CMP"]);
-      const zero = new Set(["HLT", "LABEL", "NOP"]);
-      const oneJmp = new Set(["JMP", "JZ", "JNZ"]);
+      const need2 = new Set(["MOV", "LOAD", "STORE", "ADD", "SUB", "CMP", "MUL", "DIV"]);
+      const need1 = new Set(["INC", "DEC", "PUSH", "POP"]);
+      const zero = new Set(["HLT", "START", "NOP"]);
 
       if (need2.has(instr) && ops.length !== 2) {
         errs.push(
           `${instr} at id=${it.id} requires 2 operands, got ${ops.length}`,
         );
       }
-      if (zero.has(instr) && ops.length !== 0) {
+
+      if (need1.has(instr) && ops.length !== 1) {
         errs.push(
-          `${instr} at id=${it.id} must have 0 operands, got ${ops.length}`,
-        );
-      }
-      if (oneJmp.has(instr) && ops.length !== 1) {
-        errs.push(
-          `${instr} at id=${it.id} requires 1 label operand, got ${ops.length}`,
+          `${instr} at id=${it.id} requires 1 operand, got ${ops.length}`,
         );
       }
 
-      if (instr === "CMP") {
-        if (
-          typeof (it as any).next_true !== "number" ||
-          typeof (it as any).next_false !== "number"
-        ) {
-          errs.push(`CMP at id=${it.id} must have next_true and next_false`);
-        }
-      } else {
-        // ที่ไม่ใช่ CMP ต้องไม่มี next_true/next_false
-        if (
-          (it as any).next_true !== undefined ||
-          (it as any).next_false !== undefined
-        ) {
-          errs.push(
-            `${instr} at id=${it.id} must not include next_true/next_false`,
-          );
-        }
+      if (zero.has(instr) && ops.length > 0) {
+        errs.push(
+          `${instr} at id=${it.id} should have no operands, got ${ops.length}`,
+        );
       }
 
-      // กลุ่มห้าม next
-      const forbidNext = new Set(["JMP", "JZ", "JNZ", "HLT", "LABEL", "NOP"]);
-      if (forbidNext.has(instr) && (it as any).next !== undefined) {
-        errs.push(`${instr} at id=${it.id} must not include next`);
+      // LABEL needs a label name
+      if (instr === "LABEL" && !it.label) {
+        errs.push(`LABEL at id=${it.id} must have a label name`);
+      }
+
+      // Jump instructions need a label operand or next field pointing to target
+      if ((instr === "JMP" || instr === "JZ" || instr === "JNZ") && ops.length === 0 && !(it as any).next) {
+        errs.push(`${instr} at id=${it.id} must have a label operand or next field`);
       }
     }
     return errs;
@@ -573,15 +563,16 @@ export default function AssignmentPlaygroundPage() {
   const handleRun = async (mode: string) => {
     if (!assignmentId) return;
 
-    // 1) เตรียม nodes และ id mapping
-    const nodesToProcess = nodes.filter((n) => getInstr(n) !== "START");
+    // 1) เตรียม nodes และ id mapping - รวม START ด้วย!
+    const nodesToProcess = nodes; // ไม่กรอง START ออก
     const nodeMap = new Map(nodesToProcess.map((n, i) => [n.id, i + 1]));
 
     // 2) แปลงเป็น items
     const items: ProgramItem[] = nodesToProcess.map((node) => {
       const instruction = getInstr(node);
       const outEdges = edges.filter((e) => e.source === node.id);
-      const nextEdge = outEdges.find((e) => !e.sourceHandle);
+      // Accept edges with no sourceHandle OR sourceHandle = "out" as next edge
+      const nextEdge = outEdges.find((e) => !e.sourceHandle || e.sourceHandle === "out");
       const nextTrueEdge = outEdges.find((e) => e.sourceHandle === "true");
       const nextFalseEdge = outEdges.find((e) => e.sourceHandle === "false");
 
@@ -592,44 +583,101 @@ export default function AssignmentPlaygroundPage() {
         operands: [],
       };
 
-      const forbidNext = new Set(["JMP", "JZ", "JNZ", "HLT", "LABEL", "NOP"]);
+      // Set next field based on instruction type and edges
       if (instruction === "CMP") {
+        // CMP uses next_true and next_false for conditional branching
+        // Fall back to nextEdge (out) for both if no specific edges exist
         item.next_true = nextTrueEdge
           ? (nodeMap.get(nextTrueEdge.target) ?? null)
-          : null;
+          : (nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null);
         item.next_false = nextFalseEdge
           ? (nodeMap.get(nextFalseEdge.target) ?? null)
-          : null;
-      } else if (!forbidNext.has(instruction)) {
+          : (nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null);
+      } else if (instruction === "HLT") {
+        // HLT doesn't need next (terminates execution)
+      } else if (instruction === "NOP") {
+        // NOP falls through to next instruction
+        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
+      } else if (instruction === "LABEL") {
+        // LABEL is just a marker and falls through to next instruction
+        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
+      } else {
+        // All other instructions (START, MOV, ADD, JMP, JZ, etc.) use next field
         item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
       }
 
       // operands (ทนต่อหลายชื่อฟิลด์จาก UI)
       const operands: Operand[] = [];
-      const destReg =
-        node.data?.dest ??
-        node.data?.dst ??
-        node.data?.register ??
-        node.data?.reg;
-      if (destReg) operands.push({ type: "Register", value: String(destReg) });
 
-      let pushedSrc = false;
-      const immRaw =
-        node.data?.srcImm ??
-        node.data?.imm ??
-        node.data?.value ??
-        node.data?.val;
-      if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
-        operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
-        pushedSrc = true;
+      // LOAD/STORE: Check for memory address operands
+      if (instruction === "LOAD" || instruction === "STORE") {
+        const memMode = node.data?.memMode ?? "imm"; // "imm" or "reg"
+        const memImm = node.data?.memImm; // number (0-255)
+        const memReg = node.data?.memReg; // string (R0-R7)
+
+        if (instruction === "LOAD") {
+          // LOAD: Register first, then address
+          const dest = node.data?.dest ?? node.data?.dst ?? node.data?.register ?? node.data?.reg;
+          if (dest) {
+            operands.push({ type: "Register", value: String(dest) });
+          }
+
+          // Memory address operand
+          if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
+            operands.push({ type: "Immediate", value: String(memImm) });
+          } else if (memMode === "reg" && memReg) {
+            operands.push({ type: "Register", value: String(memReg) });
+          }
+        } else if (instruction === "STORE") {
+          // STORE: Address first, then register
+          if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
+            operands.push({ type: "Immediate", value: String(memImm) });
+          } else if (memMode === "reg" && memReg) {
+            operands.push({ type: "Register", value: String(memReg) });
+          }
+
+          // Source register
+          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
+          if (srcReg) {
+            operands.push({ type: "Register", value: String(srcReg) });
+          }
+        }
+      } else {
+        // Regular operand parsing for other instructions
+        const destReg =
+          node.data?.dest ??
+          node.data?.dst ??
+          node.data?.register ??
+          node.data?.reg;
+        if (destReg) operands.push({ type: "Register", value: String(destReg) });
+
+        let pushedSrc = false;
+        const immRaw =
+          node.data?.srcImm ??
+          node.data?.imm ??
+          node.data?.value ??
+          node.data?.val;
+        if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
+          operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
+          pushedSrc = true;
+        }
+        if (!pushedSrc) {
+          const srcReg =
+            node.data?.srcReg ??
+            node.data?.src ??
+            node.data?.reg2 ??
+            node.data?.rSrc;
+          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
+        }
       }
-      if (!pushedSrc) {
-        const srcReg =
-          node.data?.srcReg ??
-          node.data?.src ??
-          node.data?.reg2 ??
-          node.data?.rSrc;
-        if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
+
+      if (
+        (instruction === "JMP" ||
+          instruction === "JZ" ||
+          instruction === "JNZ") &&
+        node.data?.label
+      ) {
+        operands.push({ type: "Label", value: String(node.data.label) });
       }
       if (
         (instruction === "JMP" ||

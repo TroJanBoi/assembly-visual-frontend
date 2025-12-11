@@ -63,6 +63,13 @@ export default React.memo(function PlaygroundCanvas({
         onNodeClick={onNodeClick}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
+        snapToGrid={true}
+        snapGrid={[20, 20]}
+        defaultEdgeOptions={{
+          type: 'smoothstep',
+          animated: false,
+        }}
+        connectionLineType="smoothstep"
         fitView
       >
         <Background gap={16} size={1} />

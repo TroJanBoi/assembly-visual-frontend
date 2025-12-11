@@ -180,19 +180,33 @@ function executeInstructionStep(
 
         case 'CMP':
             executeCMP(cpu, operands);
-            cpu.pc = item.next || 0;
+            // CMP uses next_true (if equal) or next_false (if not equal)
+            if (cpu.flags.Z === 1) {
+                cpu.pc = (item as any).next_true || 0;
+            } else {
+                cpu.pc = (item as any).next_false || 0;
+            }
             break;
 
         case 'JMP':
-            cpu.pc = item.next || 0;
+            // JMP resolves label operand to find target instruction
+            cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
             break;
 
         case 'JZ':
-            cpu.pc = cpu.flags.Z === 1 ? (item.next || 0) : getNextNonJump(item);
+            if (cpu.flags.Z === 1) {
+                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
+            } else {
+                cpu.pc = getNextNonJump(item);
+            }
             break;
 
         case 'JNZ':
-            cpu.pc = cpu.flags.Z === 0 ? (item.next || 0) : getNextNonJump(item);
+            if (cpu.flags.Z === 0) {
+                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
+            } else {
+                cpu.pc = getNextNonJump(item);
+            }
             break;
 
         case 'JC':
@@ -201,6 +215,26 @@ function executeInstructionStep(
 
         case 'JNC':
             cpu.pc = cpu.flags.C === 0 ? (item.next || 0) : getNextNonJump(item);
+            break;
+
+        case 'MUL':
+            executeMUL(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'DIV':
+            executeDIV(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'IN':
+            executeIN(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'OUT':
+            executeOUT(cpu, operands);
+            cpu.pc = item.next || 0;
             break;
 
         case 'JN':
@@ -228,6 +262,22 @@ function executeInstructionStep(
 
 function getNextNonJump(item: ProgramItem): number {
     return item.next || 0;
+}
+
+// Helper: Resolve jump target from label operand
+function resolveJumpTarget(operands: Operand[], instructionMap: Map<number, ProgramItem>): number | null {
+    const labelOperand = operands.find(op => op.type === 'Label');
+    if (!labelOperand) return null;
+
+    const labelName = labelOperand.value;
+
+    for (const [id, item] of instructionMap.entries()) {
+        if (item.instruction?.toUpperCase() === 'LABEL' && item.label === labelName) {
+            return id;
+        }
+    }
+
+    throw new Error(`Label not found: ${labelName}`);
 }
 
 // Operation implementations (same as executor.ts)
@@ -321,6 +371,49 @@ function executePOP(cpu: CPU, operands: Operand[]): void {
     if (dest.type !== 'Register') throw new Error('POP destination must be a register');
     const value = cpu.pop();
     cpu.setRegister(dest.value, value);
+}
+
+function executeMUL(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('MUL requires 2 operands');
+
+    const [dest, src] = operands;
+    if (dest.type !== 'Register') throw new Error('MUL destination must be a register');
+
+    const destValue = cpu.getRegister(dest.value);
+    const srcValue = getOperandValue(cpu, src);
+    const result = destValue * srcValue;
+
+    cpu.setRegister(dest.value, result & 0xFF);
+    cpu.setFlags(result & 0xFF, result > 255);
+}
+
+function executeDIV(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('DIV requires 2 operands');
+
+    const [dest, src] = operands;
+    if (dest.type !== 'Register') throw new Error('DIV destination must be a register');
+
+    const destValue = cpu.getRegister(dest.value);
+    const srcValue = getOperandValue(cpu, src);
+
+    if (srcValue === 0) throw new Error('Division by zero');
+
+    const result = Math.floor(destValue / srcValue);
+    cpu.setRegister(dest.value, result);
+    cpu.setFlags(result, false);
+}
+
+function executeIN(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('IN requires 2 operands');
+
+    const [dest, src] = operands;
+    if (dest.type !== 'Register') throw new Error('IN destination must be a register');
+
+    cpu.setRegister(dest.value, 0);
+}
+
+function executeOUT(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('OUT requires 2 operands');
 }
 
 function getOperandValue(cpu: CPU, operand: Operand): number {
