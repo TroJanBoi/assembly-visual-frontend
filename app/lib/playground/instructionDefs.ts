@@ -37,6 +37,7 @@ export const colorStyles: Record<
     title: string;
     pill: string;
     divider: string;
+    rgb: string; // Dynamic RGB for focus rings
   }
 > = {
   startGreen: {
@@ -45,6 +46,7 @@ export const colorStyles: Record<
     title: "text-green-700",
     pill: "bg-green-100 text-gray-900",
     divider: "border-green-200",
+    rgb: "22, 163, 74", // green-600
   },
   red: {
     button: "bg-red-50 border-red-200 text-red-700",
@@ -52,6 +54,7 @@ export const colorStyles: Record<
     title: "text-red-700",
     pill: "bg-red-100 text-gray-900",
     divider: "border-red-200",
+    rgb: "220, 38, 38", // red-600
   },
   green: {
     button: "bg-green-50 text-green-700 border-green-200",
@@ -59,6 +62,7 @@ export const colorStyles: Record<
     title: "text-green-700",
     pill: "bg-green-100 text-gray-900",
     divider: "border-green-200",
+    rgb: "22, 163, 74", // green-600
   },
   gray: {
     button: "bg-gray-50 text-gray-700 border-gray-200",
@@ -66,6 +70,7 @@ export const colorStyles: Record<
     title: "text-gray-700",
     pill: "bg-gray-100 text-gray-900",
     divider: "border-gray-200",
+    rgb: "75, 85, 99", // gray-600
   },
   blue: {
     button: "bg-blue-50 text-blue-700 border-blue-200",
@@ -73,6 +78,7 @@ export const colorStyles: Record<
     title: "text-blue-700",
     pill: "bg-blue-100 text-gray-900",
     divider: "border-blue-200",
+    rgb: "37, 99, 235", // blue-600
   },
   cyan: {
     button: "bg-cyan-50 text-cyan-700 border-cyan-200",
@@ -80,6 +86,7 @@ export const colorStyles: Record<
     title: "text-cyan-700",
     pill: "bg-cyan-100 text-gray-900",
     divider: "border-cyan-200",
+    rgb: "8, 145, 178", // cyan-600
   },
   teal: {
     button: "bg-teal-50 text-teal-700 border-teal-200",
@@ -87,6 +94,7 @@ export const colorStyles: Record<
     title: "text-teal-700",
     pill: "bg-teal-100 text-gray-900",
     divider: "border-teal-200",
+    rgb: "13, 148, 136", // teal-600
   },
   orange: {
     button: "bg-orange-50 text-orange-700 border-orange-200",
@@ -94,6 +102,7 @@ export const colorStyles: Record<
     title: "text-orange-700",
     pill: "bg-orange-100 text-gray-900",
     divider: "border-orange-200",
+    rgb: "234, 88, 12", // orange-600
   },
   purple: {
     button: "bg-purple-50 text-purple-700 border-purple-200",
@@ -101,6 +110,7 @@ export const colorStyles: Record<
     title: "text-purple-700",
     pill: "bg-purple-100 text-gray-900",
     divider: "border-purple-200",
+    rgb: "147, 51, 234", // purple-600
   },
   pink: {
     button: "bg-pink-50 text-pink-700 border-pink-200",
@@ -108,6 +118,7 @@ export const colorStyles: Record<
     title: "text-pink-700",
     pill: "bg-pink-100 text-gray-900",
     divider: "border-pink-200",
+    rgb: "219, 39, 119", // pink-600
   },
   violet: {
     button: "bg-violet-50 text-violet-700 border-violet-200",
@@ -115,6 +126,7 @@ export const colorStyles: Record<
     title: "text-violet-700",
     pill: "bg-violet-100 text-gray-900",
     divider: "border-violet-200",
+    rgb: "124, 58, 237", // violet-600
   },
   lightBlue: {
     button: "bg-sky-50 text-sky-700 border-sky-200",
@@ -122,6 +134,7 @@ export const colorStyles: Record<
     title: "text-sky-700",
     pill: "bg-sky-100 text-gray-900",
     divider: "border-sky-200",
+    rgb: "2, 132, 199", // sky-600
   },
   slate: {
     button: "bg-slate-50 text-slate-700 border-slate-200",
@@ -129,6 +142,7 @@ export const colorStyles: Record<
     title: "text-slate-700",
     pill: "bg-slate-100 text-gray-900",
     divider: "border-slate-200",
+    rgb: "71, 85, 105", // slate-600
   },
   indigo: {
     button: "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -136,6 +150,7 @@ export const colorStyles: Record<
     title: "text-indigo-700",
     pill: "bg-indigo-100 text-gray-900",
     divider: "border-indigo-200",
+    rgb: "79, 70, 229", // indigo-600
   },
   black: {
     button: "bg-gray-800 text-white border-gray-900",
@@ -143,6 +158,7 @@ export const colorStyles: Record<
     title: "text-white",
     pill: "bg-gray-700 text-white",
     divider: "border-gray-700",
+    rgb: "0, 0, 0", // black
   },
 };
 

@@ -149,7 +149,7 @@ export default React.memo(function ProcessorDashboard({
   const regCols = Math.min(4, Math.max(1, regNames.length));
 
   return (
-    <div ref={rootRef} className="w-96 p-6 h-full overflow-y-auto bg-white relative">
+    <div ref={rootRef} className="w-full p-6 h-full overflow-y-auto bg-white relative">
       {hoveredInfo && (
         <AddressTooltip
           address={hoveredInfo.address}

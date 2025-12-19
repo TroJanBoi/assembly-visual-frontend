@@ -15,13 +15,12 @@ import {
   NodeTypes,
 } from "reactflow";
 
+
+
 import PlaygroundNavbar from "@/components/playground/PlaygroundNavbar";
-import DraggablePanel from "@/components/playground/DraggablePanel";
-import NodePanel from "@/components/playground/NodePanel";
-import ProcessorDashboard from "@/components/playground/ProcessorDashboard";
 import InstructionNode from "@/components/playground/InstructionNode";
 import PlaygroundCanvas from "@/components/playground/PlaygroundCanvas";
-import PropertyPanel from "@/components/playground/PropertyPanel";
+
 import { getAssignmentById, Assignment } from "@/lib/api/assignment";
 import {
   checkPlayground,
@@ -36,13 +35,6 @@ import { executeProgram, executeInstruction, buildInstructionMap } from "@/lib/p
 import { VirtualIO } from "@/lib/playground/io";
 import { CPU } from "@/lib/playground/cpu";
 import { useAutoSave } from "@/hooks/useAutoSave";
-
-import BottomTerminal from "@/components/playground/BottomTerminal";
-import { IOContainer } from "@/components/playground/io/IOContainer";
-import { LEDMatrix } from "@/components/playground/io/LEDMatrix";
-import { NumberDisplay } from "@/components/playground/io/NumberDisplay";
-import { TerminalOutput } from "@/components/playground/io/TerminalOutput";
-import { Gamepad } from "@/components/playground/io/Gamepad";
 
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
 const getId = () => crypto.randomUUID();
@@ -188,7 +180,8 @@ export default function AssignmentPlaygroundPage() {
 
   // IO State
   const [execIO, setExecIO] = useState<{
-    consoleOutput: string;
+    logs: import("@/lib/playground/io").LogEntry[];
+    consoleBuffer: string;
     sevenSegment: number;
     ledMatrix: number[];
     ledSelectedRow: number;
@@ -1261,8 +1254,14 @@ export default function AssignmentPlaygroundPage() {
         .sort((a, b) => a.address - b.address)
       : cpu.memory;
 
+  // New Layout Imports (Dynamic imports might be better but direct is fine for now)
+  const SlimToolbar = require("@/components/playground/layout/SlimToolbar").default;
+  const BottomDeck = require("@/components/playground/layout/BottomDeck").default;
+  const RightInspector = require("@/components/playground/layout/RightInspector").default;
+
   return (
-    <div className="w-screen h-screen bg-gray-100 flex flex-col font-sans">
+    <div className="h-screen w-screen flex flex-col bg-gray-50 font-sans overflow-hidden">
+      {/* 1. Navbar (Top) */}
       <PlaygroundNavbar
         assignmentTitle={assignment?.title || "..."}
         onBack={() => router.back()}
@@ -1271,82 +1270,65 @@ export default function AssignmentPlaygroundPage() {
         onReset={resetSave}
       />
 
-      <main className="flex-1 relative" ref={reactFlowWrapper}>
-        {/* Node usage badge */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur px-3 py-1 rounded border text-sm">
-          {limitBadge}
-        </div>
+      {/* 2. Main Workspace (Flex Row) */}
+      <div className="flex-1 flex overflow-hidden">
 
-        <div className="absolute inset-0 z-0">
-          <PlaygroundCanvas
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onInit={setReactFlowInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onNodeClick={onNodeClick}
-            onNodeDoubleClick={onNodeDoubleClick}
-            nodeTypes={nodeTypes}
-            onNodeDrag={onNodeDrag}
-            onNodeDragStop={onNodeDragStop}
-          />
-        </div>
-
-        <DraggablePanel title="Instructions" defaultPosition={{ x: 20, y: 20 }}>
-          <NodePanel
-            allowedInstructions={allowed}
-            hideStart={hasStart}
-            hideHlt={hasHlt}
-          />
-        </DraggablePanel>
-
-        <DraggablePanel
-          title="Processor Dashboard"
-          defaultPosition={rightPanelPos}
-        >
-          <ProcessorDashboard
-            registers={displayRegisters}
-            flags={displayFlags}
-            memory={displayMemory}
-          />
-        </DraggablePanel>
-
-        <DraggablePanel title="I/O Devices" defaultPosition={{ x: 20, y: 550 }}>
-          <IOContainer>
-            <div className="flex flex-col gap-4">
-              <div className="flex gap-4">
-                <NumberDisplay value={execIO?.sevenSegment ?? 0} />
-                <LEDMatrix rows={execIO?.ledMatrix ?? [0, 0, 0, 0, 0, 0, 0, 0]} />
-              </div>
-              <TerminalOutput
-                content={execIO?.consoleOutput ?? ""}
-                onInput={(key) => ioHandlerRef.current.receiveInput(key)}
-              />
-            </div>
-          </IOContainer>
-        </DraggablePanel>
-
-        {/* Properties Panel */}
-        <PropertyPanel
-          open={panelOpen}
-          onClose={() => setPanelOpen(false)}
-          node={selectedNode as any}
-          onChange={onPatchNode}
-          registers={registerNames}
-          labels={labelOptions}
+        {/* 2.1 Left: Slim Toolbar */}
+        <SlimToolbar
+          allowedInstructions={allowed}
+          hideStart={hasStart}
+          hideHlt={hasHlt}
         />
-      </main>
 
-      <BottomTerminal
-        labName={labName}
-        logs={logs}
-        onClear={() => setLogs([])}
-        defaultOpen={true}
-        maxHeightPx={260}
-      />
+        {/* 2.2 Center: Canvas & Bottom Deck */}
+        <div className="flex-1 flex flex-col relative min-w-0">
+          {/* Canvas Area */}
+          <div className="flex-1 relative bg-gray-100" ref={reactFlowWrapper}>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur px-3 py-1 rounded border text-sm shadow-sm pointer-events-none">
+              {limitBadge}
+            </div>
+
+            <PlaygroundCanvas
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onInit={setReactFlowInstance}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onNodeClick={onNodeClick}
+              onNodeDoubleClick={onNodeDoubleClick}
+              nodeTypes={nodeTypes}
+              onNodeDrag={onNodeDrag}
+              onNodeDragStop={onNodeDragStop}
+            />
+
+            {/* Properties Panel has been moved to RightInspector context */}
+          </div>
+
+          {/* Bottom Deck */}
+          <BottomDeck
+            logs={execIO?.logs ?? []}
+            consoleBuffer={execIO?.consoleBuffer ?? ""}
+            onConsoleInput={(key: string) => ioHandlerRef.current.receiveInput(key)}
+            sevenSegment={execIO?.sevenSegment ?? 0}
+            ledMatrix={execIO?.ledMatrix ?? [0, 0, 0, 0, 0, 0, 0, 0]}
+          />
+        </div>
+
+        {/* 2.3 Right: Inspector */}
+        <RightInspector
+          registers={displayRegisters}
+          flags={displayFlags}
+          memory={displayMemory}
+          selectedNode={panelOpen ? selectedNode : null}
+          onNodeChange={onPatchNode}
+          onCloseInspector={() => setPanelOpen(false)}
+          availableRegisters={registerNames}
+          availableLabels={labelOptions}
+        />
+      </div>
     </div>
   );
 }

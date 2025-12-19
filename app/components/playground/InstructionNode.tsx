@@ -45,6 +45,7 @@ function Pill({
 export default memo(function InstructionNode({
   data,
   isConnectable,
+  selected,
 }: NodeProps) {
   const instrName = String(data?.instructionType || "NOP").toUpperCase();
   const def = instructionMap.get(instrName);
@@ -126,12 +127,26 @@ export default memo(function InstructionNode({
   const borderColorClass =
     styles.iconBox.match(/border-[\w-]+-\d+/)?.[0] || "border-gray-300";
 
+
   return (
     <div
+      style={{ "--node-rgb": styles.rgb } as React.CSSProperties}
       className={cn(
-        "inline-flex items-center gap-2 rounded-xl border-2 shadow-sm px-3 py-2",
-        "h-auto min-w-[200px] justify-start transition-all duration-300 ease-out", // Fixed width for consistent grid alignment
-        styles.button,
+        // Base Layout
+        "inline-flex items-center gap-2 rounded-xl border-2 px-3 py-2 h-auto min-w-[200px] justify-start",
+        // Tactile Transitions
+        "transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)]",
+
+        // Default State (white bg, subtle border)
+        "bg-white border-transparent shadow-sm",
+
+        // Selected State: Glow + Color Border
+        selected
+          ? "border-[rgb(var(--node-rgb))] shadow-[0_0_0_4px_rgba(var(--node-rgb),0.3)] z-10"
+          : "border-gray-200 hover:border-[rgb(var(--node-rgb))] hover:shadow-[0_10px_15px_-3px_rgba(var(--node-rgb),0.2)]",
+
+        // Dragging/Active State (Visual Lift)
+        "active:scale-105 active:shadow-[0_20px_25px_-5px_rgba(var(--node-rgb),0.4)] active:z-50"
       )}
     >
       {!isStart && (

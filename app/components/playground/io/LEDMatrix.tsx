@@ -21,12 +21,12 @@ export function LEDMatrix({ rows }: LEDMatrixProps) {
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 text-center">
                 LED Matrix (Port 2+3)
             </h3>
-            <div className="grid grid-cols-8 gap-2">
+            <div className="grid grid-cols-8 gap-1.5">
                 {grid.map((row, r) =>
                     row.map((active, c) => (
                         <div
                             key={`${r}-${c}`}
-                            className={`w-4 h-4 rounded-full transition-colors duration-200 ${active ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-100'
+                            className={`w-3 h-3 rounded-full transition-colors duration-200 ${active ? 'bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.5)]' : 'bg-slate-100'
                                 }`}
                         />
                     ))

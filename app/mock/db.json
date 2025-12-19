@@ -350,11 +350,11 @@
             "operands": [
               {
                 "type": "Immediate",
-                "value": "1"
+                "value": "0"
               },
               {
-                "type": "Register",
-                "value": "R0"
+                "type": "Immediate",
+                "value": "#65"
               }
             ],
             "next": 7
@@ -364,7 +364,7 @@
             "instruction": "START",
             "label": "",
             "operands": [],
-            "next": 12
+            "next": 3
           },
           {
             "id": 3,
@@ -451,38 +451,6 @@
           },
           {
             "id": 10,
-            "instruction": "STORE",
-            "label": "",
-            "operands": [
-              {
-                "type": "Immediate",
-                "value": "0"
-              },
-              {
-                "type": "Register",
-                "value": "R0"
-              }
-            ],
-            "next": 11
-          },
-          {
-            "id": 11,
-            "instruction": "LOAD",
-            "label": "",
-            "operands": [
-              {
-                "type": "Register",
-                "value": "R7"
-              },
-              {
-                "type": "Immediate",
-                "value": "0"
-              }
-            ],
-            "next": 9
-          },
-          {
-            "id": 12,
             "instruction": "MOV",
             "label": "",
             "operands": [
@@ -492,10 +460,41 @@
               },
               {
                 "type": "Immediate",
-                "value": "#16"
+                "value": "#6"
               }
             ],
-            "next": 10
+            "next": 12
+          },
+          {
+            "id": 11,
+            "instruction": "OUT",
+            "label": "",
+            "operands": [
+              {
+                "type": "Immediate",
+                "value": "0"
+              },
+              {
+                "type": "Register",
+                "value": "R0"
+              }
+            ]
+          },
+          {
+            "id": 12,
+            "instruction": "IN",
+            "label": "",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "#0"
+              }
+            ],
+            "next": 11
           }
         ],
         "meta_data": {
@@ -505,57 +504,57 @@
         },
         "ui": {
           "pan": {
-            "x": 180,
-            "y": 472
+            "x": 309,
+            "y": 402
           },
           "position": {
             "1": {
-              "x": 600,
-              "y": 700
+              "x": 540,
+              "y": 820
             },
             "2": {
-              "x": 720,
+              "x": 580,
               "y": 20
             },
             "3": {
-              "x": 600,
-              "y": 240
+              "x": 580,
+              "y": 140
             },
             "4": {
-              "x": 560,
-              "y": 340
+              "x": 600,
+              "y": 280
             },
             "5": {
-              "x": 580,
-              "y": 460
+              "x": 600,
+              "y": 440
             },
             "6": {
-              "x": 600,
-              "y": 580
+              "x": 540,
+              "y": 640
             },
             "7": {
               "x": 540,
-              "y": 800
+              "y": 920
             },
             "8": {
-              "x": 360,
-              "y": 900
+              "x": 420,
+              "y": 1040
             },
             "9": {
-              "x": 1040,
-              "y": 1100
+              "x": 560,
+              "y": 1180
             },
             "10": {
-              "x": 980,
-              "y": 340
+              "x": 1080,
+              "y": 300
             },
             "11": {
-              "x": 1000,
-              "y": 520
+              "x": 1100,
+              "y": 540
             },
             "12": {
-              "x": 960,
-              "y": 160
+              "x": 1100,
+              "y": 420
             }
           },
           "zoom": 1

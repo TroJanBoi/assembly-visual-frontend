@@ -3,16 +3,27 @@
  * Handles communication between CPU and virtual peripherals
  */
 
+export type LogType = 'SYSTEM' | 'OUTPUT' | 'INPUT' | 'ERROR';
+
+export interface LogEntry {
+    id: string;
+    timestamp: number;
+    type: LogType;
+    content: string;
+}
+
 export interface IOHandler {
     onWrite(port: number, value: number): void;
     onRead(port: number): number;
     getSnapshot(): IOState;
+    addLog(type: LogType, message: string): void;
 }
 
 export type IOState = {
-    consoleOutput: string;
+    logs: LogEntry[];
+    consoleBuffer: string; // Expose partial lines
     sevenSegment: number;
-    ledMatrix: Uint8Array; // 8 rows, each byte is a row pattern
+    ledMatrix: Uint8Array;
     ledSelectedRow: number;
     gamepadState: number;
 };
@@ -22,7 +33,8 @@ export class VirtualIO implements IOHandler {
 
     constructor(initialState?: Partial<IOState>) {
         this.state = {
-            consoleOutput: "",
+            logs: [],
+            consoleBuffer: "",
             sevenSegment: 0,
             ledMatrix: new Uint8Array(8),
             ledSelectedRow: 0,
@@ -33,7 +45,33 @@ export class VirtualIO implements IOHandler {
 
     private keyBuffer: number[] = [];
 
+    // Helper to add logs cleanly
+    addLog(type: LogType, content: string) {
+        // Prevent massive log arrays
+        if (this.state.logs.length > 200) {
+            this.state.logs.shift();
+        }
+
+        this.state.logs.push({
+            id: crypto.randomUUID(),
+            timestamp: Date.now(),
+            type,
+            content
+        });
+    }
+
     receiveInput(key: string): void {
+        // Echo input to logs for feedback
+        // But only meaningful characters, or maybe just when line is submitted?
+        // For now, let's log the key press only if it's special or maybe rely on the UI to log the full line.
+        // Actually, users prefer to see what they type.
+        // We will let the Terminal UI handle the visual "echo" while typing, 
+        // and only log the "Submitted" input here if needed?
+        // Wait, the prompt says: "User hits Enter -> Value is sent to CPU -> Log as `Input: [Value]`"
+
+        // So `receiveInput` simply buffers the key for the CPU to read.
+        // We do NOT log every keystroke here.
+
         // Special Case: Backspace -> ASCII 8
         if (key === "Backspace") {
             this.keyBuffer.push(8);
@@ -46,11 +84,30 @@ export class VirtualIO implements IOHandler {
             return;
         }
 
-        // Allow all single characters (including Space, symbols)
         if (key.length === 1) {
             const ascii = key.charCodeAt(0);
             this.keyBuffer.push(ascii);
         }
+    }
+
+    private handleConsoleWrite(val: number) {
+        // Backspace
+        if (val === 8) {
+            this.state.consoleBuffer = this.state.consoleBuffer.slice(0, -1);
+            return;
+        }
+
+        // Newline triggers a log commit
+        if (val === 10 || val === 13) {
+            if (this.state.consoleBuffer.length > 0) {
+                this.addLog('OUTPUT', this.state.consoleBuffer);
+                this.state.consoleBuffer = "";
+            }
+            return;
+        }
+
+        // Standard Char
+        this.state.consoleBuffer += String.fromCharCode(val);
     }
 
     onWrite(port: number, value: number): void {
@@ -58,16 +115,15 @@ export class VirtualIO implements IOHandler {
 
         switch (port) {
             case 0: // Console Output
-                if (val === 8) {
-                    // Backspace: Remove last character
-                    this.state.consoleOutput = this.state.consoleOutput.slice(0, -1);
-                } else if (val === 10 || val === 13) {
-                    // Newline: Append \n
-                    this.state.consoleOutput += "\n";
-                } else {
-                    // Append ASCII character
-                    this.state.consoleOutput += String.fromCharCode(val);
-                }
+                // We need to buffer this char-by-char if we want to print words...
+                // OR adapt the standardized CPU to write whole strings? 
+                // The current CPU writes char by char (INT output).
+                // If we log every char as a new line, it will be spammy.
+                // WE NEED A BUFFER FOR PARTIAL OUTPUT lines.
+
+                // Hack: For now, let's treat every char as a potential append to the LAST log if it's OUTPUT type?
+                // Or perform internal buffering.
+                this.handleConsoleWrite(val);
                 break;
 
             case 1: // 7-Segment Display
@@ -88,11 +144,15 @@ export class VirtualIO implements IOHandler {
         }
     }
 
+
     onRead(port: number): number {
         switch (port) {
             case 0: // Console Input (Keyboard)
                 if (this.keyBuffer.length > 0) {
-                    return this.keyBuffer.shift()!;
+                    const k = this.keyBuffer.shift()!;
+                    // If we just read a newline, maybe log it as INPUT?
+                    // For now, let the frontend handle input echoing to avoid dupes.
+                    return k;
                 }
                 return 0;
 
@@ -109,22 +169,22 @@ export class VirtualIO implements IOHandler {
 
     reset(): void {
         this.state = {
-            consoleOutput: "",
+            logs: [],
+            consoleBuffer: "",
             sevenSegment: 0,
             ledMatrix: new Uint8Array(8),
             ledSelectedRow: 0,
             gamepadState: 0,
         };
-        // We do NOT clear keyBuffer here to allow pre-typing before Run.
-        // User can clear manually only if page refreshes or we add a "Clear Buffer" button.
-        // But implicitly, maybe we should clear it? 
-        // "Type ahead" feature usually implies keeping it.
+        // Initial System Log
+        this.addLog('SYSTEM', 'System Reset. Ready.');
     }
 
     getSnapshot(): IOState {
         // Return a copy to avoid mutation issues in UI
         return {
-            consoleOutput: this.state.consoleOutput,
+            logs: [...this.state.logs],
+            consoleBuffer: this.state.consoleBuffer,
             sevenSegment: this.state.sevenSegment,
             ledMatrix: new Uint8Array(this.state.ledMatrix),
             ledSelectedRow: this.state.ledSelectedRow,
