@@ -32,13 +32,23 @@ import {
   Operand,
   UIPosition,
 } from "@/lib/api/playground";
-import { executeProgram } from "@/lib/playground/executor";
+import { executeProgram, executeInstruction, buildInstructionMap } from "@/lib/playground/executor";
+import { VirtualIO } from "@/lib/playground/io";
+import { CPU } from "@/lib/playground/cpu";
+import { useAutoSave } from "@/hooks/useAutoSave";
 
 import BottomTerminal from "@/components/playground/BottomTerminal";
+import { IOContainer } from "@/components/playground/io/IOContainer";
+import { LEDMatrix } from "@/components/playground/io/LEDMatrix";
+import { NumberDisplay } from "@/components/playground/io/NumberDisplay";
+import { TerminalOutput } from "@/components/playground/io/TerminalOutput";
+import { Gamepad } from "@/components/playground/io/Gamepad";
 
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
-let id = 0;
-const getId = () => `dnd-node_${id++}`;
+const getId = () => crypto.randomUUID();
+// Removed simplistic ID counter
+// let id = 0; 
+// const getId = () => ...
 
 const getInstr = (n: Node) =>
   String(n.data?.instructionType || "").toUpperCase();
@@ -135,11 +145,30 @@ export default function AssignmentPlaygroundPage() {
     useState<ReactFlowInstance | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Execution state from BE
+  const [execRegisters, setExecRegisters] = useState<Record<string, number>>(
+    {},
+  );
+  const [execFlags, setExecFlags] = useState<Record<string, number>>({});
+  const [execMemorySparse, setExecMemorySparse] = useState<
+    Record<string, number>
+  >({});
+
+  // ===== Auto Save =====
+  const onAutoSaveLoad = useCallback((savedNodes: Node[], savedEdges: Edge[], savedMemory: Record<string, number>) => {
+    setNodes(savedNodes);
+    setEdges(savedEdges);
+    setExecMemorySparse(savedMemory);
+  }, []);
+
+  const { resetSave } = useAutoSave(nodes, edges, execMemorySparse, onAutoSaveLoad);
+
   // Assignment-driven controls
   const [cpu, setCpu] = useState<CPUState>(() => buildInitialCPUState(null));
   const [allowed, setAllowed] = useState<Set<string>>(new Set());
   const [maxNodes, setMaxNodes] = useState<number | null>(null);
-  const [proximityNode, setProximityNode] = useState<Node | null>(null);
+  // const [proximityNode, setProximityNode] = useState<Node | null>(null); // Removed as part of strict logic
+  const [highlightedTargetId, setHighlightedTargetId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
   const [rightPanelPos, setRightPanelPos] = useState({ x: 0, y: 20 });
@@ -155,22 +184,38 @@ export default function AssignmentPlaygroundPage() {
   const [logs, setLogs] = useState<string[]>([]);
   const appendLog = (msg: string) => setLogs((prev) => [...prev, msg]);
 
-  // Execution state from BE
-  const [execRegisters, setExecRegisters] = useState<Record<string, number>>(
-    {},
-  );
-  const [execFlags, setExecFlags] = useState<Record<string, number>>({});
-  const [execMemorySparse, setExecMemorySparse] = useState<
-    Record<string, number>
-  >({});
+
+
+  // IO State
+  const [execIO, setExecIO] = useState<{
+    consoleOutput: string;
+    sevenSegment: number;
+    ledMatrix: number[];
+    ledSelectedRow: number;
+  } | undefined>(undefined);
+
+  // Gamepad Input State
+  const [gamepadState, setGamepadState] = useState<number>(0);
+
+  // Persistent IO Handler for Keyboard Buffer
+  const ioHandlerRef = useRef(new VirtualIO());
 
   const playgroundIdRef = useRef<number | null>(null);
+
+  // ===== Interactive Execution State =====
+  const [isRunning, setIsRunning] = useState(false);
+  const simulationRef = useRef<{ interval: NodeJS.Timeout | null, cpu: CPU | null }>({ interval: null, cpu: null });
 
   // ===== Property Panel state =====
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
   const onNodeClick = useCallback((_e: any, node: Node) => {
+    setSelectedNode(node);
+    // Removed setPanelOpen(true) to prevent opening on single click
+  }, []);
+
+  const onNodeDoubleClick = useCallback((_e: any, node: Node) => {
     setSelectedNode(node);
     setPanelOpen(true);
   }, []);
@@ -239,106 +284,124 @@ export default function AssignmentPlaygroundPage() {
     });
   }, [nodes]);
 
-  const onConnect: OnConnect = useCallback((connection) => {
-    if (!connection.source || !connection.target) return;
-
+  const onConnect: OnConnect = useCallback((params) => {
     setEdges((eds) => {
-      // Pass handles to allow multi-handle connections (e.g. separate 'out' and 'left' handles)
-      if (!canConnectEdge(eds, connection.source!, connection.target!, connection.sourceHandle, connection.targetHandle)) {
-        // optionally toast: "Each node can only have one connection."
-        return eds;
-      }
+      // 1. Filter out ANY existing edge that comes from the same Source Node + Source Handle
+      const cleanEdges = eds.filter((e) => {
+        const isSameSource = e.source === params.source;
+        if (!isSameSource) return true;
 
-      const edge = { ...connection };
-      return addEdge(edge, eds);
+        // Strict Handle Matching with Legacy Support
+        // New Handle ID: "source-bottom"
+        // Legacy IDs: "out", null, undefined
+        // "left" is distinct and should NOT be replaced by "source-bottom"
+
+        const pHandle = params.sourceHandle;
+        const eHandle = e.sourceHandle;
+
+        const isBottomParam = pHandle === 'source-bottom' || pHandle === 'out' || !pHandle;
+        const isBottomEdge = eHandle === 'source-bottom' || eHandle === 'out' || !eHandle;
+
+        // If both are "Bottom" group, they conflict -> Remove Edge (Return false)
+        if (isBottomParam && isBottomEdge) {
+          console.log(`Replacing bottom connection: ${e.id} with new ${params.source}->${params.target}`);
+          return false;
+        }
+
+        // If specific handles match exactly (e.g. left === left), Remove Edge
+        if (pHandle === eHandle) return false;
+
+        return true; // Keep edge
+      });
+
+      // 2. Add the new connection to the cleaned list
+      console.log(`🔌 Connected: ${params.source} -> ${params.target}`);
+      const newEdge = {
+        ...params,
+        type: 'smoothstep',
+        animated: false,
+        style: { stroke: '#94a3b8', strokeWidth: 2 },
+      };
+      return addEdge(newEdge, cleanEdges);
     });
-  }, []);
+  }, [setEdges]);
 
   const onNodeDrag = useCallback(
     (_: any, node: Node) => {
-      const proximityThreshold = 200;
-      let closestNode: Node | null = null;
-      let minDistance = Infinity;
+      // Logic copied from onNodeDragStop but for visual feedback ONLY
+      const NODE_WIDTH = node.width ?? 150;
+      const NODE_HEIGHT = node.height ?? 80;
 
-      nodes.forEach((n) => {
-        if (n.id !== node.id) {
-          const dx = n.position.x - node.position.x;
-          const dy = n.position.y - node.position.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+      const inputHandle = { x: node.position.x + NODE_WIDTH / 2, y: node.position.y };
+      const outputHandle = { x: node.position.x + NODE_WIDTH / 2, y: node.position.y + NODE_HEIGHT };
+      const CONNECT_THRESHOLD = 50;
 
-          if (distance < proximityThreshold && distance < minDistance) {
-            minDistance = distance;
-            closestNode = n;
+      let foundTargetId: string | null = null;
+
+      // 1. Check PREDECESSOR (Other -> This)
+      if (getInstr(node) !== "START") { // START can't be a target of predecessor
+        for (const other of nodes) {
+          if (other.id === node.id) continue;
+          const otherW = other.width ?? 150;
+          const otherH = other.height ?? 80;
+          const otherOut = { x: other.position.x + otherW / 2, y: other.position.y + otherH };
+
+          const dist = Math.sqrt(Math.pow(otherOut.x - inputHandle.x, 2) + Math.pow(otherOut.y - inputHandle.y, 2));
+
+          if (dist < CONNECT_THRESHOLD) {
+            const exists = edges.some(e => e.source === other.id && e.target === node.id);
+            const targetOccupied = edges.some(e => e.target === node.id && e.targetHandle === "in");
+
+            if (!exists && !targetOccupied) {
+              foundTargetId = other.id; // Highlight the SOURCE (Other) to show it connects TO this
+              break;
+            }
           }
         }
-      });
+      }
 
-      setProximityNode(closestNode);
-      setNodes((nds) =>
-        nds.map((n) => {
-          const isProximity = n.id === closestNode?.id;
-          return {
-            ...n,
-            style: {
-              ...n.style,
-              boxShadow: isProximity
-                ? "0 0 20px 5px rgba(6, 182, 212, 0.5)"
-                : undefined,
-              borderRadius: isProximity ? "10px" : undefined,
-              transition: isProximity ? "box-shadow 0.2s ease-in-out" : "none",
-            },
-          };
-        }),
-      );
-    },
-    [nodes],
-  );
+      // 2. Check SUCCESSOR (This -> Other)
+      if (!foundTargetId && getInstr(node) !== "HLT") {
+        for (const other of nodes) {
+          if (other.id === node.id) continue;
+          const otherW = other.width ?? 150;
+          const otherIn = { x: other.position.x + otherW / 2, y: other.position.y };
 
-  const onNodeDragStop = useCallback(
-    (_: any, node: Node) => {
-      if (proximityNode) {
-        const draggedY = node.position.y;
-        const proximityY = proximityNode.position.y;
+          const dist = Math.sqrt(Math.pow(outputHandle.x - otherIn.x, 2) + Math.pow(outputHandle.y - otherIn.y, 2));
 
-        // Determine Source/Target based on vertical position
-        let sourceId: string;
-        let targetId: string;
+          if (dist < CONNECT_THRESHOLD) {
+            const exists = edges.some(e => e.source === node.id && e.target === other.id);
+            const targetOccupied = edges.some(e => e.target === other.id && e.targetHandle === "in");
 
-        if (draggedY < proximityY) {
-          sourceId = node.id;
-          targetId = proximityNode.id;
-        } else {
-          sourceId = proximityNode.id;
-          targetId = node.id;
-        }
-
-        const sourceHandle = "out";
-        const targetHandle = "in";
-
-        const isDuplicate = edges.some(e =>
-          e.source === sourceId && e.target === targetId
-        );
-
-        if (!isDuplicate && canConnectEdge(edges, sourceId, targetId, sourceHandle, targetHandle)) {
-          onConnect({
-            source: sourceId,
-            target: targetId,
-            sourceHandle,
-            targetHandle,
-          });
+            if (!exists && !targetOccupied) {
+              foundTargetId = other.id;
+              break;
+            }
+          }
         }
       }
-      // Always clear proximity and highlights
-      setProximityNode(null);
-      setNodes((nds) =>
-        nds.map((n) => {
-          const { boxShadow, borderRadius, transition, ...restStyle } =
-            n.style || {};
-          return { ...n, style: restStyle };
-        }),
-      );
+
+      // 3. Update State Efficiently
+      if (foundTargetId !== highlightedTargetId) {
+        setHighlightedTargetId(foundTargetId);
+        setNodes((nds) => nds.map((n) => {
+          // Clear old highlight
+          if (n.style?.boxShadow === "0 0 0 4px rgba(99, 102, 241, 0.3)") {
+            const { boxShadow, ...rest } = n.style;
+            return { ...n, style: rest };
+          }
+          // Set new highlight (Minimalist Ring)
+          if (n.id === foundTargetId) {
+            return {
+              ...n,
+              style: { ...n.style, boxShadow: "0 0 0 4px rgba(99, 102, 241, 0.3)" }
+            };
+          }
+          return n;
+        }));
+      }
     },
-    [proximityNode, onConnect, edges],
+    [nodes, edges, highlightedTargetId]
   );
 
   const onDragOver = useCallback((event: DragEvent) => {
@@ -349,38 +412,224 @@ export default function AssignmentPlaygroundPage() {
   const onDrop = useCallback(
     (event: DragEvent) => {
       event.preventDefault();
-      if (!reactFlowWrapper.current || !reactFlowInstance) return;
+      try {
+        if (!reactFlowWrapper.current || !reactFlowInstance) return;
 
-      const type = event.dataTransfer.getData("application/reactflow");
-      if (!type) return;
-      const key = type.toLowerCase();
+        const type = event.dataTransfer.getData("application/reactflow");
+        if (!type) return;
+        const key = type.toLowerCase();
 
-      // allow HLT และ START เสมอ; ที่เหลือเช็คตาม allowed
-      const isCore = key === "hlt" || key === "start";
-      if (!isCore && allowed.size && !allowed.has(key)) {
-        alert(`Instruction "${type}" is not allowed for this assignment.`);
-        return;
-      }
+        // 1. Validation
+        const isCore = key === "hlt" || key === "start";
+        if (!isCore && allowed.size && !allowed.has(key)) {
+          alert(`Instruction "${type}" is not allowed for this assignment.`);
+          return;
+        }
 
-      if (maxNodes !== null && nodes.length >= maxNodes) {
-        alert(`Node limit reached (max ${maxNodes}).`);
-        return;
-      }
+        if (maxNodes !== null && nodes.length >= maxNodes) {
+          alert(`Node limit reached (max ${maxNodes}).`);
+          return;
+        }
 
-      const position = reactFlowInstance.project({
-        x: event.clientX,
-        y: event.clientY,
-      });
-      setNodes((nds) =>
-        nds.concat({
+        // 2. Coordinate Calculation
+        const position = reactFlowInstance.screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        // 3. Overlap Detection & Offset
+        // Check if there's any node extremely close to the drop point
+        const overlapThreshold = 50;
+        const isOverlapping = nodes.some(n =>
+          Math.abs(n.position.x - position.x) < overlapThreshold &&
+          Math.abs(n.position.y - position.y) < overlapThreshold
+        );
+
+        if (isOverlapping) {
+          position.x += 20;
+          position.y += 20;
+        }
+
+        // 4. Safe State Update + Unique ID
+        const newNode: Node = {
           id: getId(),
           type: "instruction",
           position,
           data: { instructionType: type },
-        }),
-      );
+        };
+
+        setNodes((prevNodes) => [...prevNodes, newNode]);
+
+      } catch (error) {
+        console.error("Drop failed:", error);
+        // State remains unchanged if error occurs before setNodes
+      }
     },
     [reactFlowInstance, maxNodes, nodes, allowed],
+  );
+
+  const onNodeDragStop = useCallback(
+    (_: any, node: Node) => {
+      // 1. Get Node Dimensions (Safely)
+      const NODE_WIDTH = node.width ?? 150;
+      const NODE_HEIGHT = node.height ?? 80;
+
+      // 2. Define Handle Positions
+      // Top Handle (Input)
+      const inputHandle = {
+        x: node.position.x + NODE_WIDTH / 2,
+        y: node.position.y
+      };
+
+      // Bottom Handle (Output)
+      const outputHandle = {
+        x: node.position.x + NODE_WIDTH / 2,
+        y: node.position.y + NODE_HEIGHT
+      };
+
+      // 3. Increased Threshold
+      const CONNECT_THRESHOLD = 50;
+
+      let connectionMade = false;
+
+      // --- Debug Log ---
+      console.log(`[AutoConnect] DragStop: ${node.id} (${getInstr(node)})`, { inputHandle, outputHandle });
+
+      // Check PREDECESSOR (Other -> This)
+      for (const other of nodes) {
+        if (other.id === node.id) continue;
+
+        const otherW = other.width ?? 150;
+        const otherH = other.height ?? 80;
+
+        // Other's Output (Bottom)
+        const otherOut = {
+          x: other.position.x + otherW / 2,
+          y: other.position.y + otherH
+        };
+
+        const dist = Math.sqrt(
+          Math.pow(otherOut.x - inputHandle.x, 2) +
+          Math.pow(otherOut.y - inputHandle.y, 2)
+        );
+
+        // Debug Log
+        if (dist < 100) {
+          console.log(` Checking Predecessor ${other.id} -> ${node.id}: Dist=${dist.toFixed(1)}`);
+        }
+
+        if (dist < CONNECT_THRESHOLD) {
+          const targetStart = getInstr(node) === "START";
+          if (targetStart) continue;
+
+          const exists = edges.some(e => e.source === other.id && e.target === node.id);
+          const targetOccupied = edges.some(e => e.target === node.id && e.targetHandle === "in");
+
+          if (!exists && !targetOccupied) {
+            console.log(" >> Connecting Predecessor!");
+            const newEdge = {
+              id: `e${other.id}-${node.id}`,
+              source: other.id,
+              target: node.id,
+              sourceHandle: "source-bottom",
+              targetHandle: "in",
+              type: 'smoothstep',
+              animated: false,
+              style: { stroke: '#94a3b8', strokeWidth: 2 },
+            };
+            setEdges((eds) => {
+              // Filter existing "bottom" edges from the Source (other.id)
+              const cleanEdges = eds.filter(e => {
+                if (e.source !== other.id) return true;
+                const h = e.sourceHandle;
+                // Remove if handle is source-bottom, out, or null
+                if (h === 'source-bottom' || h === 'out' || !h) {
+                  console.log(`[AutoConnect] Removing conflicting edge from ${other.id}`);
+                  return false;
+                }
+                return true;
+              });
+              return addEdge(newEdge, cleanEdges);
+            });
+            connectionMade = true;
+            break;
+          }
+        }
+      }
+
+      if (!connectionMade) {
+        // Check SUCCESSOR (This -> Other)
+        for (const other of nodes) {
+          if (other.id === node.id) continue;
+
+          const otherW = other.width ?? 150;
+
+          // Other's Input (Top)
+          const otherIn = {
+            x: other.position.x + otherW / 2,
+            y: other.position.y
+          };
+
+          const dist = Math.sqrt(
+            Math.pow(outputHandle.x - otherIn.x, 2) +
+            Math.pow(outputHandle.y - otherIn.y, 2)
+          );
+
+          // Debug Log
+          if (dist < 100) {
+            console.log(` Checking Successor ${node.id} -> ${other.id}: Dist=${dist.toFixed(1)}`);
+          }
+
+          if (dist < CONNECT_THRESHOLD) {
+            const thisHlt = getInstr(node) === "HLT";
+            if (thisHlt) continue;
+
+            const exists = edges.some(e => e.source === node.id && e.target === other.id);
+            const targetOccupied = edges.some(e => e.target === other.id && e.targetHandle === "in");
+
+            if (!exists && !targetOccupied) {
+              console.log(" >> Connecting Successor!");
+              const newEdge = {
+                id: `e${node.id}-${other.id}`,
+                source: node.id,
+                target: other.id,
+                sourceHandle: "source-bottom",
+                targetHandle: "in",
+                type: 'smoothstep',
+                animated: false,
+                style: { stroke: '#94a3b8', strokeWidth: 2 },
+              };
+              setEdges((eds) => {
+                // Filter existing "bottom" edges from the Source (node.id)
+                const cleanEdges = eds.filter(e => {
+                  if (e.source !== node.id) return true;
+                  const h = e.sourceHandle;
+                  // Remove if handle is source-bottom, out, or null
+                  if (h === 'source-bottom' || h === 'out' || !h) {
+                    console.log(`✂️ [AutoConnect] Removing conflicting edge from ${node.id}`);
+                    return false;
+                  }
+                  return true;
+                });
+                return addEdge(newEdge, cleanEdges);
+              });
+              break;
+            }
+          }
+        }
+      }
+
+      // Cleanup Highlights
+      setHighlightedTargetId(null);
+      setNodes((nds) => nds.map((n) => {
+        if (n.style?.boxShadow === "0 0 0 4px rgba(99, 102, 241, 0.3)") {
+          const { boxShadow, ...rest } = n.style;
+          return { ...n, style: rest };
+        }
+        return n;
+      }));
+    },
+    [nodes, edges, setEdges]
   );
 
   // ===== Fetch assignment =====
@@ -522,8 +771,8 @@ export default function AssignmentPlaygroundPage() {
       const instr = String(it.instruction || "").toUpperCase();
       const ops = Array.isArray(it.operands) ? it.operands : [];
 
-      const need2 = new Set(["MOV", "LOAD", "STORE", "ADD", "SUB", "CMP", "MUL", "DIV"]);
-      const need1 = new Set(["INC", "DEC", "PUSH", "POP"]);
+      const need2 = new Set(["MOV", "LOAD", "STORE", "ADD", "SUB", "CMP", "MUL", "DIV", "AND", "OR", "XOR", "SHL", "SHR", "IN", "OUT"]);
+      const need1 = new Set(["INC", "DEC", "PUSH", "POP", "NOT"]);
       const zero = new Set(["HLT", "START", "NOP"]);
 
       if (need2.has(instr) && ops.length !== 2) {
@@ -571,8 +820,8 @@ export default function AssignmentPlaygroundPage() {
     const items: ProgramItem[] = nodesToProcess.map((node) => {
       const instruction = getInstr(node);
       const outEdges = edges.filter((e) => e.source === node.id);
-      // Accept edges with no sourceHandle OR sourceHandle = "out" as next edge
-      const nextEdge = outEdges.find((e) => !e.sourceHandle || e.sourceHandle === "out");
+      // Accept edges with no sourceHandle OR sourceHandle = "out" / "source-bottom" as next edge
+      const nextEdge = outEdges.find((e) => !e.sourceHandle || e.sourceHandle === "out" || e.sourceHandle === "source-bottom");
       const nextTrueEdge = outEdges.find((e) => e.sourceHandle === "true");
       const nextFalseEdge = outEdges.find((e) => e.sourceHandle === "false");
 
@@ -637,10 +886,29 @@ export default function AssignmentPlaygroundPage() {
           }
 
           // Source register
+          // Source register
           const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
           if (srcReg) {
             operands.push({ type: "Register", value: String(srcReg) });
           }
+        }
+      } else if (instruction === "OUT") {
+        // OUT: Port (memImm), Value (srcReg/srcImm)
+        const port = node.data?.memImm;
+        if (port !== undefined && port !== null && port !== "") {
+          operands.push({ type: "Immediate", value: String(port) });
+        }
+
+        // Src Value
+        let pushedSrc = false;
+        const immRaw = node.data?.srcImm ?? node.data?.imm ?? node.data?.value ?? node.data?.val;
+        if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
+          operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
+          pushedSrc = true;
+        }
+        if (!pushedSrc) {
+          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
+          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
         }
       } else {
         // Regular operand parsing for other instructions
@@ -679,14 +947,7 @@ export default function AssignmentPlaygroundPage() {
       ) {
         operands.push({ type: "Label", value: String(node.data.label) });
       }
-      if (
-        (instruction === "JMP" ||
-          instruction === "JZ" ||
-          instruction === "JNZ") &&
-        node.data?.label
-      ) {
-        operands.push({ type: "Label", value: String(node.data.label) });
-      }
+
 
       item.operands = operands;
       return item as ProgramItem;
@@ -769,32 +1030,126 @@ export default function AssignmentPlaygroundPage() {
       }
 
       // 10) Execute (CLIENT-SIDE)
-      appendLog("Executing program (client-side)...");
-      const execution_state = executeProgram(items, cpu);
 
-      // Log execution results
-      if (execution_state.logs) {
-        execution_state.logs.forEach((log) => appendLog(`  ${log}`));
+      // Stop if already running
+      if (isRunning) {
+        handleStop();
+        appendLog("Stpped by user.");
+        return;
       }
 
-      // update real state
-      setExecRegisters(execution_state.registers || {});
-      setExecFlags(execution_state.flags || {});
-      setExecMemorySparse(execution_state.memory_sparse || {});
+      appendLog("Starting execution (interactive)...");
 
-      appendLog(
-        `halted=${execution_state.halted} error=${execution_state.error ?? "null"}`,
-      );
-      appendLog("registers=" + JSON.stringify(execution_state.registers));
-      appendLog("flags=" + JSON.stringify(execution_state.flags));
-      appendLog(
-        `memory_sparse keys=${Object.keys(execution_state.memory_sparse || {}).length}`,
-      );
+      // Reset IO Handler state but keep buffer
+      ioHandlerRef.current.reset();
+
+      // Initialize CPU
+      // Note: We use the *initial* CPU state from assignment config, 
+      // not the current UI state which might be stale or edited.
+      // But actually, the prompt implies running the program. 
+      // Ideally we reset CPU to clean state.
+      const freshCpu = new CPU(cpu);
+
+      // Setup Maps
+      const instructionMap = buildInstructionMap(items);
+
+      // Find START
+      let startId: number | null = null;
+      for (const item of items) {
+        if (item.instruction?.toUpperCase() === 'START') {
+          startId = item.id;
+        }
+      }
+
+      if (startId === null) {
+        appendLog("Error: No START instruction found.");
+        return;
+      }
+
+      freshCpu.pc = startId;
+      simulationRef.current.cpu = freshCpu;
+
+      // Start Loop
+      setIsRunning(true);
+      let steps = 0;
+      const MAX_STEPS = 20000; // Safety limit
+
+      simulationRef.current.interval = setInterval(() => {
+        const currentCpu = simulationRef.current.cpu;
+        if (!currentCpu) return;
+
+        // Helper to Sync State
+        const syncUI = () => {
+          const newRegisters = { ...currentCpu.registers };
+          const snap = ioHandlerRef.current.getSnapshot();
+          console.log("Committing State Update -> Regs:", newRegisters, "IO:", snap);
+          setExecRegisters(newRegisters);
+          setExecFlags({ ...currentCpu.flags });
+          setExecMemorySparse(currentCpu.getMemorySparse());
+          setExecIO({ ...snap, sevenSegment: snap.sevenSegment, ledMatrix: Array.from(snap.ledMatrix) });
+        };
+
+        // Batch execution: 10 steps per tick
+        for (let i = 0; i < 10; i++) {
+          if (currentCpu.halted) {
+            syncUI(); // <--- Force Sync before Stop
+            handleStop();
+            appendLog(`Program Halted. Steps: ${steps}`);
+            return;
+          }
+          if (steps >= MAX_STEPS) {
+            syncUI(); // <--- Force Sync before Stop
+            handleStop();
+            appendLog(`Max steps (${MAX_STEPS}) exceeded.`);
+            return;
+          }
+
+          const item = instructionMap.get(currentCpu.pc);
+          if (!item) {
+            // Implicit halt if PC invalid
+            currentCpu.halt(`Invalid PC: ${currentCpu.pc}`);
+            syncUI();
+            handleStop();
+            return;
+          }
+
+          try {
+            executeInstruction(
+              currentCpu,
+              item,
+              instructionMap,
+              undefined,
+              ioHandlerRef.current
+            );
+          } catch (err: any) {
+            currentCpu.halt(err.message || String(err));
+            syncUI();
+            handleStop();
+            return;
+          }
+
+          steps++;
+        }
+
+        // Normal Sync (Frame End)
+        syncUI();
+
+      }, 20); // 20ms = 50fps
+
     } catch (error: any) {
-      console.error("Failed to save/run playground:", error);
+      console.error("Failed to run playground:", error);
       appendLog(`execute failed: ${error?.message || String(error)}`);
+      handleStop();
     }
   };
+
+  const handleStop = useCallback(() => {
+    if (simulationRef.current.interval) {
+      clearInterval(simulationRef.current.interval);
+      simulationRef.current.interval = null;
+    }
+    setIsRunning(false);
+  }, []);
 
   /* end handleRun seccton */
   /* end handleRun seccton */
@@ -804,7 +1159,7 @@ export default function AssignmentPlaygroundPage() {
   };
 
   // Navbar wants this symbol; delegate to handleRun("default")
-  const handleNavbarRun = () => handleRun("default");
+  const handleNavbarRun = (mode: string) => handleRun(mode);
 
   if (loading) {
     return (
@@ -913,6 +1268,7 @@ export default function AssignmentPlaygroundPage() {
         onBack={() => router.back()}
         onRun={handleNavbarRun}
         onSubmit={handleSubmit}
+        onReset={resetSave}
       />
 
       <main className="flex-1 relative" ref={reactFlowWrapper}>
@@ -932,6 +1288,7 @@ export default function AssignmentPlaygroundPage() {
             onDrop={onDrop}
             onDragOver={onDragOver}
             onNodeClick={onNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
             nodeTypes={nodeTypes}
             onNodeDrag={onNodeDrag}
             onNodeDragStop={onNodeDragStop}
@@ -955,6 +1312,21 @@ export default function AssignmentPlaygroundPage() {
             flags={displayFlags}
             memory={displayMemory}
           />
+        </DraggablePanel>
+
+        <DraggablePanel title="I/O Devices" defaultPosition={{ x: 20, y: 550 }}>
+          <IOContainer>
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-4">
+                <NumberDisplay value={execIO?.sevenSegment ?? 0} />
+                <LEDMatrix rows={execIO?.ledMatrix ?? [0, 0, 0, 0, 0, 0, 0, 0]} />
+              </div>
+              <TerminalOutput
+                content={execIO?.consoleOutput ?? ""}
+                onInput={(key) => ioHandlerRef.current.receiveInput(key)}
+              />
+            </div>
+          </IOContainer>
         </DraggablePanel>
 
         {/* Properties Panel */}

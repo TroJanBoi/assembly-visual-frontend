@@ -1,202 +1,591 @@
 {
-    "assignments": [
-        {
-            "id": 1,
-            "class_id": 101,
-            "title": "Basic Arithmetic Operations",
-            "description": "Learn to use MOV, ADD, SUB instructions",
-            "due_date": "2025-12-31T23:59:59Z",
-            "max_attempt": 3,
-            "grade": 100,
-            "settings": {
-                "grade_policy": {
-                    "mode": "auto",
-                    "weight": {
-                        "test_case": 70,
-                        "number_of_node_used": 30
-                    }
-                },
-                "test_case_policy": {
-                    "visible_to_student": true
-                },
-                "fe_behavior": {
-                    "lock_after_submit": false,
-                    "allow_resubmit_after_due": true
-                }
-            },
-            "condition": {
-                "allowed_instructions": {
-                    "Data Transfer": {
-                        "MOV": 1,
-                        "LOAD": 1,
-                        "STORE": 1
-                    },
-                    "Arithmetic": {
-                        "ADD": 1,
-                        "SUB": 1
-                    },
-                    "Control": {
-                        "HLT": 1
-                    }
-                },
-                "execution_constraints": {
-                    "max_nodes": 10,
-                    "register_count": 4
-                },
-                "initial_state": {
-                    "registers": {
-                        "R0": 0,
-                        "R1": 5,
-                        "R2": 10
-                    },
-                    "memory": [
-                        {
-                            "address": 0,
-                            "value": 100
-                        },
-                        {
-                            "address": 1,
-                            "value": 200
-                        }
-                    ]
-                }
-            }
+  "assignments": [
+    {
+      "id": 1,
+      "class_id": 101,
+      "title": "Basic Arithmetic Operations",
+      "description": "Learn to use MOV, ADD, SUB instructions",
+      "due_date": "2025-12-31T23:59:59Z",
+      "max_attempt": 3,
+      "grade": 100,
+      "settings": {
+        "grade_policy": {
+          "mode": "auto",
+          "weight": {
+            "test_case": 70,
+            "number_of_node_used": 30
+          }
         },
-        {
-            "id": 2,
-            "class_id": 101,
-            "title": "Control Flow & Branching",
-            "description": "Practice using JMP, JZ, JNZ with labels",
-            "due_date": null,
-            "max_attempt": 5,
-            "grade": 100,
-            "settings": {
-                "grade_policy": {
-                    "mode": "auto",
-                    "weight": {
-                        "test_case": 80,
-                        "number_of_node_used": 20
-                    }
-                },
-                "test_case_policy": {
-                    "visible_to_student": true
-                },
-                "fe_behavior": {
-                    "lock_after_submit": false,
-                    "allow_resubmit_after_due": false
-                }
-            },
-            "condition": {
-                "allowed_instructions": {
-                    "Data Transfer": {
-                        "MOV": 1
-                    },
-                    "Comparison": {
-                        "CMP": 1
-                    },
-                    "Branching": {
-                        "JMP": 1,
-                        "JZ": 1,
-                        "JNZ": 1,
-                        "LABEL": 1
-                    },
-                    "Control": {
-                        "HLT": 1
-                    }
-                },
-                "execution_constraints": {
-                    "max_nodes": 15,
-                    "register_count": 8
-                },
-                "initial_state": {
-                    "registers": {},
-                    "memory": []
-                }
-            }
-        }
-    ],
-    "playgrounds": [
-        {
-            "id": 1,
-            "assignment_id": 1,
-            "user_id": 1,
-            "attempt_no": 1,
-            "status": "in_progress",
-            "item": {
-                "items": [
-                    {
-                        "id": 1,
-                        "instruction": "MOV",
-                        "label": "",
-                        "next": 2,
-                        "next_true": null,
-                        "next_false": null,
-                        "operands": [
-                            {
-                                "type": "Register",
-                                "value": "R0"
-                            },
-                            {
-                                "type": "Immediate",
-                                "value": "#10"
-                            }
-                        ]
-                    },
-                    {
-                        "id": 2,
-                        "instruction": "HLT",
-                        "label": "",
-                        "next": null,
-                        "next_true": null,
-                        "next_false": null,
-                        "operands": []
-                    }
-                ],
-                "meta_data": {
-                    "author_id": 1,
-                    "program_name": "Test Program",
-                    "timestamp": "2025-12-10T12:00:00Z"
-                },
-                "ui": {
-                    "pan": {
-                        "x": 0,
-                        "y": 0
-                    },
-                    "position": {
-                        "1": {
-                            "x": 100,
-                            "y": 100
-                        },
-                        "2": {
-                            "x": 100,
-                            "y": 200
-                        }
-                    },
-                    "zoom": 1
-                }
-            }
-        }
-    ],
-    "users": [
-        {
-            "id": 1,
-            "username": "student1",
-            "email": "student1@example.com",
-            "role": "student"
+        "test_case_policy": {
+          "visible_to_student": true
         },
-        {
+        "fe_behavior": {
+          "lock_after_submit": false,
+          "allow_resubmit_after_due": true
+        }
+      },
+      "condition": {
+        "allowed_instructions": {
+          "System": {
+            "START": 1,
+            "HLT": 1,
+            "NOP": 1,
+            "LABEL": 1
+          },
+          "Data Movement": {
+            "MOV": 1,
+            "LOAD": 1,
+            "STORE": 1
+          },
+          "Arithmetic": {
+            "ADD": 1,
+            "SUB": 1
+          },
+          "Comparison/Conditional": {
+            "JMP": 1,
+            "JZ": 1,
+            "JNZ": 1,
+            "CMP": 1
+          }
+        },
+        "execution_constraints": {
+          "max_nodes": 10,
+          "register_count": 4
+        },
+        "initial_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 5,
+            "R2": 10
+          },
+          "memory": [
+            {
+              "address": 0,
+              "value": 100
+            },
+            {
+              "address": 1,
+              "value": 200
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "class_id": 101,
+      "title": "Control Flow & Branching",
+      "description": "Practice using JMP, JZ, JNZ with labels",
+      "due_date": null,
+      "max_attempt": 5,
+      "grade": 100,
+      "settings": {
+        "grade_policy": {
+          "mode": "auto",
+          "weight": {
+            "test_case": 80,
+            "number_of_node_used": 20
+          }
+        },
+        "test_case_policy": {
+          "visible_to_student": true
+        },
+        "fe_behavior": {
+          "lock_after_submit": false,
+          "allow_resubmit_after_due": false
+        }
+      },
+      "condition": {
+        "allowed_instructions": {
+          "Data Transfer": {
+            "MOV": 1
+          },
+          "Comparison": {
+            "CMP": 1
+          },
+          "Branching": {
+            "JMP": 1,
+            "JZ": 1,
+            "JNZ": 1,
+            "LABEL": 1
+          },
+          "Control": {
+            "HLT": 1
+          }
+        },
+        "execution_constraints": {
+          "max_nodes": 15,
+          "register_count": 8
+        },
+        "initial_state": {
+          "registers": {},
+          "memory": []
+        }
+      }
+    },
+    {
+      "id": 3,
+      "class_id": 101,
+      "title": "Sandbox Mode (All Instructions)",
+      "description": "Full access to all CPU instructions including I/O and Arithmetic",
+      "due_date": null,
+      "max_attempt": 99,
+      "grade": 100,
+      "settings": {
+        "grade_policy": {
+          "mode": "auto",
+          "weight": {
+            "test_case": 0,
+            "number_of_node_used": 0
+          }
+        },
+        "test_case_policy": {
+          "visible_to_student": true
+        },
+        "fe_behavior": {
+          "lock_after_submit": false,
+          "allow_resubmit_after_due": true
+        }
+      },
+      "condition": {
+        "allowed_instructions": {
+          "System": {
+            "START": 1,
+            "HLT": 1,
+            "NOP": 1,
+            "LABEL": 1
+          },
+          "Data": {
+            "MOV": 1,
+            "LOAD": 1,
+            "STORE": 1,
+            "PUSH": 1,
+            "POP": 1
+          },
+          "Arithmetic": {
+            "ADD": 1,
+            "SUB": 1,
+            "MUL": 1,
+            "DIV": 1,
+            "INC": 1,
+            "DEC": 1
+          },
+          "Logic": {
+            "CMP": 1
+          },
+          "Branching": {
+            "JMP": 1,
+            "JZ": 1,
+            "JNZ": 1,
+            "JC": 1,
+            "JNC": 1,
+            "JN": 1
+          },
+          "IO": {
+            "IN": 1,
+            "OUT": 1
+          }
+        },
+        "execution_constraints": {
+          "max_nodes": 50,
+          "register_count": 8
+        },
+        "initial_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0,
+            "R2": 0,
+            "R3": 0
+          },
+          "memory": []
+        }
+      }
+    }
+  ],
+  "playgrounds": [
+    {
+      "id": 1,
+      "assignment_id": 1,
+      "user_id": 1,
+      "attempt_no": 1,
+      "status": "in_progress",
+      "item": {
+        "items": [
+          {
+            "id": 1,
+            "instruction": "START",
+            "label": "",
+            "operands": [],
+            "next": 2
+          },
+          {
             "id": 2,
-            "username": "teacher1",
-            "email": "teacher1@example.com",
-            "role": "teacher"
+            "instruction": "MOV",
+            "label": "",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R1"
+              },
+              {
+                "type": "Immediate",
+                "value": "#250"
+              }
+            ],
+            "next": 3
+          },
+          {
+            "id": 3,
+            "instruction": "LABEL",
+            "label": "loop_1",
+            "operands": []
+          },
+          {
+            "id": 4,
+            "instruction": "ADD",
+            "label": "",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R1"
+              },
+              {
+                "type": "Immediate",
+                "value": "#1"
+              }
+            ],
+            "next": 5
+          },
+          {
+            "id": 5,
+            "instruction": "CMP",
+            "label": "",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R1"
+              },
+              {
+                "type": "Immediate",
+                "value": "#253"
+              }
+            ],
+            "next_true": 6,
+            "next_false": 6
+          },
+          {
+            "id": 6,
+            "instruction": "JNZ",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              },
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ]
+          },
+          {
+            "id": 7,
+            "instruction": "HLT",
+            "label": "",
+            "operands": []
+          }
+        ],
+        "meta_data": {
+          "author_id": 1,
+          "program_name": "Test Program",
+          "timestamp": "2025-12-10T12:00:00Z"
+        },
+        "ui": {
+          "pan": {
+            "x": 701,
+            "y": 126
+          },
+          "position": {
+            "1": {
+              "x": 20,
+              "y": 40
+            },
+            "2": {
+              "x": 140,
+              "y": 140
+            },
+            "3": {
+              "x": 320,
+              "y": 280
+            },
+            "4": {
+              "x": 440,
+              "y": 420
+            },
+            "5": {
+              "x": 580,
+              "y": 560
+            },
+            "6": {
+              "x": 660,
+              "y": 660
+            },
+            "7": {
+              "x": 800,
+              "y": 840
+            }
+          },
+          "zoom": 1
         }
-    ],
-    "classes": [
-        {
-            "id": 101,
-            "name": "Computer Architecture 101",
-            "description": "Introduction to Assembly Programming",
-            "teacher_id": 2
+      }
+    },
+    {
+      "assignment_id": 3,
+      "item": {
+        "items": [
+          {
+            "id": 1,
+            "instruction": "OUT",
+            "label": "",
+            "operands": [
+              {
+                "type": "Immediate",
+                "value": "1"
+              },
+              {
+                "type": "Register",
+                "value": "R0"
+              }
+            ],
+            "next": 7
+          },
+          {
+            "id": 2,
+            "instruction": "START",
+            "label": "",
+            "operands": [],
+            "next": 12
+          },
+          {
+            "id": 3,
+            "instruction": "LABEL",
+            "label": "loop1",
+            "operands": []
+          },
+          {
+            "id": 4,
+            "instruction": "IN",
+            "label": "",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "#0"
+              }
+            ],
+            "next": 5
+          },
+          {
+            "id": 5,
+            "instruction": "CMP",
+            "label": "",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "#0"
+              }
+            ],
+            "next_true": 6,
+            "next_false": 6
+          },
+          {
+            "id": 6,
+            "instruction": "JZ",
+            "label": "loop1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop1"
+              }
+            ]
+          },
+          {
+            "id": 7,
+            "instruction": "OUT",
+            "label": "",
+            "operands": [
+              {
+                "type": "Immediate",
+                "value": "0"
+              },
+              {
+                "type": "Register",
+                "value": "R0"
+              }
+            ],
+            "next": 8
+          },
+          {
+            "id": 8,
+            "instruction": "JMP",
+            "label": "loop1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop1"
+              }
+            ]
+          },
+          {
+            "id": 9,
+            "instruction": "HLT",
+            "label": "",
+            "operands": []
+          },
+          {
+            "id": 10,
+            "instruction": "STORE",
+            "label": "",
+            "operands": [
+              {
+                "type": "Immediate",
+                "value": "0"
+              },
+              {
+                "type": "Register",
+                "value": "R0"
+              }
+            ],
+            "next": 11
+          },
+          {
+            "id": 11,
+            "instruction": "LOAD",
+            "label": "",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R7"
+              },
+              {
+                "type": "Immediate",
+                "value": "0"
+              }
+            ],
+            "next": 9
+          },
+          {
+            "id": 12,
+            "instruction": "MOV",
+            "label": "",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "#16"
+              }
+            ],
+            "next": 10
+          }
+        ],
+        "meta_data": {
+          "author_id": 1,
+          "program_name": "Sandbox Mode (All Instructions)",
+          "timestamp": "2025-12-17T16:45:41.481Z"
+        },
+        "ui": {
+          "pan": {
+            "x": 180,
+            "y": 472
+          },
+          "position": {
+            "1": {
+              "x": 600,
+              "y": 700
+            },
+            "2": {
+              "x": 720,
+              "y": 20
+            },
+            "3": {
+              "x": 600,
+              "y": 240
+            },
+            "4": {
+              "x": 560,
+              "y": 340
+            },
+            "5": {
+              "x": 580,
+              "y": 460
+            },
+            "6": {
+              "x": 600,
+              "y": 580
+            },
+            "7": {
+              "x": 540,
+              "y": 800
+            },
+            "8": {
+              "x": 360,
+              "y": 900
+            },
+            "9": {
+              "x": 1040,
+              "y": 1100
+            },
+            "10": {
+              "x": 980,
+              "y": 340
+            },
+            "11": {
+              "x": 1000,
+              "y": 520
+            },
+            "12": {
+              "x": 960,
+              "y": 160
+            }
+          },
+          "zoom": 1
         }
-    ]
+      },
+      "status": "in_progress",
+      "attempt_no": 1,
+      "id": 2
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "username": "student1",
+      "email": "student1@example.com",
+      "role": "student"
+    },
+    {
+      "id": 2,
+      "username": "teacher1",
+      "email": "teacher1@example.com",
+      "role": "teacher"
+    }
+  ],
+  "classes": [
+    {
+      "id": 101,
+      "name": "Computer Architecture 101",
+      "description": "Introduction to Assembly Programming",
+      "teacher_id": 2
+    }
+  ]
 }

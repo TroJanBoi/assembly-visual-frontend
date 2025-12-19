@@ -1,7 +1,5 @@
 # Mock API Server
 
-เซิร์ฟเวอร์จำลอง Backend API สำหรับการพัฒนา Frontend โดยไม่ต้องรอ Backend
-
 ## การติดตั้ง
 
 ```bash

@@ -14,8 +14,8 @@ export class CPU {
     // Registers (R0-R7 or as configured)
     registers: Record<string, number>;
 
-    // Flags: Z (Zero), C (Carry), V (Overflow), O (Sign/Negative)
-    flags: { Z: number; C: number; V: number; O: number };
+    // Flags: Z (Zero), C (Carry), V (Overflow), N (Negative)
+    flags: { Z: number; C: number; V: number; N: number };
 
     // Memory (256 bytes, 0-255)
     memory: Uint8Array;
@@ -33,7 +33,7 @@ export class CPU {
         this.registers = { ...initialState.registers };
 
         // Initialize flags
-        this.flags = { Z: 0, C: 0, V: 0, O: 0 };
+        this.flags = { Z: 0, C: 0, V: 0, N: 0 };
 
         // Initialize memory (256 bytes)
         this.memory = new Uint8Array(256);
@@ -119,7 +119,7 @@ export class CPU {
         }
 
         // Sign/Negative flag: set if bit 7 is 1 (for signed interpretation)
-        this.flags.O = (result & 0x80) !== 0 ? 1 : 0;
+        this.flags.N = (result & 0x80) !== 0 ? 1 : 0;
     }
 
     /**

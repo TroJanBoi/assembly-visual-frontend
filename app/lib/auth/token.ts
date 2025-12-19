@@ -5,6 +5,8 @@ export const TOKEN_KEY = "authToken";
 export interface DecodedToken {
   user_id: number;
   exp: number;
+  sub?: string;
+  id?: number | string;
 }
 
 export function decodeToken(token: string): DecodedToken | null {

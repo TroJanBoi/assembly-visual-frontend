@@ -76,6 +76,12 @@ export type ExecutionState = {
   memory_sparse: Record<string, number>;
   halted: boolean;
   error: string | null;
+  io_state?: {
+    consoleOutput: string;
+    sevenSegment: number;
+    ledMatrix: number[];
+    ledSelectedRow: number;
+  };
 };
 
 export type ExecuteResp = { execution_state: ExecutionState };

@@ -27,6 +27,7 @@ interface PlaygroundNavbarProps {
   onBack: () => void;
   onRun: (mode: RunMode) => void;
   onSubmit: () => void;
+  onReset?: () => void;
 }
 
 export default function PlaygroundNavbar({
@@ -34,6 +35,7 @@ export default function PlaygroundNavbar({
   onBack,
   onRun,
   onSubmit,
+  onReset,
 }: PlaygroundNavbarProps) {
   const [runMode, setRunMode] = useState<RunMode>("default");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -106,7 +108,11 @@ export default function PlaygroundNavbar({
 
       {/* Right Section */}
       <div className="flex items-center gap-3">
-        <button className="p-2 text-gray-500 hover:text-gray-800 rounded-md">
+        <button
+          onClick={onReset}
+          className="p-2 text-gray-500 hover:text-red-600 rounded-md transition-colors"
+          title="Reset Playground"
+        >
           <HiOutlineRefresh className="w-5 h-5" />
         </button>
 

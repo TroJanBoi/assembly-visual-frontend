@@ -32,6 +32,7 @@ export type PlaygroundCanvasProps = {
 
   /** NEW: forward node click to open Properties Panel */
   onNodeClick?: (e: any, node: Node) => void;
+  onNodeDoubleClick?: (e: any, node: Node) => void;
   onNodeDrag?: (e: any, node: Node) => void;
   onNodeDragStop?: (e: any, node: Node) => void;
 };
@@ -47,6 +48,7 @@ export default React.memo(function PlaygroundCanvas({
   onDrop,
   onDragOver,
   onNodeClick, // NEW
+  onNodeDoubleClick,
   onNodeDrag,
   onNodeDragStop,
 }: PlaygroundCanvasProps) {
@@ -61,6 +63,8 @@ export default React.memo(function PlaygroundCanvas({
         onConnect={onConnect}
         onInit={onInit}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
+        deleteKeyCode='Delete'
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         snapToGrid={true}
@@ -69,7 +73,7 @@ export default React.memo(function PlaygroundCanvas({
           type: 'smoothstep',
           animated: false,
         }}
-        connectionLineType="smoothstep"
+        connectionLineType={ConnectionLineType.SmoothStep}
         fitView
       >
         <Background gap={16} size={1} />

@@ -6,6 +6,7 @@
 
 import { ProgramItem, Operand } from '@/lib/api/playground';
 import { CPU, CPUState } from './cpu';
+import { IOHandler, VirtualIO } from './io';
 
 export type StepExecutionState = {
     cpu: CPU;
@@ -16,6 +17,7 @@ export type StepExecutionState = {
     stepCount: number;
     logs: string[];
     instructionMap: Map<number, ProgramItem>;
+    ioHandler: IOHandler;
 };
 
 /**
@@ -23,7 +25,8 @@ export type StepExecutionState = {
  */
 export function initializeStepExecution(
     items: ProgramItem[],
-    initialState: CPUState
+    initialState: CPUState,
+    externalIOHandler?: IOHandler
 ): StepExecutionState {
     // Build instruction map
     const instructionMap = new Map<number, ProgramItem>();
@@ -53,6 +56,7 @@ export function initializeStepExecution(
         stepCount: 0,
         logs: [`Initialized at instruction ID ${startId}`],
         instructionMap,
+        ioHandler: externalIOHandler || new VirtualIO(),
     };
 }
 
@@ -79,7 +83,8 @@ export function executeStep(state: StepExecutionState): StepExecutionState {
 
     try {
         // Execute instruction (import from executor.ts)
-        executeInstructionStep(state.cpu, currentItem, state.instructionMap);
+        // Execute instruction (import from executor.ts)
+        executeInstructionStep(state.cpu, currentItem, state.instructionMap, state.ioHandler);
 
         // Get next instruction
         const nextInstruction = state.instructionMap.get(state.cpu.pc) || null;
@@ -125,7 +130,8 @@ export function getCurrentState(state: StepExecutionState) {
 function executeInstructionStep(
     cpu: CPU,
     item: ProgramItem,
-    instructionMap: Map<number, ProgramItem>
+    instructionMap: Map<number, ProgramItem>,
+    ioHandler: IOHandler
 ): void {
     const instruction = item.instruction?.toUpperCase() || '';
     const operands = item.operands || [];
@@ -228,17 +234,17 @@ function executeInstructionStep(
             break;
 
         case 'IN':
-            executeIN(cpu, operands);
+            executeIN(cpu, operands, ioHandler);
             cpu.pc = item.next || 0;
             break;
 
         case 'OUT':
-            executeOUT(cpu, operands);
+            executeOUT(cpu, operands, ioHandler);
             cpu.pc = item.next || 0;
             break;
 
         case 'JN':
-            cpu.pc = cpu.flags.O === 1 ? (item.next || 0) : getNextNonJump(item);
+            cpu.pc = cpu.flags.N === 1 ? (item.next || 0) : getNextNonJump(item);
             break;
 
         case 'PUSH':
@@ -248,6 +254,36 @@ function executeInstructionStep(
 
         case 'POP':
             executePOP(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'AND':
+            executeAND(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'OR':
+            executeOR(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'XOR':
+            executeXOR(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'NOT':
+            executeNOT(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'SHL':
+            executeSHL(cpu, operands);
+            cpu.pc = item.next || 0;
+            break;
+
+        case 'SHR':
+            executeSHR(cpu, operands);
             cpu.pc = item.next || 0;
             break;
 
@@ -297,7 +333,11 @@ function executeADD(cpu: CPU, operands: Operand[]): void {
     const srcValue = getOperandValue(cpu, src);
     const result = destValue + srcValue;
     cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, result > 255);
+    // Carry: result > 255
+    // Overflow: (Op1^Res)&(Op2^Res)&0x80
+    // Simplified: same sign operands -> different sign result
+    const overflow = ((destValue ^ result) & (srcValue ^ result) & 0x80) !== 0;
+    cpu.setFlags(result, result > 255, overflow);
 }
 
 function executeSUB(cpu: CPU, operands: Operand[]): void {
@@ -308,7 +348,11 @@ function executeSUB(cpu: CPU, operands: Operand[]): void {
     const srcValue = getOperandValue(cpu, src);
     const result = destValue - srcValue;
     cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, result < 0);
+    // Carry (Borrow): result < 0
+    // Overflow: (Op1^Op2)&(Op1^Res)&0x80
+    // Simplified: different sign operands -> sign of result != sign of dest
+    const overflow = ((destValue ^ srcValue) & (destValue ^ result) & 0x80) !== 0;
+    cpu.setFlags(result, result < 0, overflow);
 }
 
 function executeINC(cpu: CPU, operands: Operand[]): void {
@@ -318,7 +362,11 @@ function executeINC(cpu: CPU, operands: Operand[]): void {
     const value = cpu.getRegister(dest.value);
     const result = value + 1;
     cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, result > 255);
+    // INC only affects Z, O, V usually. C is debated but x86 INC does NOT set carry. 
+    // Here we seemingly set Carry in existing code. We will keep checking result > 255.
+    // Overflow: 127 + 1 = 128 (-128) -> Overflow
+    const overflow = (value === 0x7F);
+    cpu.setFlags(result, result > 255, overflow);
 }
 
 function executeDEC(cpu: CPU, operands: Operand[]): void {
@@ -328,7 +376,10 @@ function executeDEC(cpu: CPU, operands: Operand[]): void {
     const value = cpu.getRegister(dest.value);
     const result = value - 1;
     cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, result < 0);
+    // DEC does not set carry on x86.
+    // Overflow: -128 - 1 = -129 (+127) -> Overflow
+    const overflow = (value === 0x80);
+    cpu.setFlags(result, result < 0, overflow);
 }
 
 function executeLOAD(cpu: CPU, operands: Operand[]): void {
@@ -355,7 +406,9 @@ function executeCMP(cpu: CPU, operands: Operand[]): void {
     const value1 = getOperandValue(cpu, op1);
     const value2 = getOperandValue(cpu, op2);
     const result = value1 - value2;
-    cpu.setFlags(result, result < 0);
+    // CMP is essentially SUB but discard result
+    const overflow = ((value1 ^ value2) & (value1 ^ result) & 0x80) !== 0;
+    cpu.setFlags(result, result < 0, overflow);
 }
 
 function executePUSH(cpu: CPU, operands: Operand[]): void {
@@ -403,17 +456,92 @@ function executeDIV(cpu: CPU, operands: Operand[]): void {
     cpu.setFlags(result, false);
 }
 
-function executeIN(cpu: CPU, operands: Operand[]): void {
+function executeIN(cpu: CPU, operands: Operand[], ioHandler: IOHandler): void {
     if (operands.length !== 2) throw new Error('IN requires 2 operands');
 
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('IN destination must be a register');
 
-    cpu.setRegister(dest.value, 0);
+    // src is port number (immediate)
+    const port = getOperandValue(cpu, src);
+    const value = ioHandler.onRead(port);
+
+    cpu.setRegister(dest.value, value);
 }
 
-function executeOUT(cpu: CPU, operands: Operand[]): void {
+function executeOUT(cpu: CPU, operands: Operand[], ioHandler: IOHandler): void {
     if (operands.length !== 2) throw new Error('OUT requires 2 operands');
+
+    const [portOp, valOp] = operands;
+    const port = getOperandValue(cpu, portOp);
+    const value = getOperandValue(cpu, valOp);
+
+    ioHandler.onWrite(port, value);
+}
+
+function executeAND(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('AND requires 2 operands');
+    const [dest, src] = operands;
+    if (dest.type !== 'Register') throw new Error('AND destination must be a register');
+    const destValue = cpu.getRegister(dest.value);
+    const srcValue = getOperandValue(cpu, src);
+    const result = destValue & srcValue;
+    cpu.setRegister(dest.value, result);
+    cpu.setFlags(result, false);
+}
+
+function executeOR(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('OR requires 2 operands');
+    const [dest, src] = operands;
+    if (dest.type !== 'Register') throw new Error('OR destination must be a register');
+    const destValue = cpu.getRegister(dest.value);
+    const srcValue = getOperandValue(cpu, src);
+    const result = destValue | srcValue;
+    cpu.setRegister(dest.value, result);
+    cpu.setFlags(result, false);
+}
+
+function executeXOR(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('XOR requires 2 operands');
+    const [dest, src] = operands;
+    if (dest.type !== 'Register') throw new Error('XOR destination must be a register');
+    const destValue = cpu.getRegister(dest.value);
+    const srcValue = getOperandValue(cpu, src);
+    const result = destValue ^ srcValue;
+    cpu.setRegister(dest.value, result);
+    cpu.setFlags(result, false);
+}
+
+function executeNOT(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 1) throw new Error('NOT requires 1 operand');
+    const [dest] = operands;
+    if (dest.type !== 'Register') throw new Error('NOT operand must be a register');
+    const value = cpu.getRegister(dest.value);
+    const result = (~value) & 0xFF; // Ensure 8-bit
+    cpu.setRegister(dest.value, result);
+    cpu.setFlags(result, false);
+}
+
+function executeSHL(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('SHL requires 2 operands');
+    const [dest, src] = operands;
+    if (dest.type !== 'Register') throw new Error('SHL destination must be a register');
+    const value = cpu.getRegister(dest.value);
+    const shift = getOperandValue(cpu, src);
+    const result = (value << shift) & 0xFF;
+    cpu.setRegister(dest.value, result);
+    cpu.setFlags(result, false);
+}
+
+function executeSHR(cpu: CPU, operands: Operand[]): void {
+    if (operands.length !== 2) throw new Error('SHR requires 2 operands');
+    const [dest, src] = operands;
+    if (dest.type !== 'Register') throw new Error('SHR destination must be a register');
+    const value = cpu.getRegister(dest.value);
+    const shift = getOperandValue(cpu, src);
+    const result = (value >>> shift) & 0xFF;
+    cpu.setRegister(dest.value, result);
+    cpu.setFlags(result, false);
 }
 
 function getOperandValue(cpu: CPU, operand: Operand): number {

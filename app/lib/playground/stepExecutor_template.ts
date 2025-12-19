@@ -6,7 +6,7 @@
 
 import { ProgramItem, Operand } from '@/lib/api/playground';
 import { CPU, CPUState } from './cpu';
-import { IOHandler, VirtualIO, IOState } from './io';
+import { IOHandler, VirtualIO } from './io';
 
 export type ExecutionResult = {
     registers: Record<string, number>;
@@ -15,27 +15,21 @@ export type ExecutionResult = {
     halted: boolean;
     error: string | null;
     logs?: string[];
-    io_state?: {
-        consoleOutput: string;
-        sevenSegment: number;
-        ledMatrix: number[];
-        ledSelectedRow: number;
-    };
 };
 
-export async function executeProgram(
+/**
+ * Execute a complete assembly program
+ * @param items - Array of program instructions
+ * @param initialState - Initial CPU state (registers, memory)
+ * @param maxSteps - Maximum execution steps to prevent infinite loops
+ * @returns Final execution state
+ */
+export function executeProgram(
     items: ProgramItem[],
     initialState: CPUState,
-    maxSteps: number = 10000,
-    initialIO?: Partial<IOState>,
-    externalIOHandler?: IOHandler
-): Promise<ExecutionResult> {
+    maxSteps: number = 10000
+): ExecutionResult {
     const logs: string[] = [];
-    // Use provided handler or create new one
-    const ioHandler = externalIOHandler || new VirtualIO(initialIO);
-
-    // If reusing external handler, we might want to ensure it's synced with initialIO if provided?
-    // For now, assume usage pattern: page.tsx resets handler then calls execute.
 
     try {
         // Build instruction map: ID -> ProgramItem
@@ -64,16 +58,12 @@ export async function executeProgram(
         // Initialize CPU
         const cpu = new CPU(initialState);
         cpu.pc = startId;
+        const ioHandler = new VirtualIO();
         logs.push(`Starting execution at instruction ID ${startId}`);
 
         // Execution loop
         let steps = 0;
         while (!cpu.halted && steps < maxSteps) {
-            // Yield to event loop every 20 steps to allow UI updates (keyboard input)
-            if (steps % 20 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
-
             const currentItem = instructionMap.get(cpu.pc);
 
             if (!currentItem) {
@@ -86,7 +76,7 @@ export async function executeProgram(
 
             // Execute instruction
             try {
-                executeInstruction(cpu, currentItem, instructionMap, logs, ioHandler);
+                executeInstruction(cpu, currentItem, instructionMap, ioHandler, logs);
             } catch (err: any) {
                 cpu.halt(err.message || String(err));
                 break;
@@ -102,7 +92,6 @@ export async function executeProgram(
 
         logs.push(`Execution completed. Halted=${cpu.halted}, Steps=${steps}`);
 
-        const snapshot = ioHandler.getSnapshot();
         // Return final state
         return {
             registers: { ...cpu.registers },
@@ -111,10 +100,6 @@ export async function executeProgram(
             halted: cpu.halted,
             error: cpu.error,
             logs,
-            io_state: {
-                ...snapshot,
-                ledMatrix: Array.from(snapshot.ledMatrix)
-            }
         };
 
     } catch (err: any) {
@@ -130,23 +115,15 @@ export async function executeProgram(
     }
 }
 
-export function buildInstructionMap(items: ProgramItem[]): Map<number, ProgramItem> {
-    const map = new Map<number, ProgramItem>();
-    for (const item of items) {
-        map.set(item.id, item);
-    }
-    return map;
-}
-
 /**
  * Execute a single instruction
  */
-export function executeInstruction(
+function executeInstruction(
     cpu: CPU,
     item: ProgramItem,
     instructionMap: Map<number, ProgramItem>,
-    logs: string[] = [],
-    ioHandler: IOHandler
+    ioHandler: IOHandler,
+    logs: string[] = []
 ): void {
     const instruction = item.instruction?.toUpperCase() || '';
     const operands = item.operands || [];
@@ -257,12 +234,12 @@ export function executeInstruction(
             break;
 
         case 'IN':
-            executeIN(cpu, operands, logs, ioHandler);
+            executeIN(cpu, operands, ioHandler, logs);
             cpu.pc = item.next || 0;
             break;
 
         case 'OUT':
-            executeOUT(cpu, operands, logs, ioHandler);
+            executeOUT(cpu, operands, ioHandler, logs);
             cpu.pc = item.next || 0;
             break;
 
@@ -279,52 +256,6 @@ export function executeInstruction(
         case 'LABEL':
             // LABEL is just a marker, advance to next
             cpu.pc = item.next || 0;
-            break;
-
-        case 'AND':
-            executeAND(cpu, operands);
-            cpu.pc = item.next || 0;
-            break;
-
-        case 'OR':
-            executeOR(cpu, operands);
-            cpu.pc = item.next || 0;
-            break;
-
-        case 'XOR':
-            executeXOR(cpu, operands);
-            cpu.pc = item.next || 0;
-            break;
-
-        case 'NOT':
-            executeNOT(cpu, operands);
-            cpu.pc = item.next || 0;
-            break;
-
-        case 'SHL':
-            executeSHL(cpu, operands);
-            cpu.pc = item.next || 0;
-            break;
-
-        case 'SHR':
-            executeSHR(cpu, operands);
-            cpu.pc = item.next || 0;
-            break;
-
-        case 'CALL':
-            // Push return address (next instruction)
-            const returnAddress = item.next ?? 0; // If null (EOF), ret to 0? Or error? Standard implies valid next.
-            // Support 16-bit address push? Memory is small (256 bytes), so 1 byte is defined sufficient for this project unless specified otherwise.
-            // User requested "handle 16-bit PC: push high byte, then low byte, or simplify if memory is small"
-            // Since memory is 256 bytes, PC fits in 1 byte.
-            cpu.push(returnAddress);
-
-            cpu.pc = resolveJumpTarget(operands, instructionMap) || 0;
-            break;
-
-        case 'RET':
-            const retAddr = cpu.pop();
-            cpu.pc = retAddr;
             break;
 
         default:
@@ -377,9 +308,11 @@ function executeADD(cpu: CPU, operands: Operand[]): void {
     const destValue = cpu.getRegister(dest.value);
     const srcValue = getOperandValue(cpu, src);
     const result = destValue + srcValue;
-
     cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, result > 255);  // Carry if overflow
+    // Carry: result > 255
+    // Overflow: (Op1^Res)&(Op2^Res)&0x80
+    const overflow = ((destValue ^ result) & (srcValue ^ result) & 0x80) !== 0;
+    cpu.setFlags(result, result > 255, overflow);
 }
 
 function executeSUB(cpu: CPU, operands: Operand[]): void {
@@ -391,9 +324,11 @@ function executeSUB(cpu: CPU, operands: Operand[]): void {
     const destValue = cpu.getRegister(dest.value);
     const srcValue = getOperandValue(cpu, src);
     const result = destValue - srcValue;
-
     cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, result < 0);  // Carry if borrow
+    // Carry (Borrow): result < 0
+    // Overflow: (Op1^Op2)&(Op1^Res)&0x80
+    const overflow = ((destValue ^ srcValue) & (destValue ^ result) & 0x80) !== 0;
+    cpu.setFlags(result, result < 0, overflow);
 }
 
 function executeINC(cpu: CPU, operands: Operand[]): void {
@@ -404,9 +339,9 @@ function executeINC(cpu: CPU, operands: Operand[]): void {
 
     const value = cpu.getRegister(dest.value);
     const result = value + 1;
-
     cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, result > 255);
+    const overflow = (value === 0x7F);
+    cpu.setFlags(result, result > 255, overflow);
 }
 
 function executeDEC(cpu: CPU, operands: Operand[]): void {
@@ -417,9 +352,9 @@ function executeDEC(cpu: CPU, operands: Operand[]): void {
 
     const value = cpu.getRegister(dest.value);
     const result = value - 1;
-
     cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, result < 0);
+    const overflow = (value === 0x80);
+    cpu.setFlags(result, result < 0, overflow);
 }
 
 function executeLOAD(cpu: CPU, operands: Operand[]): void {
@@ -456,7 +391,8 @@ function executeCMP(cpu: CPU, operands: Operand[]): void {
     const value2 = getOperandValue(cpu, op2);
 
     const result = value1 - value2;
-    cpu.setFlags(result, result < 0);  // Set flags without changing registers
+    const overflow = ((value1 ^ value2) & (value1 ^ result) & 0x80) !== 0;
+    cpu.setFlags(result, result < 0, overflow);
 }
 
 function executePUSH(cpu: CPU, operands: Operand[]): void {
@@ -508,7 +444,7 @@ function executeDIV(cpu: CPU, operands: Operand[]): void {
     cpu.setFlags(result, false);
 }
 
-function executeIN(cpu: CPU, operands: Operand[], logs: string[], ioHandler: IOHandler): void {
+function executeIN(cpu: CPU, operands: Operand[], ioHandler: IOHandler, logs: string[]): void {
     if (operands.length !== 2) throw new Error('IN requires 2 operands');
 
     const [dest, src] = operands;
@@ -516,88 +452,21 @@ function executeIN(cpu: CPU, operands: Operand[], logs: string[], ioHandler: IOH
 
     const port = getOperandValue(cpu, src);
     const value = ioHandler.onRead(port);
-
     if (logs) logs.push(`> Input from port ${port}: ${value}`);
 
     cpu.setRegister(dest.value, value);
 }
 
-function executeOUT(cpu: CPU, operands: Operand[], logs: string[], ioHandler: IOHandler): void {
+function executeOUT(cpu: CPU, operands: Operand[], ioHandler: IOHandler, logs: string[]): void {
     if (operands.length !== 2) throw new Error('OUT requires 2 operands');
 
     const [portOp, valOp] = operands;
 
-    const portVal = getOperandValue(cpu, portOp);
+    const port = getOperandValue(cpu, portOp);
     const value = getOperandValue(cpu, valOp);
 
-    ioHandler.onWrite(portVal, value);
-
-    if (logs) logs.push(`> OUT Port ${portVal}: ${value}`);
-}
-
-function executeAND(cpu: CPU, operands: Operand[]): void {
-    if (operands.length !== 2) throw new Error('AND requires 2 operands');
-    const [dest, src] = operands;
-    if (dest.type !== 'Register') throw new Error('AND destination must be a register');
-    const destValue = cpu.getRegister(dest.value);
-    const srcValue = getOperandValue(cpu, src);
-    const result = destValue & srcValue;
-    cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, false);
-}
-
-function executeOR(cpu: CPU, operands: Operand[]): void {
-    if (operands.length !== 2) throw new Error('OR requires 2 operands');
-    const [dest, src] = operands;
-    if (dest.type !== 'Register') throw new Error('OR destination must be a register');
-    const destValue = cpu.getRegister(dest.value);
-    const srcValue = getOperandValue(cpu, src);
-    const result = destValue | srcValue;
-    cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, false);
-}
-
-function executeXOR(cpu: CPU, operands: Operand[]): void {
-    if (operands.length !== 2) throw new Error('XOR requires 2 operands');
-    const [dest, src] = operands;
-    if (dest.type !== 'Register') throw new Error('XOR destination must be a register');
-    const destValue = cpu.getRegister(dest.value);
-    const srcValue = getOperandValue(cpu, src);
-    const result = destValue ^ srcValue;
-    cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, false);
-}
-
-function executeNOT(cpu: CPU, operands: Operand[]): void {
-    if (operands.length !== 1) throw new Error('NOT requires 1 operand');
-    const [dest] = operands;
-    if (dest.type !== 'Register') throw new Error('NOT operand must be a register');
-    const value = cpu.getRegister(dest.value);
-    const result = (~value) & 0xFF; // Ensure 8-bit
-    cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, false);
-}
-
-function executeSHL(cpu: CPU, operands: Operand[]): void {
-    if (operands.length !== 2) throw new Error('SHL requires 2 operands');
-    const [dest, src] = operands;
-    if (dest.type !== 'Register') throw new Error('SHL destination must be a register');
-    const value = cpu.getRegister(dest.value);
-    const shift = getOperandValue(cpu, src);
-    const result = (value << shift) & 0xFF;
-    cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, false);
-}
-
-function executeSHR(cpu: CPU, operands: Operand[]): void {
-    if (operands.length !== 2) throw new Error('SHR requires 2 operands');
-    const [dest, src] = operands;
-    if (dest.type !== 'Register') throw new Error('SHR destination must be a register');
-    const value = cpu.getRegister(dest.value);
-    const shift = getOperandValue(cpu, src);
-    const result = (value >>> shift) & 0xFF;
-    cpu.setRegister(dest.value, result);
-    cpu.setFlags(result, false);
+    ioHandler.onWrite(port, value);
+    if (logs) logs.push(`> OUT Port ${port}: ${value}`);
 }
 
 // ===== Helpers =====

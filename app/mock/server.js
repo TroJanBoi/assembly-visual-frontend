@@ -128,6 +128,58 @@ server.post('/api/v2/playgrounds/:id/execute', (req, res) => {
     });
 });
 
+// Custom route: GET /api/v2/classes/public
+server.get('/api/v2/classes/public', (req, res) => {
+    const db = router.db;
+    const classes = db.get('classes').value();
+    console.log('[Mock API] Serving public classes');
+    res.json(classes);
+});
+
+// Custom route: GET /api/v2/profile/
+server.get('/api/v2/profile/', (req, res) => {
+    // Return mock user profile
+    res.json({
+        id: 1,
+        username: "student1",
+        email: "student1@example.com",
+        role: "student"
+    });
+});
+
+// Custom route: GET /api/v2/classes/:id/members
+server.get('/api/v2/classes/:id/members', (req, res) => {
+    // Return mock members
+    res.json([
+        { id: 1, email: "student1@example.com", name: "Student One", role: "student" },
+        { id: 2, email: "teacher1@example.com", name: "Teacher One", role: "teacher" }
+    ]);
+});
+
+// Custom route: GET /api/v2/classes (to fix 304/404 issues if any)
+server.get('/api/v2/classes', (req, res) => {
+    const db = router.db;
+    const classes = db.get('classes').value();
+    res.json(classes);
+});
+
+// Custom route: GET /api/v2/classes/:classId/assignments/:assignmentId
+server.get('/api/v2/classes/:classId/assignments/:assignmentId', (req, res) => {
+    const classId = parseInt(req.params.classId);
+    const assignmentId = parseInt(req.params.assignmentId);
+    const db = router.db;
+
+    const assignment = db.get('assignments')
+        .find({ id: assignmentId, class_id: classId })
+        .value();
+
+    if (assignment) {
+        res.json(assignment);
+    } else {
+        res.status(404).json({ error: 'Assignment not found' });
+    }
+});
+
 // Mount json-server router with /api/v2 prefix
 server.use('/api/v2', router);
 

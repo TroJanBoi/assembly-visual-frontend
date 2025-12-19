@@ -7,6 +7,7 @@ import {
   instructionCategories,
   type InstructionDef,
 } from "@/lib/playground/instructionDefs";
+import { VIRTUAL_PORTS, VirtualPort } from "@/lib/playground/ports";
 
 type AddressMode = "imm" | "reg";
 type SrcMode = "imm" | "reg";
@@ -234,6 +235,39 @@ export default React.memo(function PropertyPanel({
     patch({ memReg: v });
   };
 
+
+
+  const SelectPort = ({
+    value,
+    onChange,
+    type,
+  }: {
+    value?: number;
+    onChange: (v: number) => void;
+    type: "INPUT" | "OUTPUT";
+  }) => (
+    <select
+      value={value ?? ""}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === "") return;
+        onChange(Number(val));
+      }}
+      className="w-full h-10 rounded-md border px-2 bg-white"
+    >
+      <option value="" disabled>
+        Select Port
+      </option>
+      {VIRTUAL_PORTS.filter((p) => p.type === type || p.type === "INOUT").map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}
+        </option>
+      ))}
+      <option disabled>──────────</option>
+      <option value="-1">Custom (Type in...)</option>
+    </select>
+  );
+
   // Pattern routing -----------------------------------------------------------
   const NAME = def.name;
   const isZero = def.layout === "zero" && NAME !== "LABEL";
@@ -242,8 +276,10 @@ export default React.memo(function PropertyPanel({
   const isLoad = NAME === "LOAD";
   const isStore = NAME === "STORE";
   const isCmp = NAME === "CMP";
-  const isUnary = ["INC", "DEC"].includes(NAME);
-  const hasSrcValueOrReg = ["MOV", "ADD", "SUB", "MUL", "DIV"].includes(NAME); // DST <- (Value|Reg)
+  const isUnary = ["INC", "DEC", "NOT", "SHL", "SHR", "PUSH", "POP"].includes(NAME);
+  const hasSrcValueOrReg = ["MOV", "ADD", "SUB", "MUL", "DIV", "AND", "OR", "XOR"].includes(NAME); // DST <- (Value|Reg)
+  const isIn = NAME === "IN";   // REG <- PORT
+  const isOut = NAME === "OUT"; // PORT <- (Value|Reg)
 
   // CMP policy — allow immediate constants for SRC (common in ISAs)
   const allowCmpImm = true;
@@ -393,6 +429,80 @@ export default React.memo(function PropertyPanel({
           </div>
         )}
 
+        {/* IN: REG <- PORT */}
+        {isIn && (
+          <div className="space-y-4">
+            <div>
+              <L>Destination Register</L>
+              <SelectRegister value={data.dest} onChange={setDest} />
+            </div>
+            <div>
+              <L>Port Number</L>
+              <SelectPort
+                value={data.srcImm}
+                onChange={(v) => patch({ srcImm: v })}
+                type="INPUT"
+              />
+              {data.srcImm === -1 && (
+                <div className="mt-2">
+                  <InputByte
+                    value={undefined}
+                    onChange={(v) => patch({ srcImm: v })}
+                    placeholder="Port (0-255)"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* OUT: PORT <- (Value|Reg) */}
+        {isOut && (
+          <div className="space-y-4">
+            <div>
+              <L>Port Number</L>
+              <SelectPort
+                value={data.memImm}
+                onChange={(v) => patch({ memImm: v })}
+                type="OUTPUT"
+              />
+              {data.memImm === -1 && (
+                <div className="mt-2">
+                  <InputByte
+                    value={undefined}
+                    onChange={(v) => patch({ memImm: v })}
+                    placeholder="Port (0-255)"
+                  />
+                </div>
+              )}
+            </div>
+            <div>
+              <L>Value to Send</L>
+              <Toggle
+                left="Value"
+                right="Register"
+                active={srcMode === "imm" ? "left" : "right"}
+                onLeft={() => patch({ srcMode: "imm", srcReg: "" })}
+                onRight={() => patch({ srcMode: "reg", srcImm: undefined })}
+              />
+              <div className="mt-2">
+                {srcMode === "imm" ? (
+                  <InputByte
+                    value={data.srcImm}
+                    onChange={(v) => patch({ srcImm: v })}
+                  />
+                ) : (
+                  <SelectRegister
+                    value={data.srcReg}
+                    onChange={setSrcReg}
+                    disabledOption=""
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* CMP: REG , (REG | IMM) */}
         {isCmp && (
           <div className="space-y-4">
@@ -428,7 +538,7 @@ export default React.memo(function PropertyPanel({
           </div>
         )}
 
-        {/* Unary (INC/DEC): REG */}
+        {/* Unary (INC/DEC/NOT/PUSH/POP): REG */}
         {isUnary && (
           <div className="space-y-1">
             <L>Target</L>
@@ -436,7 +546,7 @@ export default React.memo(function PropertyPanel({
           </div>
         )}
 
-        {/* MOV/ADD/SUB/MUL/DIV: REG <- (Value|Reg) */}
+        {/* MOV/ADD/SUB/MUL/DIV/AND/OR/XOR: REG <- (Value|Reg) */}
         {hasSrcValueOrReg && (
           <div className="space-y-4">
             <div>

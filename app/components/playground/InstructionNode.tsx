@@ -85,6 +85,9 @@ export default memo(function InstructionNode({
   let displayLeft: string;
   let displayRight: string | number;
 
+  const isOut = def.name === "OUT";
+  const isIn = def.name === "IN";
+
   if (isLoad) {
     // LOAD  REG <- [ADDR]
     displayLeft = destReg;
@@ -93,6 +96,12 @@ export default memo(function InstructionNode({
     // STORE [ADDR] <- REG
     displayLeft = memText;
     displayRight = data?.srcReg ?? "R0";
+  } else if (isOut) {
+    // OUT PORT, VAL
+    // In PropertyPanel we used memImm for Port.
+    const port = data?.memImm ?? 0;
+    displayLeft = port.toString();
+    displayRight = srcText;
   } else if (def.layout === "ds") {
     displayLeft = destReg;
     displayRight = srcText;
@@ -121,7 +130,7 @@ export default memo(function InstructionNode({
     <div
       className={cn(
         "inline-flex items-center gap-2 rounded-xl border-2 shadow-sm px-3 py-2",
-        "h-auto min-w-[200px] justify-start", // Fixed width for consistent grid alignment
+        "h-auto min-w-[200px] justify-start transition-all duration-300 ease-out", // Fixed width for consistent grid alignment
         styles.button,
       )}
     >
@@ -138,7 +147,7 @@ export default memo(function InstructionNode({
         <Handle
           type="source"
           position={Position.Bottom}
-          id="out"
+          id="source-bottom"
           className="!bg-gray-400"
           isConnectable={isConnectable}
         />
