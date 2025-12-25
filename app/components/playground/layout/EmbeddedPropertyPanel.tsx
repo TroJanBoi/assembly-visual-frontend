@@ -12,6 +12,8 @@ import { VIRTUAL_PORTS } from "@/lib/playground/ports";
 type AddressMode = "imm" | "reg";
 type SrcMode = "imm" | "reg";
 
+import ModernDropdown, { type DropdownOption } from "@/components/ui/ModernDropdown";
+
 export type EmbeddedPanelProps = {
     node: { id: string; type: string; data: any } | null;
     onChange: (nodeId: string, patch: Record<string, any>) => void;
@@ -61,6 +63,8 @@ export default React.memo(function EmbeddedPropertyPanel({
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{children}</div>
     );
 
+
+
     const SelectRegister = ({
         value,
         onChange,
@@ -69,28 +73,27 @@ export default React.memo(function EmbeddedPropertyPanel({
         value?: string;
         onChange: (v: string) => void;
         disabledOption?: string;
-    }) => (
-        <select
-            value={value ?? ""}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full h-9 text-sm rounded-md border border-gray-300 px-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-        >
-            <option value="" disabled>
-                Select Register
-            </option>
-            {registers.map((r) => (
-                <option key={r} value={r} disabled={disabledOption === r}>
-                    {r}
-                    {disabledOption === r ? " (in use)" : ""}
-                </option>
-            ))}
-        </select>
-    );
+    }) => {
+        const options: DropdownOption[] = registers.map(r => ({
+            label: r + (disabledOption === r ? " (in use)" : ""),
+            value: r,
+            disabled: disabledOption === r
+        }));
+
+        return (
+            <ModernDropdown
+                value={value}
+                onChange={onChange}
+                options={options}
+                placeholder="Select Register"
+            />
+        );
+    };
 
     const InputByte = ({
         value,
         onChange,
-        placeholder = "0–255",
+        placeholder = "Value (0-255)",
     }: {
         value?: number;
         onChange: (v: number | undefined) => void;
@@ -221,28 +224,24 @@ export default React.memo(function EmbeddedPropertyPanel({
         value?: number;
         onChange: (v: number) => void;
         type: "INPUT" | "OUTPUT";
-    }) => (
-        <select
-            value={value ?? ""}
-            onChange={(e) => {
-                const val = e.target.value;
-                if (val === "") return;
-                onChange(Number(val));
-            }}
-            className="w-full h-9 text-sm rounded-md border border-gray-300 px-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-        >
-            <option value="" disabled>
-                Select Port
-            </option>
-            {VIRTUAL_PORTS.filter((p) => p.type === type || p.type === "INOUT").map((p) => (
-                <option key={p.id} value={p.id}>
-                    {p.name}
-                </option>
-            ))}
-            <option disabled>──────────</option>
-            <option value="-1">Custom Port #</option>
-        </select>
-    );
+    }) => {
+        const options: DropdownOption[] = [
+            ...VIRTUAL_PORTS.filter((p) => p.type === type || p.type === "INOUT").map((p) => ({
+                label: p.name,
+                value: p.id,
+            })),
+            { label: "Custom Port #", value: -1 }
+        ];
+
+        return (
+            <ModernDropdown
+                value={value}
+                onChange={(v) => onChange(Number(v))}
+                options={options}
+                placeholder="Select Port"
+            />
+        );
+    };
 
     const NAME = def.name;
     const isZero = def.layout === "zero" && NAME !== "LABEL";
@@ -299,16 +298,12 @@ export default React.memo(function EmbeddedPropertyPanel({
                 {isJump && (
                     <div className="space-y-1">
                         <L>Jump Target</L>
-                        <select
-                            className="w-full h-9 text-sm rounded-md border border-gray-300 px-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                            value={data.label ?? ""}
-                            onChange={(e) => patch({ label: e.target.value })}
-                        >
-                            <option value="" disabled>Select Label</option>
-                            {labels.map((lb) => (
-                                <option key={lb} value={lb}>{lb}</option>
-                            ))}
-                        </select>
+                        <ModernDropdown
+                            value={data.label}
+                            onChange={(v: string) => patch({ label: v })}
+                            options={labels.map(lb => ({ label: lb, value: lb }))}
+                            placeholder="Select Label"
+                        />
                     </div>
                 )}
 

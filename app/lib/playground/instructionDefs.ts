@@ -1,184 +1,259 @@
-// app/lib/playground/instructionDefs.ts
 import { ElementType } from "react";
 import {
-  HiPlus,
-  HiCheck,
-  HiOutlineClock,
-  HiOutlineDatabase,
-  HiOutlineDownload,
-  HiOutlineUpload,
-  HiMinus,
-  HiX,
-  HiOutlineSwitchHorizontal,
-  HiOutlineArrowRight,
-  HiFlag,
-  HiStop,
-} from "react-icons/hi";
+  Square,
+  Clock,
+} from "lucide-react";
+import { FaKeyboard, FaHashtag, FaPlus, FaMinus } from "react-icons/fa6";
+import { RiFlag2Line } from "react-icons/ri";
+import { MdDisplaySettings, MdOutlineCompareArrows } from "react-icons/md";
+import { GoMoveToStart } from "react-icons/go";
+import { ImMoveDown, ImMoveUp } from "react-icons/im";
+import { TbLogicAnd, TbLogicOr, TbLogicNot, TbLogicXor, TbExposurePlus1, TbExposureMinus1, TbGitBranch, TbDivide, TbX, TbChevronLeft, TbChevronRight, TbMathFunction } from "react-icons/tb";
+import { PiDatabase, PiDatabaseFill } from "react-icons/pi";
 
 export type NodeLayout = "ds" | "label" | "zero" | "single";
 export type OperandKind = "reg" | "imm" | "mem" | "label";
-export type IconDef = ElementType | string;
+export type IconDef = ElementType;
+export type NodeSize = "xs" | "sm" | "md" | "lg";
+
+export interface ColorStyle {
+  headerBg: string;
+  bodyBg: string;
+  borderColor: string;
+  text: string;
+  badgeBg: string;
+  badgeText: string;
+  accent: string;
+  borderHover: string;
+  bgHover: string;
+}
 
 export type InstructionDef = {
   name: string;
   color: keyof typeof colorStyles;
-  icon?: IconDef;
+  icon: IconDef;
+  size: NodeSize; // Controls quantized width
+  arity: 0 | 1 | 2; // Number of operands (for layout variant)
   layout: NodeLayout;
   operands?: OperandKind[];
 };
 
-export const zeroOperandNames = new Set<string>(["START", "HLT", "NOP"]);
+export const zeroOperandNames = new Set<string>(["START", "HLT", "NOP", "RET"]);
+export const jumpInstructions = new Set<string>(["JMP", "JZ", "JNZ", "JC", "JNC", "JN", "CALL"]);
 
-export const colorStyles: Record<
-  string,
-  {
-    button: string;
-    iconBox: string;
-    title: string;
-    pill: string;
-    divider: string;
-    rgb: string; // Dynamic RGB for focus rings
+// --- 0. Layout Configuration (Grid Alignment) ---
+// Grid Size = 20px (from PlaygroundCanvas.tsx)
+// Rule: Width must be (GridSize * EvenNumber) so Center (Width/2) falls on grid line.
+export const layoutConfig = {
+  gridSize: 20,
+  widths: {
+    // 10 * 20 = 200px (for 0-operand nodes)
+    xs: 200,
+    // 12 * 20 = 240px
+    sm: 240,
+    // 16 * 20 = 320px (for 1-operand nodes)
+    md: 320,
+    // 20 * 20 = 400px (for 2-operand nodes)
+    lg: 400,
   }
-> = {
-  startGreen: {
-    button: "bg-green-50 border-green-200 text-green-700",
-    iconBox: "bg-white border-green-200 text-green-600",
-    title: "text-green-700",
-    pill: "bg-green-100 text-gray-900",
-    divider: "border-green-200",
-    rgb: "22, 163, 74", // green-600
-  },
-  red: {
-    button: "bg-red-50 border-red-200 text-red-700",
-    iconBox: "bg-white border-red-200 text-red-600",
-    title: "text-red-700",
-    pill: "bg-red-100 text-gray-900",
-    divider: "border-red-200",
-    rgb: "220, 38, 38", // red-600
-  },
-  green: {
-    button: "bg-green-50 text-green-700 border-green-200",
-    iconBox: "bg-green-100 border-green-200",
-    title: "text-green-700",
-    pill: "bg-green-100 text-gray-900",
-    divider: "border-green-200",
-    rgb: "22, 163, 74", // green-600
-  },
-  gray: {
-    button: "bg-gray-50 text-gray-700 border-gray-200",
-    iconBox: "bg-gray-200 border-gray-300",
-    title: "text-gray-700",
-    pill: "bg-gray-100 text-gray-900",
-    divider: "border-gray-200",
-    rgb: "75, 85, 99", // gray-600
-  },
-  blue: {
-    button: "bg-blue-50 text-blue-700 border-blue-200",
-    iconBox: "bg-blue-100 border-blue-200",
-    title: "text-blue-700",
-    pill: "bg-blue-100 text-gray-900",
-    divider: "border-blue-200",
-    rgb: "37, 99, 235", // blue-600
-  },
-  cyan: {
-    button: "bg-cyan-50 text-cyan-700 border-cyan-200",
-    iconBox: "bg-cyan-100 border-cyan-200",
-    title: "text-cyan-700",
-    pill: "bg-cyan-100 text-gray-900",
-    divider: "border-cyan-200",
-    rgb: "8, 145, 178", // cyan-600
-  },
-  teal: {
-    button: "bg-teal-50 text-teal-700 border-teal-200",
-    iconBox: "bg-teal-100 border-teal-200",
-    title: "text-teal-700",
-    pill: "bg-teal-100 text-gray-900",
-    divider: "border-teal-200",
-    rgb: "13, 148, 136", // teal-600
-  },
-  orange: {
-    button: "bg-orange-50 text-orange-700 border-orange-200",
-    iconBox: "bg-orange-100 border-orange-200",
-    title: "text-orange-700",
-    pill: "bg-orange-100 text-gray-900",
-    divider: "border-orange-200",
-    rgb: "234, 88, 12", // orange-600
-  },
-  purple: {
-    button: "bg-purple-50 text-purple-700 border-purple-200",
-    iconBox: "bg-purple-100 border-purple-200",
-    title: "text-purple-700",
-    pill: "bg-purple-100 text-gray-900",
-    divider: "border-purple-200",
-    rgb: "147, 51, 234", // purple-600
-  },
-  pink: {
-    button: "bg-pink-50 text-pink-700 border-pink-200",
-    iconBox: "bg-pink-100 border-pink-200",
-    title: "text-pink-700",
-    pill: "bg-pink-100 text-gray-900",
-    divider: "border-pink-200",
-    rgb: "219, 39, 119", // pink-600
-  },
-  violet: {
-    button: "bg-violet-50 text-violet-700 border-violet-200",
-    iconBox: "bg-violet-100 border-violet-200",
-    title: "text-violet-700",
-    pill: "bg-violet-100 text-gray-900",
-    divider: "border-violet-200",
-    rgb: "124, 58, 237", // violet-600
-  },
-  lightBlue: {
-    button: "bg-sky-50 text-sky-700 border-sky-200",
-    iconBox: "bg-sky-100 border-sky-200",
-    title: "text-sky-700",
-    pill: "bg-sky-100 text-gray-900",
-    divider: "border-sky-200",
-    rgb: "2, 132, 199", // sky-600
-  },
-  slate: {
-    button: "bg-slate-50 text-slate-700 border-slate-200",
-    iconBox: "bg-slate-200 border-slate-300",
-    title: "text-slate-700",
-    pill: "bg-slate-100 text-gray-900",
-    divider: "border-slate-200",
-    rgb: "71, 85, 105", // slate-600
-  },
-  indigo: {
-    button: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    iconBox: "bg-indigo-100 border-indigo-200",
-    title: "text-indigo-700",
-    pill: "bg-indigo-100 text-gray-900",
-    divider: "border-indigo-200",
-    rgb: "79, 70, 229", // indigo-600
-  },
-  black: {
-    button: "bg-gray-800 text-white border-gray-900",
-    iconBox: "bg-gray-700 border-gray-600",
-    title: "text-white",
-    pill: "bg-gray-700 text-white",
-    divider: "border-gray-700",
-    rgb: "0, 0, 0", // black
-  },
 };
 
+// --- 1. Robust Color Palette (Soft & Solid) ---
+export const colorStyles: Record<string, ColorStyle> = {
+  // START -> Lime
+  startNode: {
+    headerBg: "bg-green-100",
+    bodyBg: "bg-green-200",
+    borderColor: "border-green-500",
+    text: "text-green-600",
+    badgeBg: "bg-green-300",
+    badgeText: "text-green-800",
+    accent: "bg-green-100",
+    borderHover: "hover:border-green-300",
+    bgHover: "hover:bg-green-100",
+  },
+
+  // HLT -> Rose
+  hltNode: {
+    headerBg: "bg-red-100",
+    bodyBg: "bg-red-100",
+    borderColor: "border-red-500",
+    text: "text-red-600",
+    badgeBg: "bg-red-300",
+    badgeText: "text-red-800",
+    accent: "bg-red-100",
+    borderHover: "hover:border-red-300",
+    bgHover: "hover:bg-red-100",
+  },
+
+  // NOP -> Gray
+  nopNode: {
+    headerBg: "bg-gray-100",
+    bodyBg: "bg-gray-100",
+    borderColor: "border-gray-500",
+    text: "text-gray-600",
+    badgeBg: "bg-gray-200",
+    badgeText: "text-gray-800",
+    accent: "bg-gray-200",
+    borderHover: "hover:border-gray-400",
+    bgHover: "hover:bg-gray-100",
+  },
+
+  // LABEL -> Green
+  labelNode: {
+    headerBg: "bg-lime-300",
+    bodyBg: "bg-lime-100",
+    borderColor: "border-lime-500",
+    text: "text-lime-600",
+    badgeBg: "bg-lime-300",
+    badgeText: "text-lime-800",
+    accent: "bg-lime-100",
+    borderHover: "hover:border-lime-300",
+    bgHover: "hover:bg-lime-100",
+  },
+
+  // CMP -> Zinc
+  cmpNode: {
+    headerBg: "bg-zinc-100",
+    bodyBg: "bg-zinc-100",
+    borderColor: "border-zinc-500",
+    text: "text-zinc-600",
+    badgeBg: "bg-zinc-200",
+    badgeText: "text-zinc-800",
+    accent: "bg-zinc-200",
+    borderHover: "hover:border-zinc-400",
+    bgHover: "hover:bg-zinc-100",
+  },
+
+  // General Categories
+  io: {
+    headerBg: "bg-slate-100",
+    bodyBg: "bg-slate-100",
+    borderColor: "border-slate-500",
+    text: "text-slate-600",
+    badgeBg: "bg-slate-300",
+    badgeText: "text-slate-700",
+    accent: "bg-slate-100",
+    borderHover: "hover:border-slate-300",
+    bgHover: "hover:bg-slate-100",
+  },
+
+  math: {
+    headerBg: "bg-orange-100",
+    bodyBg: "bg-orange-100",
+    borderColor: "border-orange-500",
+    text: "text-orange-600",
+    badgeBg: "bg-orange-300",
+    badgeText: "text-orange-800",
+    accent: "bg-orange-100",
+    borderHover: "hover:border-orange-300",
+    bgHover: "hover:bg-orange-200",
+  },
+
+  logic: {
+    headerBg: "bg-violet-200",
+    bodyBg: "bg-violet-100",
+    borderColor: "border-violet-500",
+    text: "text-violet-600",
+    badgeBg: "bg-violet-300",
+    badgeText: "text-violet-800",
+    accent: "bg-violet-100",
+    borderHover: "hover:border-violet-300",
+    bgHover: "hover:bg-violet-100",
+  },
+
+  data: {
+    headerBg: "bg-sky-200",
+    bodyBg: "bg-sky-100",
+    borderColor: "border-sky-500",
+    text: "text-sky-600",
+    badgeBg: "bg-sky-300",
+    badgeText: "text-sky-800",
+    accent: "bg-sky-200",
+    borderHover: "hover:border-sky-300",
+    bgHover: "hover:bg-sky-200",
+  },
+
+  bitwise: {
+    headerBg: "bg-fuchsia-200",
+    bodyBg: "bg-fuchsia-100",
+    borderColor: "border-fuchsia-500",
+    text: "text-fuchsia-600",
+    badgeBg: "bg-fuchsia-300",
+    badgeText: "text-fuchsia-800",
+    accent: "bg-fuchsia-100",
+    borderHover: "hover:border-fuchsia-300",
+    bgHover: "hover:bg-fuchsia-100",
+  },
+
+  system: {
+    headerBg: "bg-slate-200",
+    bodyBg: "bg-slate-100",
+    borderColor: "border-slate-500",
+    text: "text-slate-600",
+    badgeBg: "bg-slate-300",
+    badgeText: "text-slate-800",
+    accent: "bg-slate-200",
+    borderHover: "hover:border-slate-400",
+    bgHover: "hover:bg-slate-200",
+  },
+
+  default: {
+    headerBg: "bg-gray-200",
+    bodyBg: "bg-gray-100",
+    borderColor: "border-gray-500",
+    text: "text-gray-600",
+    badgeBg: "bg-gray-300",
+    badgeText: "text-gray-800",
+    accent: "bg-gray-100",
+    borderHover: "hover:border-gray-300",
+    bgHover: "hover:bg-gray-100",
+  }
+};
+
+// --- 2. Categorized Instructions (Assigned S/M/L) ---
 export const instructionCategories: {
   title: string;
   instructions: InstructionDef[];
 }[] = [
     {
-      title: "System",
+      title: "System & Control",
       instructions: [
-        { name: "START", color: "startGreen", icon: HiFlag, layout: "zero" },
+        { name: "START", color: "startNode", icon: RiFlag2Line, size: "xs", arity: 0, layout: "zero" },
+        { name: "HLT", color: "hltNode", icon: Square, size: "xs", arity: 0, layout: "zero" },
+        { name: "NOP", color: "nopNode", icon: Clock, size: "xs", arity: 0, layout: "zero" },
         {
           name: "LABEL",
-          color: "green",
-          icon: HiCheck,
+          color: "labelNode",
+          icon: FaHashtag,
+          size: "md",
+          arity: 1,
           layout: "label",
-          operands: ["label"],
+          operands: ["label"]
         },
-        { name: "NOP", color: "gray", icon: HiOutlineClock, layout: "zero" },
-        { name: "HLT", color: "red", icon: HiStop, layout: "zero" },
+      ],
+    },
+    {
+      title: "I/O Operations",
+      instructions: [
+        {
+          name: "IN",
+          color: "io",
+          icon: FaKeyboard,
+          size: "lg",
+          arity: 2,
+          layout: "ds",
+          operands: ["reg", "imm"]
+        },
+        {
+          name: "OUT",
+          color: "io",
+          icon: MdDisplaySettings,
+          size: "lg",
+          arity: 2,
+          layout: "ds",
+          operands: ["imm", "reg"]
+        },
       ],
     },
     {
@@ -186,231 +261,95 @@ export const instructionCategories: {
       instructions: [
         {
           name: "MOV",
-          color: "blue",
-          icon: HiOutlineDatabase,
+          color: "data",
+          icon: GoMoveToStart,
+          size: "lg",
+          arity: 2,
           layout: "ds",
-          operands: ["reg", "imm", "reg"],
+          operands: ["reg", "imm", "reg"]
         },
         {
           name: "LOAD",
-          color: "cyan",
-          icon: HiOutlineDownload,
+          color: "data",
+          icon: PiDatabase,
+          size: "lg",
+          arity: 2,
           layout: "ds",
-          operands: ["reg", "mem"],
+          operands: ["reg", "mem"]
         },
         {
           name: "STORE",
-          color: "teal",
-          icon: HiOutlineUpload,
+          color: "data",
+          icon: PiDatabaseFill,
+          size: "lg",
+          arity: 2,
           layout: "ds",
-          operands: ["mem", "reg"],
+          operands: ["mem", "reg"]
         },
-      ],
-    },
-    {
-      title: "Arithmetic",
-      instructions: [
-        {
-          name: "ADD",
-          color: "orange",
-          icon: HiPlus,
-          layout: "ds",
-          operands: ["reg", "imm", "reg"],
-        },
-        {
-          name: "SUB",
-          color: "purple",
-          icon: HiMinus,
-          layout: "ds",
-          operands: ["reg", "imm", "reg"],
-        },
-        {
-          name: "MUL",
-          color: "pink",
-          icon: HiX,
-          layout: "ds",
-          operands: ["reg", "imm", "reg"],
-        },
-        {
-          name: "DIV",
-          color: "violet",
-          icon: "÷",
-          layout: "ds",
-          operands: ["reg", "imm", "reg"],
-        },
-        {
-          name: "INC",
-          color: "lightBlue",
-          icon: "+1",
-          layout: "single",
-          operands: ["reg"],
-        },
-        {
-          name: "DEC",
-          color: "lightBlue",
-          icon: "-1",
-          layout: "single",
-          operands: ["reg"],
-        },
-        {
-          name: "CMP",
-          color: "slate",
-          icon: HiOutlineSwitchHorizontal,
-          layout: "ds",
-          operands: ["reg", "reg", "imm"],
-        },
-      ],
-    },
-    {
-      title: "Comparison/Conditional",
-      instructions: [
-        {
-          name: "JMP",
-          color: "indigo",
-          icon: HiOutlineArrowRight,
-          layout: "label",
-          operands: ["label"],
-        },
-        {
-          name: "JZ",
-          color: "indigo",
-          icon: "JZ",
-          layout: "label",
-          operands: ["label"],
-        },
-        {
-          name: "JNZ",
-          color: "indigo",
-          icon: "JNZ",
-          layout: "label",
-          operands: ["label"],
-        },
-        {
-          name: "JC",
-          color: "purple",
-          icon: "JC",
-          layout: "label",
-          operands: ["label"],
-        },
-        {
-          name: "JNC",
-          color: "purple",
-          icon: "JNC",
-          layout: "label",
-          operands: ["label"],
-        },
-        {
-          name: "JN",
-          color: "black",
-          icon: "JN",
-          layout: "label",
-          operands: ["label"],
-        },
-      ],
-    },
-    {
-      title: "Stack",
-      instructions: [
         {
           name: "PUSH",
-          color: "teal",
-          icon: HiOutlineUpload,
+          color: "data",
+          icon: ImMoveDown,
+          size: "md",
+          arity: 1,
           layout: "single",
-          operands: ["reg"],
+          operands: ["reg"]
         },
         {
           name: "POP",
-          color: "cyan",
-          icon: HiOutlineDownload,
+          color: "data",
+          icon: ImMoveUp,
+          size: "md",
+          arity: 1,
           layout: "single",
-          operands: ["reg"],
+          operands: ["reg"]
         },
       ],
     },
     {
-      title: "Bitwise Operations",
+      title: "Arithmetic (Math)",
       instructions: [
-        {
-          name: "AND",
-          color: "blue",
-          icon: "&",
-          layout: "ds",
-          operands: ["reg", "imm", "reg"],
-        },
-        {
-          name: "OR",
-          color: "blue",
-          icon: "|",
-          layout: "ds",
-          operands: ["reg", "imm", "reg"],
-        },
-        {
-          name: "XOR",
-          color: "blue",
-          icon: "^",
-          layout: "ds",
-          operands: ["reg", "imm", "reg"],
-        },
-        {
-          name: "NOT",
-          color: "blue",
-          icon: "~",
-          layout: "single",
-          operands: ["reg"],
-        },
-        {
-          name: "SHL",
-          color: "cyan",
-          icon: "<<",
-          layout: "single",
-          operands: ["reg"],
-        },
-        {
-          name: "SHR",
-          color: "cyan",
-          icon: ">>",
-          layout: "single",
-          operands: ["reg"],
-        },
+        { name: "ADD", color: "math", icon: FaPlus, size: "lg", arity: 2, layout: "ds", operands: ["reg", "imm", "reg"] },
+        { name: "SUB", color: "math", icon: FaMinus, size: "lg", arity: 2, layout: "ds", operands: ["reg", "imm", "reg"] },
+        { name: "MUL", color: "math", icon: TbX, size: "lg", arity: 2, layout: "ds", operands: ["reg", "imm", "reg"] },
+        { name: "DIV", color: "math", icon: TbDivide, size: "lg", arity: 2, layout: "ds", operands: ["reg", "imm", "reg"] },
+        { name: "INC", color: "math", icon: TbExposurePlus1, size: "md", arity: 1, layout: "single", operands: ["reg"] },
+        { name: "DEC", color: "math", icon: TbExposureMinus1, size: "md", arity: 1, layout: "single", operands: ["reg"] },
       ],
     },
     {
-      title: "Subroutines",
+      title: "Control Flow",
       instructions: [
         {
-          name: "CALL",
-          color: "violet",
-          icon: "Call",
-          layout: "label",
-          operands: ["label", "imm"],
+          name: "CMP",
+          color: "cmpNode",
+          icon: MdOutlineCompareArrows,
+          size: "lg",
+          arity: 2,
+          layout: "ds",
+          operands: ["reg", "reg", "imm"]
         },
-        {
-          name: "RET",
-          color: "violet",
-          icon: "Ret",
-          layout: "zero",
-        },
+        // Jumps - Standard Medium
+        { name: "JMP", color: "logic", icon: TbGitBranch, size: "md", arity: 1, layout: "label", operands: ["label"] },
+        { name: "JZ", color: "logic", icon: TbGitBranch, size: "md", arity: 1, layout: "label", operands: ["label"] },
+        { name: "JNZ", color: "logic", icon: TbGitBranch, size: "md", arity: 1, layout: "label", operands: ["label"] },
+        { name: "JC", color: "logic", icon: TbGitBranch, size: "md", arity: 1, layout: "label", operands: ["label"] },
+        { name: "JNC", color: "logic", icon: TbGitBranch, size: "md", arity: 1, layout: "label", operands: ["label"] },
+        { name: "JN", color: "logic", icon: TbGitBranch, size: "md", arity: 1, layout: "label", operands: ["label"] },
+        // Subroutines
+        { name: "CALL", color: "logic", icon: TbMathFunction, size: "md", arity: 1, layout: "label", operands: ["label", "imm"] },
+        { name: "RET", color: "logic", icon: TbMathFunction, size: "xs", arity: 0, layout: "zero" },
       ],
     },
     {
-      title: "Input/Output",
+      title: "Logic",
       instructions: [
-        {
-          name: "IN",
-          color: "green",
-          icon: HiOutlineDownload,
-          layout: "ds",
-          operands: ["reg", "imm"],
-        },
-        {
-          name: "OUT",
-          color: "orange",
-          icon: HiOutlineUpload,
-          layout: "ds",
-          operands: ["imm", "reg"],
-        },
+        { name: "AND", color: "bitwise", icon: TbLogicAnd, size: "lg", arity: 2, layout: "ds", operands: ["reg", "imm", "reg"] },
+        { name: "OR", color: "bitwise", icon: TbLogicOr, size: "lg", arity: 2, layout: "ds", operands: ["reg", "imm", "reg"] },
+        { name: "XOR", color: "bitwise", icon: TbLogicXor, size: "lg", arity: 2, layout: "ds", operands: ["reg", "imm", "reg"] },
+        { name: "NOT", color: "bitwise", icon: TbLogicNot, size: "md", arity: 1, layout: "single", operands: ["reg"] },
+        { name: "SHL", color: "bitwise", icon: TbChevronLeft, size: "md", arity: 1, layout: "single", operands: ["reg"] },
+        { name: "SHR", color: "bitwise", icon: TbChevronRight, size: "md", arity: 1, layout: "single", operands: ["reg"] },
       ],
     },
   ];
-
-

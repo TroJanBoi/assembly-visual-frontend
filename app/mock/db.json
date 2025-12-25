@@ -155,6 +155,10 @@
             "NOP": 1,
             "LABEL": 1
           },
+          "I/O": {
+            "IN": 1,
+            "OUT": 1
+          },
           "Data": {
             "MOV": 1,
             "LOAD": 1,
@@ -162,7 +166,7 @@
             "PUSH": 1,
             "POP": 1
           },
-          "Arithmetic": {
+          "Math": {
             "ADD": 1,
             "SUB": 1,
             "MUL": 1,
@@ -171,19 +175,23 @@
             "DEC": 1
           },
           "Logic": {
-            "CMP": 1
-          },
-          "Branching": {
+            "CMP": 1,
             "JMP": 1,
             "JZ": 1,
             "JNZ": 1,
             "JC": 1,
             "JNC": 1,
-            "JN": 1
+            "JN": 1,
+            "CALL": 1,
+            "RET": 1
           },
-          "IO": {
-            "IN": 1,
-            "OUT": 1
+          "Bitwise": {
+            "AND": 1,
+            "OR": 1,
+            "XOR": 1,
+            "NOT": 1,
+            "SHL": 1,
+            "SHR": 1
           }
         },
         "execution_constraints": {
@@ -353,8 +361,8 @@
                 "value": "0"
               },
               {
-                "type": "Immediate",
-                "value": "#65"
+                "type": "Register",
+                "value": "R0"
               }
             ],
             "next": 7
@@ -369,7 +377,7 @@
           {
             "id": 3,
             "instruction": "LABEL",
-            "label": "loop1",
+            "label": "loop_1",
             "operands": []
           },
           {
@@ -408,11 +416,11 @@
           {
             "id": 6,
             "instruction": "JZ",
-            "label": "loop1",
+            "label": "loop_1",
             "operands": [
               {
                 "type": "Label",
-                "value": "loop1"
+                "value": "loop_1"
               }
             ]
           },
@@ -423,7 +431,7 @@
             "operands": [
               {
                 "type": "Immediate",
-                "value": "0"
+                "value": "1"
               },
               {
                 "type": "Register",
@@ -435,11 +443,11 @@
           {
             "id": 8,
             "instruction": "JMP",
-            "label": "loop1",
+            "label": "if-not-entry",
             "operands": [
               {
                 "type": "Label",
-                "value": "loop1"
+                "value": "if-not-entry"
               }
             ]
           },
@@ -448,53 +456,6 @@
             "instruction": "HLT",
             "label": "",
             "operands": []
-          },
-          {
-            "id": 10,
-            "instruction": "MOV",
-            "label": "",
-            "operands": [
-              {
-                "type": "Register",
-                "value": "R0"
-              },
-              {
-                "type": "Immediate",
-                "value": "#6"
-              }
-            ],
-            "next": 12
-          },
-          {
-            "id": 11,
-            "instruction": "OUT",
-            "label": "",
-            "operands": [
-              {
-                "type": "Immediate",
-                "value": "0"
-              },
-              {
-                "type": "Register",
-                "value": "R0"
-              }
-            ]
-          },
-          {
-            "id": 12,
-            "instruction": "IN",
-            "label": "",
-            "operands": [
-              {
-                "type": "Register",
-                "value": "R0"
-              },
-              {
-                "type": "Immediate",
-                "value": "#0"
-              }
-            ],
-            "next": 11
           }
         ],
         "meta_data": {
@@ -504,57 +465,45 @@
         },
         "ui": {
           "pan": {
-            "x": 309,
-            "y": 402
+            "x": 205,
+            "y": 863
           },
           "position": {
             "1": {
-              "x": 540,
+              "x": 160,
               "y": 820
             },
             "2": {
-              "x": 580,
+              "x": 240,
               "y": 20
             },
             "3": {
-              "x": 580,
-              "y": 140
+              "x": 200,
+              "y": 180
             },
             "4": {
-              "x": 600,
-              "y": 280
+              "x": 160,
+              "y": 340
             },
             "5": {
-              "x": 600,
-              "y": 440
+              "x": 200,
+              "y": 500
             },
             "6": {
-              "x": 540,
-              "y": 640
+              "x": 200,
+              "y": 660
             },
             "7": {
-              "x": 540,
-              "y": 920
+              "x": 160,
+              "y": 1020
             },
             "8": {
-              "x": 420,
-              "y": 1040
-            },
-            "9": {
-              "x": 560,
+              "x": 200,
               "y": 1180
             },
-            "10": {
-              "x": 1080,
-              "y": 300
-            },
-            "11": {
-              "x": 1100,
-              "y": 540
-            },
-            "12": {
-              "x": 1100,
-              "y": 420
+            "9": {
+              "x": 240,
+              "y": 1320
             }
           },
           "zoom": 1

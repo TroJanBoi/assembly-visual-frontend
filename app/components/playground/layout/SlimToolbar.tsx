@@ -12,15 +12,18 @@ import {
     Database,
     Cpu,
     MoreHorizontal,
+    Binary,
+    Activity,
 } from "lucide-react";
 
 // Map category titles to lucide icons
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
-    "Data Transfer": Database,
-    "Arithmetic": Calculator,
-    "Logic": Cpu,
-    "Control Flow": ArrowRightLeft,
-    "System": MoreHorizontal,
+    "Data Movement": Database,
+    "Arithmetic (Math)": Calculator,
+    "Control Flow": Cpu,
+    "I/O Operations": Activity,
+    "System & Control": MoreHorizontal,
+    "Logic": Binary,
 };
 
 type Props = {
@@ -47,6 +50,7 @@ const CategoryItem = ({
     onLeave: () => void;
 }) => {
     const Icon = CATEGORY_ICONS[cat.title] || MoreHorizontal;
+    const styles = colorStyles[cat.instructions[0]?.color] || colorStyles["gray"];
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleMouseEnter = () => {
@@ -109,35 +113,28 @@ const CategoryItem = ({
                                     className="flex items-center gap-3 p-2 rounded-lg cursor-grab hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-all group/item"
                                     onDragStart={(event) => {
                                         onDragStart(event, inst.name);
-                                        // Optional: close menu on drag start?
-                                        // onLeave(); 
                                     }}
                                     draggable
                                 >
                                     <span
                                         className={cn(
                                             "w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-1 ring-black/5",
-                                            inst.color === "red"
-                                                ? "bg-red-500"
-                                                : inst.color === "blue"
-                                                    ? "bg-blue-500"
-                                                    : inst.color === "green"
-                                                        ? "bg-green-500"
-                                                        : inst.color === "yellow"
-                                                            ? "bg-yellow-500 text-yellow-900"
-                                                            : inst.color === "purple"
-                                                                ? "bg-purple-500"
-                                                                : "bg-gray-500"
+                                            styles.badgeBg,
+                                            styles.badgeText
                                         )}
                                     >
-                                        {typeof inst.icon === "string" ? inst.icon : "+"}
+                                        {typeof inst.icon === "string" ? (
+                                            inst.icon
+                                        ) : (
+                                            <inst.icon size={14} />
+                                        )}
                                     </span>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-bold text-gray-700 leading-none group-hover/item:text-indigo-600 transition-colors">
                                             {inst.name}
                                         </span>
                                         <span className="text-[10px] text-gray-400 font-medium">
-                                            {inst.description ? inst.description.split('.')[0] : "Instruction"}
+                                            {inst.arity === 0 ? "No operands" : `${inst.arity} operand${inst.arity > 1 ? "s" : ""}`}
                                         </span>
                                     </div>
                                 </div>

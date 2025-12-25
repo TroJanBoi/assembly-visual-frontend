@@ -21,6 +21,7 @@ export type ExecutionResult = {
     error: string | null;
     logs?: string[];
     io_state?: {
+        logs: import('./io').LogEntry[];
         consoleBuffer: string;
         sevenSegment: number;
         ledMatrix: number[];
@@ -53,6 +54,7 @@ export async function executeProgram(
 
         // Validate START exists
         if (startId === null) {
+            console.error("❌ [executeProgram] NO START INSTRUCTION FOUND!");
             return {
                 registers: initialState.registers,
                 flags: { Z: 0, C: 0, V: 0, O: 0 },
@@ -66,6 +68,8 @@ export async function executeProgram(
         // Initialize CPU
         const cpu = new CPU(initialState);
         cpu.pc = startId;
+        console.log("✅ [executeProgram] Found START at ID:", startId);
+        console.log("🔄 [executeProgram] Starting execution loop...");
         logs.push(`Starting execution at instruction ID ${startId}`);
 
         // Execution loop
@@ -79,17 +83,20 @@ export async function executeProgram(
             const currentItem = instructionMap.get(cpu.pc);
 
             if (!currentItem) {
+                console.error(`❌ [executeProgram] Invalid PC: ${cpu.pc} - instruction not found`);
                 cpu.halt(`Invalid PC: ${cpu.pc} (instruction not found)`);
                 break;
             }
 
             const instruction = currentItem.instruction?.toUpperCase() || '';
+            console.log(`   [Step ${steps}] PC=${cpu.pc} → ${instruction}`);
             logs.push(`[${steps}] PC=${cpu.pc} ${instruction}`);
 
             // Execute instruction
             try {
                 executeInstruction(cpu, currentItem, instructionMap, logs, ioHandler);
             } catch (err: any) {
+                console.error(`   ❌ [executeProgram] Error executing ${instruction}:`, err.message);
                 cpu.halt(err.message || String(err));
                 break;
             }
@@ -98,15 +105,17 @@ export async function executeProgram(
 
             // Safety check
             if (steps >= maxSteps) {
+                console.error(`❌ [executeProgram] Max steps (${maxSteps}) exceeded!`);
                 cpu.halt('Maximum execution steps exceeded (possible infinite loop)');
             }
         }
 
+        console.log(`✅ [executeProgram] Loop finished: ${steps} steps, Halted=${cpu.halted}`);
         logs.push(`Execution completed. Halted=${cpu.halted}, Steps=${steps}`);
 
         const snapshot = ioHandler.getSnapshot();
         // Return final state
-        return {
+        const finalResult = {
             registers: { ...cpu.registers },
             flags: { ...cpu.flags },
             memory_sparse: cpu.getMemorySparse(),
@@ -118,6 +127,14 @@ export async function executeProgram(
                 ledMatrix: Array.from(snapshot.ledMatrix)
             }
         };
+
+        console.log("📦 [executeProgram] Returning result:");
+        console.log("   - Registers:", finalResult.registers);
+        console.log("   - Flags:", finalResult.flags);
+        console.log("   - Memory items:", Object.keys(finalResult.memory_sparse).length);
+        console.log("   - Halted:", finalResult.halted);
+
+        return finalResult;
 
     } catch (err: any) {
         logs.push(`Fatal error: ${err.message || String(err)}`);
@@ -464,6 +481,12 @@ function executeIN(cpu: CPU, operands: Operand[], logs: string[], io: IOHandler)
     if (dest.type !== 'Register') throw new Error('IN destination must be a register');
     const port = getOperandValue(cpu, src);
     const value = io.onRead(port);
+
+    // BUG FIX #6: Blocking I/O - throw exception if no input available
+    if (value === null) {
+        throw new Error('INPUT_REQUIRED');
+    }
+
     if (logs) logs.push(`> Input from port ${port}: ${value}`);
     cpu.setRegister(dest.value, value);
 }

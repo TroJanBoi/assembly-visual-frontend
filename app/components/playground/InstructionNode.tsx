@@ -1,4 +1,3 @@
-// app/components/playground/InstructionNode.tsx
 "use client";
 
 import React, { memo } from "react";
@@ -7,41 +6,69 @@ import { cn } from "@/lib/utils";
 import {
   instructionCategories,
   colorStyles,
-  zeroOperandNames,
+  layoutConfig,
+  jumpInstructions,
   type InstructionDef,
 } from "@/lib/playground/instructionDefs";
-import { HiOutlineArrowLeft } from "react-icons/hi";
+import { VIRTUAL_PORTS } from "@/lib/playground/ports";
+import { ArrowLeft, Scale, Settings } from "lucide-react";
+import { useStore } from "reactflow";
 
+// --- 1. Helper: Find Definition ---
 const allInstructions = instructionCategories.flatMap((c) => c.instructions);
 const instructionMap = new Map<string, InstructionDef>(
   allInstructions.map((inst) => [inst.name.toUpperCase(), inst]),
 );
 
-function Pill({
-  children,
-  toneClass,
-  square = false,
-  borderColor,
-}: {
-  children: React.ReactNode;
-  toneClass: string;
-  square?: boolean;
-  borderColor?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-center font-semibold text-sm border rounded-md",
-        toneClass,
-        square ? "w-8 h-8" : "h-8 w-16 px-2",
-        borderColor,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
+// --- Helper: Get Port Name ---
+const getPortName = (portId: number | undefined): string => {
+  if (portId === undefined || portId === null) return "";
+  const port = VIRTUAL_PORTS.find(p => p.id === portId);
+  if (!port) return String(portId);
+  const match = port.name.match(/Port \d+: (.+)/);
+  return match ? match[1] : port.name;
+};
 
+// --- Helper: Color Map (Extracted) ---
+const TAILWIND_COLOR_MAP: Record<string, string> = {
+  'bg-green-200': '#bbf7d0',
+  'bg-green-100': '#dcfce7',
+  'border-green-500': '#22c55e',
+  'bg-red-100': '#fee2e2',
+  'border-red-500': '#ef4444',
+  'bg-gray-100': '#f3f4f6',
+  'border-gray-500': '#6b7280',
+  'bg-lime-100': '#ecfccb',
+  'bg-lime-300': '#bef264',
+  'border-lime-500': '#84cc16',
+  'bg-zinc-100': '#f4f4f5',
+  'border-zinc-500': '#71717a',
+  'bg-slate-100': '#f1f5f9',
+  'border-slate-500': '#64748b',
+  'bg-orange-100': '#ffedd5',
+  'border-orange-500': '#f97316',
+  'bg-violet-100': '#ede9fe',
+  'bg-violet-200': '#ddd6fe',
+  'border-violet-500': '#8b5cf6',
+  'bg-sky-100': '#e0f2fe',
+  'bg-sky-200': '#bae6fd',
+  'border-sky-500': '#0ea5e9',
+  'bg-fuchsia-100': '#fae8ff',
+  'bg-fuchsia-200': '#f5d0fe',
+  'border-fuchsia-500': '#d946ef',
+  'bg-gray-200': '#e5e7eb',
+  'bg-orange-300': '#fdba74',
+  'bg-violet-300': '#c4b5fd',
+  'bg-sky-300': '#7dd3fc',
+  'bg-fuchsia-300': '#f0abfc',
+  'bg-slate-300': '#cbd5e1',
+};
+
+const getTailwindColorValue = (tailwindClass: string): string => {
+  return TAILWIND_COLOR_MAP[tailwindClass] || '#ffffff';
+};
+
+// --- 2. Main Component ---
 export default memo(function InstructionNode({
   data,
   isConnectable,
@@ -50,112 +77,152 @@ export default memo(function InstructionNode({
   const instrName = String(data?.instructionType || "NOP").toUpperCase();
   const def = instructionMap.get(instrName);
 
-  // ---- Guard unknown instruction early
-  if (!def) {
-    return (
-      <div className="inline-flex items-center px-3 py-2 rounded-lg border-2 bg-white text-gray-600">
-        Unknown: {instrName}
-      </div>
-    );
-  }
+  // Fallback for unknown instructions
+  if (!def) return <div className="p-2 border border-red-200 bg-red-50 text-red-600 rounded">? {instrName}</div>;
 
-  const styles = colorStyles[def.color] || colorStyles.gray;
-  const isZero = def.layout === "zero" || zeroOperandNames.has(def.name);
+  const styles = colorStyles[def.color] || colorStyles.default;
   const isStart = def.name === "START";
   const isHlt = def.name === "HLT";
-  const isLoad = def.name === "LOAD";
-  const isStore = def.name === "STORE";
+  const Icon = def.icon;
 
-  const destReg = data?.dest ?? "R0";
+  // QUANTIZED WIDTH LOGIC
+  const sizeKey = (def.size || "md") as keyof typeof layoutConfig.widths;
+  const nodeWidth = layoutConfig.widths[sizeKey];
 
-  const memMode: "imm" | "reg" = data?.memMode ?? "imm";
-  const memText =
-    memMode === "imm"
-      ? `[${Number.isFinite(data?.memImm) ? data.memImm : 0}]`
-      : `[${data?.memReg ?? "R0"}]`;
-
-  const srcMode: "imm" | "reg" = data?.srcMode ?? "imm";
-
-  const srcText =
-    srcMode === "reg"
-      ? (data?.srcReg ?? "R0")
-      : Number.isFinite(data?.srcImm)
-        ? data.srcImm
-        : 0;
-
-  let displayLeft: string;
-  let displayRight: string | number;
-
-  const isOut = def.name === "OUT";
-  const isIn = def.name === "IN";
-
-  if (isLoad) {
-    // LOAD  REG <- [ADDR]
-    displayLeft = destReg;
-    displayRight = memText;
-  } else if (isStore) {
-    // STORE [ADDR] <- REG
-    displayLeft = memText;
-    displayRight = data?.srcReg ?? "R0";
-  } else if (isOut) {
-    // OUT PORT, VAL
-    // In PropertyPanel we used memImm for Port.
-    const port = data?.memImm ?? 0;
-    displayLeft = port.toString();
-    displayRight = srcText;
-  } else if (def.layout === "ds") {
-    displayLeft = destReg;
-    displayRight = srcText;
-  } else {
-    displayLeft = "";
-    displayRight = "";
-  }
-
-  const labelVal = data?.label ?? (def.layout === "label" ? "LABEL" : "");
-
-  // Left icon renderer
-  const IconBox = () => {
-    const { icon } = def as { icon?: any };
-    if (!icon) return null;
-    if (typeof icon === "string")
-      return <span className="text-xs font-bold">{icon}</span>;
-    const IconComp = icon as React.ElementType;
-    return <IconComp />;
+  // Helper: Get value with fallback for empty/undefined
+  const getVal = (val: any, fallback: string) => {
+    if (val === undefined || val === null || val === "") return fallback;
+    return val;
   };
 
-  // Arrow pill border matches left icon's border-* class
-  const borderColorClass =
-    styles.iconBox.match(/border-[\w-]+-\d+/)?.[0] || "border-gray-300";
+  // Get operand values with placeholders
+  const dest = getVal(data?.dest ?? data?.data?.dest, "Register");
+  const srcMode = data?.srcMode ?? data?.data?.srcMode ?? "imm";
+  const srcReg = getVal(data?.srcReg ?? data?.data?.srcReg, "Register");
+  const srcImm = data?.srcImm ?? data?.data?.srcImm; // Numbers, keep 0
 
+  // Label handling: Jumps vs LABEL node
+  const labelPlaceholder = instrName === "LABEL" ? "Set Label" : "Target";
+  const rawLabel = data?.label ?? data?.data?.label;
+
+  // Validate label existence if it's a jump instruction
+  // PERFORMANCE FIX: Use a selector that returns a primitive boolean, not an array.
+  // This prevents the component from re-rendering whenever ANY node in the graph changes.
+  const isJump = jumpInstructions.has(instrName);
+
+  const labelExists = useStore(
+    React.useCallback(
+      (s: any) => {
+        if (!isJump || !rawLabel) return true; // Don't care if not jump/no label
+        if (!s.nodeInternals) return false;
+
+        // Efficient iteration
+        for (const n of s.nodeInternals.values()) {
+          if (
+            String(n.data?.instructionType || "").toUpperCase() === "LABEL" &&
+            n.data?.label === rawLabel
+          ) {
+            return true;
+          }
+        }
+        return false;
+      },
+      [isJump, rawLabel]
+    )
+  );
+
+  let validatedLabel = rawLabel;
+  if (isJump && rawLabel && !labelExists) {
+    validatedLabel = undefined; // Force placeholder
+  }
+
+  const label = getVal(validatedLabel, labelPlaceholder);
+
+  // Memory operands (for LOAD/STORE)
+  const memMode = data?.memMode ?? data?.data?.memMode ?? "imm";
+  const memReg = getVal(data?.memReg ?? data?.data?.memReg, "Register");
+  const memImm = data?.memImm ?? data?.data?.memImm;
+
+  // For IN instruction: show port name instead of port ID
+  const isIn = instrName === "IN";
+  const isOut = instrName === "OUT";
+  const isLoad = instrName === "LOAD";
+  const isStore = instrName === "STORE";
+
+  let src;
+  if (isIn) {
+    // IN uses srcImm for port ID
+    src = (srcImm !== undefined && srcImm !== null) ? getPortName(srcImm) : "Port";
+  } else if (isOut) {
+    // OUT uses srcReg/srcImm for the value to output
+    src = srcMode === "reg" ? srcReg : (srcImm !== undefined && srcImm !== null ? srcImm : "Immediate");
+  } else if (isLoad) {
+    // LOAD uses memImm/memReg for the source address
+    src = memMode === "reg" ? memReg : (memImm !== undefined && memImm !== null ? memImm : "Address");
+  } else if (isStore) {
+    // STORE uses srcReg for the value to store, memImm/memReg for address (shown as dest)
+    src = memMode === "reg" ? memReg : (memImm !== undefined && memImm !== null ? memImm : "Address");
+  } else {
+    // Other instructions (MOV, ADD, SUB, etc.)
+    src = srcMode === "reg" ? srcReg : (srcImm !== undefined && srcImm !== null ? srcImm : "Immediate");
+  }
+
+  // Determine action icon based on instruction
+  const getActionIcon = (colorClass: string) => {
+    if (def.name === "CMP") {
+      return <Scale className={cn("w-3.5 h-3.5", colorClass)} />;
+    }
+    if (["AND", "OR", "XOR", "NOT", "SHL", "SHR"].includes(def.name)) {
+      return <Settings className={cn("w-3.5 h-3.5", colorClass)} />;
+    }
+    // Default: Assignment arrow
+    return <ArrowLeft className={cn("w-3.5 h-3.5", colorClass)} />;
+  };
+
+
+
+  // Extract strong border color from styles
+  const getBorderColorClass = () => {
+    const borderClass = styles.borderColor; // e.g., "border-lime-200"
+    // Convert to stronger variant: border-lime-200 -> border-lime-500
+    return borderClass.replace(/-200$/, "-500").replace(/-300$/, "-500");
+  };
 
   return (
     <div
-      style={{ "--node-rgb": styles.rgb } as React.CSSProperties}
+      style={{ width: nodeWidth }}
       className={cn(
-        // Base Layout
-        "inline-flex items-center gap-2 rounded-xl border-2 px-3 py-2 h-auto min-w-[200px] justify-start",
-        // Tactile Transitions
-        "transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)]",
-
-        // Default State (white bg, subtle border)
-        "bg-white border-transparent shadow-sm",
-
-        // Selected State: Glow + Color Border
-        selected
-          ? "border-[rgb(var(--node-rgb))] shadow-[0_0_0_4px_rgba(var(--node-rgb),0.3)] z-10"
-          : "border-gray-200 hover:border-[rgb(var(--node-rgb))] hover:shadow-[0_10px_15px_-3px_rgba(var(--node-rgb),0.2)]",
-
-        // Dragging/Active State (Visual Lift)
-        "active:scale-105 active:shadow-[0_20px_25px_-5px_rgba(var(--node-rgb),0.4)] active:z-50"
+        "rounded-2xl border-2 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group overflow-hidden",
+        "flex flex-row items-center h-14",
+        getBorderColorClass(),
+        styles.bodyBg,
+        // Active Proximity State (Magnetic Pulse)
+        data.isProximity
+          ? "scale-105 shadow-xl ring-4 ring-offset-2 ring-indigo-400/50 z-50"
+          : "shadow-md hover:shadow-lg",
+        // Selection State (Lower Priority than Proximity if overlapping, or merge?)
+        // If selected AND proximity, proximity should win for "drag target" feel, or both? 
+        // User asked for "Base State: ring-0". 
+        // Existing selection logic: "ring-2 ring-offset-2 ring-indigo-500 shadow-lg scale-105"
+        // We replace it or append. 
+        (!data.isProximity && selected) && "ring-2 ring-offset-2 ring-indigo-500 shadow-lg scale-105"
       )}
     >
+      {/* Handles */}
       {!isStart && (
         <Handle
           type="target"
           position={Position.Top}
           id="in"
-          className="!bg-gray-400"
           isConnectable={isConnectable}
+          className="!w-3 !h-3 transition-colors z-50"
+          style={{
+            backgroundColor: getTailwindColorValue(styles.bodyBg),
+            borderColor: getTailwindColorValue(styles.borderColor),
+            borderWidth: '2px',
+            borderRadius: '50%',
+            borderStyle: 'solid',
+          }}
         />
       )}
       {!isHlt && (
@@ -163,75 +230,149 @@ export default memo(function InstructionNode({
           type="source"
           position={Position.Bottom}
           id="source-bottom"
-          className="!bg-gray-400"
           isConnectable={isConnectable}
+          className="!w-3 !h-3 transition-colors z-50"
+          style={{
+            backgroundColor: getTailwindColorValue(styles.bodyBg),
+            borderColor: getTailwindColorValue(styles.borderColor),
+            borderWidth: '2px',
+            borderRadius: '50%',
+            borderStyle: 'solid',
+          }}
         />
       )}
 
-      {/* Left handle for label jumps - Branch is SOURCE */}
-      {['JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN'].includes(instrName) && (
+      {/* Side Handles for Branching */}
+      {['JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN', 'CALL'].includes(instrName) && (
         <Handle
           type="source"
           position={Position.Left}
           id="left"
-          className="!bg-purple-500"
           isConnectable={false}
+          className="!w-2 !h-2"
+          style={{
+            backgroundColor: getTailwindColorValue(styles.badgeBg),
+            borderRadius: '50%',
+            border: 'none',
+          }}
         />
       )}
-
-      {/* Left handle for label jumps - LABEL is TARGET */}
       {instrName === 'LABEL' && (
         <Handle
           type="target"
           position={Position.Left}
           id="left"
-          className="!bg-purple-500"
           isConnectable={false}
+          className="!w-2 !h-2"
+          style={{
+            backgroundColor: getTailwindColorValue(styles.badgeBg),
+            borderRadius: '50%',
+            border: 'none',
+          }}
         />
       )}
 
-      <span
-        className={cn(
-          "w-8 h-8 grid place-items-center rounded-md border shrink-0",
-          styles.iconBox,
-        )}
-      >
-        <IconBox />
-      </span>
+      {/* VARIANT A: Zero-Operand (Arity 0) - Centered Badge */}
+      {def.arity === 0 && (
+        <div className="flex items-center justify-center gap-3 p-2 w-full">
+          <div className={cn(
+            "w-10 h-10 rounded-lg flex items-center justify-center border-2",
+            styles.badgeBg, styles.borderColor
 
-      <div className="flex items-center gap-3">
-        <span className={cn("text-sm font-bold tracking-wide", styles.title)}>
-          {def.name}
-        </span>
-        <span className={cn("h-6 border-l", styles.divider)} />
-        {def.layout === "ds" && (
-          <div className="flex items-center gap-2">
-            <Pill toneClass={styles.pill}>{displayLeft}</Pill>
-            <Pill
-              toneClass={styles.pill}
-              square
-              borderColor={
-                styles.iconBox.match(/border-[\w-]+-\d+/)?.[0] ||
-                "border-gray-300"
-              }
-            >
-              <HiOutlineArrowLeft className="w-4 h-4" />
-            </Pill>
-            <Pill toneClass={styles.pill}>{String(displayRight)}</Pill>
+          )}>
+            {Icon && <Icon className={cn("size-6", styles.text)} />}
           </div>
-        )}
-        {def.layout === "single" && (
-          <div className="flex items-center gap-2">
-            <Pill toneClass={styles.pill}>{destReg}</Pill>
+
+          <span className={cn(" h-7 border", styles.borderColor)}
+          />
+
+          <span className={cn(" mx-auto font-bold text-xl uppercase tracking-wide", styles.text)}>
+            {def.name}
+          </span>
+        </div>
+      )}
+
+      {/* VARIANT B: Single-Operand (Arity 1) - Header | Input */}
+      {def.arity === 1 && (
+        <>
+          {/* Header Section */}
+          <div className="flex items-center gap-2 p-2">
+            <div className={cn(
+              "w-9 h-9 rounded-lg flex items-center justify-center border-2", styles.borderColor, styles.badgeBg
+            )}>
+              {Icon && <Icon className={cn("size-6", styles.text)} />}
+            </div>
+            <span className={cn("font-bold text-xl uppercase whitespace-nowrap", styles.text)}>
+              {def.name}
+            </span>
           </div>
-        )}
-        {def.layout === "label" && (
-          <div className="flex items-center gap-2">
-            <Pill toneClass={styles.pill}>{data?.label ?? "LABEL"}</Pill>
+
+          <span className={cn("h-7 border", styles.borderColor)}
+          />
+
+          {/* Input Slot */}
+          <div className="w-full overflow-hidden flex-1 py-2 flex items-center justify-center px-2">
+            <div className={cn("bg-white rounded-md px-3 py-1.5 flex-1 min-w-0 border-2", styles.borderColor)}>
+              <span className="max-w-full overflow-hidden text-sm font-mono font-medium text-slate-700 truncate block text-center">
+                {['LABEL', 'JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN', 'CALL'].includes(def.name) ? label : dest}
+              </span>
+            </div>
           </div>
-        )}
-        {isZero && <div className="text-xs text-gray-500 italic" />}
-      </div>
-    </div>
+        </>
+      )
+      }
+
+      {/* VARIANT C: Two-Operand (Arity 2) - Header | Input1 | Icon | Input2 */}
+      {
+        def.arity === 2 && (
+          <>
+            {/* Header Section */}
+            <div className="flex items-center gap-2 p-2 shrink-0">
+              <div className={cn(
+                "w-9 h-9 rounded-lg flex items-center justify-center border-2", styles.borderColor, styles.badgeBg
+              )}>
+                {Icon && <Icon className={cn("size-6", styles.text)} />}
+              </div>
+              <span className={cn("font-bold text-xl uppercase whitespace-nowrap", styles.text)}>
+                {def.name}
+              </span>
+            </div>
+
+            {/* Divider */}
+            <span className={cn("h-7 border", styles.borderColor)}
+            />
+
+            {/* Body: Input1 | Icon | Input2 */}
+            <div className="flex-1 flex items-center gap-2 px-2">
+              {/* Input 1 */}
+              <div className={cn("bg-white rounded-md border-2 px-2 py-1.5 flex-1 min-w-0", styles.borderColor)}>
+                <span className="text-xs font-mono font-medium text-slate-700 truncate block text-center">
+                  {isOut
+                    ? (memImm !== undefined && memImm !== null ? getPortName(memImm) : "Port")
+                    : isStore
+                      ? srcReg
+                      : dest}
+                </span>
+              </div>
+
+              {/* Action Icon */}
+              <div className={cn(
+                "w-6 h-6 rounded-md flex items-center justify-center shrink-0 border-2",
+                styles.borderColor, styles.badgeBg
+              )}>
+                {getActionIcon(styles.badgeText)}
+              </div>
+
+              {/* Input 2 (Source) */}
+              <div className={cn("bg-white rounded-md border-2 px-2 py-1.5 flex-1 min-w-0", styles.borderColor)}>
+                <span className="text-xs font-mono font-medium text-slate-700 truncate block text-center">
+                  {src}
+                </span>
+              </div>
+            </div>
+          </>
+        )
+      }
+    </div >
   );
 });

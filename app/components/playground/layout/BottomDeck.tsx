@@ -15,6 +15,7 @@ type Props = {
     onConsoleInput: (key: string) => void;
     sevenSegment: number;
     ledMatrix: number[];
+    headerControls?: React.ReactNode;
 };
 
 export default function BottomDeck({
@@ -23,6 +24,7 @@ export default function BottomDeck({
     onConsoleInput,
     sevenSegment,
     ledMatrix,
+    headerControls,
 }: Props) {
     const [isOpen, setIsOpen] = useState(true);
 
@@ -132,6 +134,13 @@ export default function BottomDeck({
                 <div className="flex items-center gap-2 text-gray-500">
                     <Monitor size={15} />
                     <span className="text-xs font-bold uppercase tracking-wider">Input / Output Deck</span>
+                </div>
+
+                <div className="flex-1 flex justify-center">
+                    {/* Header Controls (Execution Deck embedded here) */}
+                    <div onClick={(e) => e.stopPropagation()}>
+                        {headerControls}
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2 text-gray-400">

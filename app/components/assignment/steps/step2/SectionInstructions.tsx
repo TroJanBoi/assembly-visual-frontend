@@ -39,7 +39,7 @@ const instructionCategories = [
     title: "Arithmetic",
     instructions: [
       { name: "ADD", icon: <HiPlus />, color: "orange" },
-      { name: "SUB", icon: <HiMinus />, color: "purple" },
+      { name: "SUB", icon: <HiMinus />, color: "indigo" },
       { name: "MUL", icon: <HiX />, color: "pink" },
       {
         name: "DIV",
@@ -76,12 +76,12 @@ const instructionCategories = [
       {
         name: "JC",
         icon: <span className="text-xs font-bold">JC</span>,
-        color: "purple",
+        color: "indigo",
       },
       {
         name: "JNC",
         icon: <span className="text-xs font-bold">JNC</span>,
-        color: "purple",
+        color: "indigo",
       },
       {
         name: "JN",

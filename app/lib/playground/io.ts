@@ -14,7 +14,7 @@ export interface LogEntry {
 
 export interface IOHandler {
     onWrite(port: number, value: number): void;
-    onRead(port: number): number;
+    onRead(port: number): number | null; // BUG FIX #6: Return null for blocking I/O
     getSnapshot(): IOState;
     addLog(type: LogType, message: string): void;
 }
@@ -26,6 +26,7 @@ export type IOState = {
     ledMatrix: Uint8Array;
     ledSelectedRow: number;
     gamepadState: number;
+    keyBuffer: number[]; // For time travel: save input buffer state
 };
 
 export class VirtualIO implements IOHandler {
@@ -39,8 +40,10 @@ export class VirtualIO implements IOHandler {
             ledMatrix: new Uint8Array(8),
             ledSelectedRow: 0,
             gamepadState: 0,
+            keyBuffer: [], // Initialize key buffer
             ...initialState
         };
+        this.keyBuffer = initialState?.keyBuffer ? [...initialState.keyBuffer] : [];
     }
 
     private keyBuffer: number[] = [];
@@ -145,7 +148,7 @@ export class VirtualIO implements IOHandler {
     }
 
 
-    onRead(port: number): number {
+    onRead(port: number): number | null {
         switch (port) {
             case 0: // Console Input (Keyboard)
                 if (this.keyBuffer.length > 0) {
@@ -154,7 +157,8 @@ export class VirtualIO implements IOHandler {
                     // For now, let the frontend handle input echoing to avoid dupes.
                     return k;
                 }
-                return 0;
+                // BUG FIX #6: Return null when buffer empty (blocking I/O)
+                return null;
 
             case 4: // Gamepad (Mock)
                 return this.state.gamepadState;
@@ -175,13 +179,15 @@ export class VirtualIO implements IOHandler {
             ledMatrix: new Uint8Array(8),
             ledSelectedRow: 0,
             gamepadState: 0,
+            keyBuffer: [], // Reset key buffer
         };
+        this.keyBuffer = []; // Clear the input buffer
         // Initial System Log
         this.addLog('SYSTEM', 'System Reset. Ready.');
     }
 
     getSnapshot(): IOState {
-        // Return a copy to avoid mutation issues in UI
+        // Return a deep copy to avoid mutation issues in UI
         return {
             logs: [...this.state.logs],
             consoleBuffer: this.state.consoleBuffer,
@@ -189,6 +195,21 @@ export class VirtualIO implements IOHandler {
             ledMatrix: new Uint8Array(this.state.ledMatrix),
             ledSelectedRow: this.state.ledSelectedRow,
             gamepadState: this.state.gamepadState,
+            keyBuffer: [...this.keyBuffer], // Include input buffer for time travel
         };
+    }
+
+    // Time Travel: Restore IO state from snapshot
+    restoreSnapshot(snapshot: IOState): void {
+        this.state = {
+            logs: [...snapshot.logs],
+            consoleBuffer: snapshot.consoleBuffer,
+            sevenSegment: snapshot.sevenSegment,
+            ledMatrix: new Uint8Array(snapshot.ledMatrix),
+            ledSelectedRow: snapshot.ledSelectedRow,
+            gamepadState: snapshot.gamepadState,
+            keyBuffer: [...snapshot.keyBuffer],
+        };
+        this.keyBuffer = [...snapshot.keyBuffer]; // Restore input buffer
     }
 }

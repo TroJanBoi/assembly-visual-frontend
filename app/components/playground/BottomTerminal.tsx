@@ -23,19 +23,16 @@ export default React.memo(function BottomTerminal({
   logs,
   onClear,
   defaultOpen = true,
-  maxHeightPx = 180,
 }: BottomTerminalProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const endRef = useRef<HTMLDivElement>(null);
+
+  // Use Virtuoso for virtualization
+  const { Virtuoso } = require("react-virtuoso");
 
   const rendered = useMemo(() => {
     const norm = logs.map((l) => (typeof l === "string" ? l : (l?.text ?? "")));
     return norm.flatMap((entry) => String(entry).split(/\r?\n/));
   }, [logs]);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [rendered.length, open]);
 
   return (
     <div
@@ -78,22 +75,25 @@ export default React.memo(function BottomTerminal({
 
       {/* View-only log area */}
       {open && (
-        <div className="bg-black text-gray-100 font-mono text-[13px] leading-relaxed overflow-y-auto border-t border-gray-800 h-40">
-          <div className="px-3 py-2 space-y-1">
-            {rendered.length === 0 ? (
-              <div className="text-gray-500">
-                ({labName}&gt; waiting for logs)
-              </div>
-            ) : (
-              rendered.map((line, i) => (
-                <div key={i}>
-                  <span className="text-emerald-400">{labName}&gt;</span>{" "}
+        <div className="bg-black text-gray-100 font-mono text-[13px] leading-relaxed border-t border-gray-800 h-40">
+          {rendered.length === 0 ? (
+            <div className="text-gray-500 px-3 py-2">
+              ({labName}&gt; waiting for logs)
+            </div>
+          ) : (
+            <Virtuoso
+              style={{ height: '100%', width: '100%' }}
+              data={rendered}
+              totalCount={rendered.length}
+              followOutput={'auto'}
+              itemContent={(index: number, line: string) => (
+                <div className="px-3 py-0.5 break-words">
+                  <span className="text-emerald-400 select-none mr-2">{labName}&gt;</span>
                   <span className="whitespace-pre-wrap">{line}</span>
                 </div>
-              ))
-            )}
-            <div ref={endRef} />
-          </div>
+              )}
+            />
+          )}
         </div>
       )}
     </div>

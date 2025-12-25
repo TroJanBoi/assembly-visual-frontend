@@ -33,8 +33,10 @@ import {
 } from "@/lib/api/playground";
 import { executeProgram, executeInstruction, buildInstructionMap } from "@/lib/playground/executor";
 import { VirtualIO } from "@/lib/playground/io";
-import { CPU } from "@/lib/playground/cpu";
+import { CPU, CPUSnapshot } from "@/lib/playground/cpu";
 import { useAutoSave } from "@/hooks/useAutoSave";
+import { ExecutionDeck, ExecutionMode } from "@/components/playground/ExecutionDeck";
+import toast from "react-hot-toast";
 
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
 const getId = () => crypto.randomUUID();
@@ -135,6 +137,15 @@ export default function AssignmentPlaygroundPage() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
+  // --- State for Execution Modes ---
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>("debug");
+  const [testStatus, setTestStatus] = useState<string | null>(null);
+
+  // Execution Control State
+  const [isRunning, setIsRunning] = useState(false);
+  const [speed, setSpeed] = useState(2); // Hz
+  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   // Execution state from BE
@@ -196,8 +207,28 @@ export default function AssignmentPlaygroundPage() {
   const playgroundIdRef = useRef<number | null>(null);
 
   // ===== Interactive Execution State =====
-  const [isRunning, setIsRunning] = useState(false);
-  const simulationRef = useRef<{ interval: NodeJS.Timeout | null, cpu: CPU | null }>({ interval: null, cpu: null });
+  // ===== Interactive Execution State =====
+  const simulationRef = useRef<{
+    interval: NodeJS.Timeout | null;
+    cpu: CPU | null;
+    cachedItems: ProgramItem[] | null; // BUG FIX #7: Cache parsed items
+  }>({
+    interval: null,
+    cpu: null,
+    cachedItems: null
+  });
+  const historyRef = useRef<CPUSnapshot[]>([]);
+  const [historyLength, setHistoryLength] = useState(0);
+  const canStepBack = historyLength > 0;
+
+  // BUG FIX #5: Track isRunning in ref for fresh reads (avoid stale closure)
+  const isRunningRef = useRef(isRunning);
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
+
+  // Track if CPU is waiting for input (for auto-resume on Enter)
+  const [waitingForInput, setWaitingForInput] = useState(false);
 
   // ===== Property Panel state =====
   const [panelOpen, setPanelOpen] = useState(false);
@@ -258,7 +289,7 @@ export default function AssignmentPlaygroundPage() {
               target: targetLabel.id,
               sourceHandle: 'left',
               targetHandle: 'left',
-              type: 'smoothstep',
+              type: 'circuitLoop',
               animated: true,
               style: { strokeDasharray: '5 5', stroke: '#9333ea' },
               zIndex: -1,
@@ -272,7 +303,7 @@ export default function AssignmentPlaygroundPage() {
       // Force all regular edges to use smoothstep type
       const regularEdges = eds
         .filter(e => !e.id.startsWith('label-'))
-        .map(e => ({ ...e, type: 'smoothstep' }));
+        .map(e => ({ ...e, type: 'default' }));
       return [...regularEdges, ...labelEdges];
     });
   }, [nodes]);
@@ -311,7 +342,7 @@ export default function AssignmentPlaygroundPage() {
       console.log(`🔌 Connected: ${params.source} -> ${params.target}`);
       const newEdge = {
         ...params,
-        type: 'smoothstep',
+        type: 'default',
         animated: false,
         style: { stroke: '#94a3b8', strokeWidth: 2 },
       };
@@ -379,15 +410,18 @@ export default function AssignmentPlaygroundPage() {
         setHighlightedTargetId(foundTargetId);
         setNodes((nds) => nds.map((n) => {
           // Clear old highlight
-          if (n.style?.boxShadow === "0 0 0 4px rgba(99, 102, 241, 0.3)") {
-            const { boxShadow, ...rest } = n.style;
-            return { ...n, style: rest };
+          if (n.data?.isProximity) {
+            return {
+              ...n,
+              data: { ...n.data, isProximity: false },
+              style: { ...n.style, boxShadow: undefined } // clear legacy
+            };
           }
-          // Set new highlight (Minimalist Ring)
+          // Set new highlight
           if (n.id === foundTargetId) {
             return {
               ...n,
-              style: { ...n.style, boxShadow: "0 0 0 4px rgba(99, 102, 241, 0.3)" }
+              data: { ...n.data, isProximity: true }
             };
           }
           return n;
@@ -526,7 +560,7 @@ export default function AssignmentPlaygroundPage() {
               target: node.id,
               sourceHandle: "source-bottom",
               targetHandle: "in",
-              type: 'smoothstep',
+              type: 'default',
               animated: false,
               style: { stroke: '#94a3b8', strokeWidth: 2 },
             };
@@ -588,7 +622,7 @@ export default function AssignmentPlaygroundPage() {
                 target: other.id,
                 sourceHandle: "source-bottom",
                 targetHandle: "in",
-                type: 'smoothstep',
+                type: 'default',
                 animated: false,
                 style: { stroke: '#94a3b8', strokeWidth: 2 },
               };
@@ -615,9 +649,12 @@ export default function AssignmentPlaygroundPage() {
       // Cleanup Highlights
       setHighlightedTargetId(null);
       setNodes((nds) => nds.map((n) => {
-        if (n.style?.boxShadow === "0 0 0 4px rgba(99, 102, 241, 0.3)") {
-          const { boxShadow, ...rest } = n.style;
-          return { ...n, style: rest };
+        if (n.data?.isProximity) {
+          return {
+            ...n,
+            data: { ...n.data, isProximity: false },
+            style: { ...n.style, boxShadow: undefined } // clear legacy
+          };
         }
         return n;
       }));
@@ -691,26 +728,28 @@ export default function AssignmentPlaygroundPage() {
   function normalizePositions(pos: UIPosition): UIPosition {
     if (!pos) return {};
 
-    // หา min x,y เพื่อ offset ให้ทุกจุดเป็นบวก
+    // Find min x,y to offset
     let minX = Infinity,
       minY = Infinity;
     for (const key of Object.keys(pos)) {
-      const p = pos[key];
+      const p = pos[Number(key)];
       if (!p) continue;
       if (p.x < minX) minX = p.x;
       if (p.y < minY) minY = p.y;
     }
 
-    const offsetX = minX < 0 ? Math.abs(minX) + 20 : 0; // เผื่อระยะ 20 px
+    const offsetX = minX < 0 ? Math.abs(minX) + 20 : 0; // Padding 20px
     const offsetY = minY < 0 ? Math.abs(minY) + 20 : 0;
 
     const out: UIPosition = {};
     for (const key of Object.keys(pos)) {
-      const p = pos[key];
-      out[key] = {
-        x: Math.round((p.x ?? 0) + offsetX),
-        y: Math.round((p.y ?? 0) + offsetY),
-      };
+      const p = pos[Number(key)];
+      if (p) {
+        out[Number(key)] = {
+          x: Math.round((p.x ?? 0) + offsetX),
+          y: Math.round((p.y ?? 0) + offsetY),
+        };
+      }
     }
 
     return out;
@@ -758,6 +797,145 @@ export default function AssignmentPlaygroundPage() {
     });
   }
 
+  function parseProgramItems(nds: Node[], eds: Edge[]): ProgramItem[] {
+    console.log("🔍 [parseProgramItems] Starting - Total nodes:", nds.length);
+
+    // BUG FIX #4: Only parse nodes reachable from START (ignore unconnected nodes)
+    // Step 1: Find START node
+    const startNode = nds.find(n => getInstr(n) === "START");
+    if (!startNode) {
+      console.error("❌ [parseProgramItems] No START node found");
+      return [];
+    }
+    console.log("✅ [parseProgramItems] Found START node:", startNode.id);
+
+    // Step 2: Traverse from START to find all reachable nodes
+    const reachableNodeIds = new Set<string>();
+    const queue: string[] = [startNode.id];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+
+      if (reachableNodeIds.has(currentId)) continue;
+      reachableNodeIds.add(currentId);
+
+      // Find all outgoing edges from this node
+      const outEdges = eds.filter(e => e.source === currentId);
+
+      // Add all target nodes to queue
+      outEdges.forEach(edge => {
+        if (!reachableNodeIds.has(edge.target)) {
+          queue.push(edge.target);
+        }
+      });
+    }
+
+    console.log("✅ [parseProgramItems] Reachable nodes:", reachableNodeIds.size, "of", nds.length);
+    console.log("   Reachable IDs:", Array.from(reachableNodeIds));
+
+    // Step 3: Filter to only reachable nodes and create ID mapping
+    const reachableNodes = nds.filter(n => reachableNodeIds.has(n.id));
+    const nodeMap = new Map(reachableNodes.map((n, i) => [n.id, i + 1]));
+
+    // Step 4: Parse only reachable nodes
+    return reachableNodes.map((node) => {
+      const instruction = getInstr(node);
+      const outEdges = eds.filter((e) => e.source === node.id);
+
+      const nextEdge = outEdges.find((e) => !e.sourceHandle || e.sourceHandle === "out" || e.sourceHandle === "source-bottom");
+      const nextTrueEdge = outEdges.find((e) => e.sourceHandle === "true");
+      const nextFalseEdge = outEdges.find((e) => e.sourceHandle === "false");
+
+      const item: any = {
+        id: nodeMap.get(node.id)!,
+        instruction,
+        label: node.data?.label || "",
+        operands: [],
+      };
+
+      if (instruction === "CMP") {
+        item.next_true = nextTrueEdge
+          ? (nodeMap.get(nextTrueEdge.target) ?? null)
+          : (nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null);
+        item.next_false = nextFalseEdge
+          ? (nodeMap.get(nextFalseEdge.target) ?? null)
+          : (nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null);
+      } else if (instruction === "HLT") {
+      } else if (instruction === "NOP") {
+        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
+      } else if (instruction === "LABEL") {
+        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
+      } else {
+        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
+      }
+
+      const operands: Operand[] = [];
+
+      if (instruction === "LOAD" || instruction === "STORE") {
+        const memMode = node.data?.memMode ?? "imm";
+        const memImm = node.data?.memImm;
+        const memReg = node.data?.memReg;
+
+        if (instruction === "LOAD") {
+          const dest = node.data?.dest ?? node.data?.dst ?? node.data?.register ?? node.data?.reg;
+          if (dest) operands.push({ type: "Register", value: String(dest) });
+
+          if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
+            operands.push({ type: "Immediate", value: String(memImm) });
+          } else if (memMode === "reg" && memReg) {
+            operands.push({ type: "Register", value: String(memReg) });
+          }
+        } else if (instruction === "STORE") {
+          if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
+            operands.push({ type: "Immediate", value: String(memImm) });
+          } else if (memMode === "reg" && memReg) {
+            operands.push({ type: "Register", value: String(memReg) });
+          }
+
+          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
+          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
+        }
+      } else if (instruction === "OUT") {
+        const port = node.data?.memImm;
+        if (port !== undefined && port !== null && port !== "") {
+          operands.push({ type: "Immediate", value: String(port) });
+        }
+
+        let pushedSrc = false;
+        const immRaw = node.data?.srcImm ?? node.data?.imm ?? node.data?.value ?? node.data?.val;
+        if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
+          operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
+          pushedSrc = true;
+        }
+        if (!pushedSrc) {
+          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
+          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
+        }
+      } else {
+        const destReg = node.data?.dest ?? node.data?.dst ?? node.data?.register ?? node.data?.reg;
+        if (destReg) operands.push({ type: "Register", value: String(destReg) });
+
+        let pushedSrc = false;
+        const immRaw = node.data?.srcImm ?? node.data?.imm ?? node.data?.value ?? node.data?.val;
+        if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
+          operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
+          pushedSrc = true;
+        }
+        if (!pushedSrc) {
+          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
+          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
+        }
+      }
+
+      if ((instruction === "JMP" || instruction === "JZ" || instruction === "JNZ") && node.data?.label) {
+        operands.push({ type: "Label", value: String(node.data.label) });
+      }
+
+      item.operands = operands;
+      return item as ProgramItem;
+    });
+  }
+
   function validateProgramItems(items: ProgramItem[]): string[] {
     const errs: string[] = [];
     for (const it of items) {
@@ -802,7 +980,8 @@ export default function AssignmentPlaygroundPage() {
   /* start handleRun seccton */
   /* start handleRun seccton */
 
-  const handleRun = async (mode: string) => {
+  /* start handleRun section (Actually handleSubmit logic) */
+  const handleSubmit = useCallback(async () => {
     if (!assignmentId) return;
 
     // 1) เตรียม nodes และ id mapping - รวม START ด้วย!
@@ -1015,144 +1194,392 @@ export default function AssignmentPlaygroundPage() {
       );
 
       if (pid) {
-        playgroundIdRef.current = pid;
-        appendLog(`playground id = ${playgroundIdRef.current}`);
-      } else {
-        appendLog("no playground id found after save");
-        return;
+        // Optionally update ref
       }
-
-      // 10) Execute (CLIENT-SIDE)
-
-      // Stop if already running
-      if (isRunning) {
-        handleStop();
-        appendLog("Stpped by user.");
-        return;
-      }
-
-      appendLog("Starting execution (interactive)...");
-
-      // Reset IO Handler state but keep buffer
-      ioHandlerRef.current.reset();
-
-      // Initialize CPU
-      // Note: We use the *initial* CPU state from assignment config, 
-      // not the current UI state which might be stale or edited.
-      // But actually, the prompt implies running the program. 
-      // Ideally we reset CPU to clean state.
-      const freshCpu = new CPU(cpu);
-
-      // Setup Maps
-      const instructionMap = buildInstructionMap(items);
-
-      // Find START
-      let startId: number | null = null;
-      for (const item of items) {
-        if (item.instruction?.toUpperCase() === 'START') {
-          startId = item.id;
-        }
-      }
-
-      if (startId === null) {
-        appendLog("Error: No START instruction found.");
-        return;
-      }
-
-      freshCpu.pc = startId;
-      simulationRef.current.cpu = freshCpu;
-
-      // Start Loop
-      setIsRunning(true);
-      let steps = 0;
-      const MAX_STEPS = 20000; // Safety limit
-
-      simulationRef.current.interval = setInterval(() => {
-        const currentCpu = simulationRef.current.cpu;
-        if (!currentCpu) return;
-
-        // Helper to Sync State
-        const syncUI = () => {
-          const newRegisters = { ...currentCpu.registers };
-          const snap = ioHandlerRef.current.getSnapshot();
-          console.log("Committing State Update -> Regs:", newRegisters, "IO:", snap);
-          setExecRegisters(newRegisters);
-          setExecFlags({ ...currentCpu.flags });
-          setExecMemorySparse(currentCpu.getMemorySparse());
-          setExecIO({ ...snap, sevenSegment: snap.sevenSegment, ledMatrix: Array.from(snap.ledMatrix) });
-        };
-
-        // Batch execution: 10 steps per tick
-        for (let i = 0; i < 10; i++) {
-          if (currentCpu.halted) {
-            syncUI(); // <--- Force Sync before Stop
-            handleStop();
-            appendLog(`Program Halted. Steps: ${steps}`);
-            return;
-          }
-          if (steps >= MAX_STEPS) {
-            syncUI(); // <--- Force Sync before Stop
-            handleStop();
-            appendLog(`Max steps (${MAX_STEPS}) exceeded.`);
-            return;
-          }
-
-          const item = instructionMap.get(currentCpu.pc);
-          if (!item) {
-            // Implicit halt if PC invalid
-            currentCpu.halt(`Invalid PC: ${currentCpu.pc}`);
-            syncUI();
-            handleStop();
-            return;
-          }
-
-          try {
-            executeInstruction(
-              currentCpu,
-              item,
-              instructionMap,
-              undefined,
-              ioHandlerRef.current
-            );
-          } catch (err: any) {
-            currentCpu.halt(err.message || String(err));
-            syncUI();
-            handleStop();
-            return;
-          }
-
-          steps++;
-        }
-
-        // Normal Sync (Frame End)
-        syncUI();
-
-      }, 20); // 20ms = 50fps
-
-    } catch (error: any) {
-      console.error("Failed to run playground:", error);
-      appendLog(`execute failed: ${error?.message || String(error)}`);
-      handleStop();
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Save failed: " + e.message);
     }
-  };
+  }, [nodes, edges, assignment, appendLog]);
 
-  const handleStop = useCallback(() => {
+  // 1. Instant Run
+  const runInstant = useCallback(async () => {
+    console.log("\n\n");
+    console.log("═══════════════════════════════════════════════════════");
+    console.log("🚀🚀🚀 [INSTANT RUN] EXECUTION STARTED 🚀🚀🚀");
+    console.log("═══════════════════════════════════════════════════════");
+    console.log("📊 Input Data:");
+    console.log("   - Nodes count:", nodes.length);
+    console.log("   - Edges count:", edges.length);
+    console.log("   - Nodes:", nodes);
+    console.log("   - Edges:", edges);
+
+    // Clear selection to show Processor Dashboard
+    setSelectedNode(null);
+
+    try {
+      console.log("\n📝 Step 1: Parsing nodes to program items...");
+      const items = parseProgramItems(nodes, edges);
+      console.log("   ✅ Parsed", items.length, "items");
+      console.log("   📋 Items:", items);
+
+      console.log("\n🔍 Step 2: Validating program...");
+      const valErrors = validateProgramItems(items);
+      if (valErrors.length) {
+        console.error("   ❌ VALIDATION FAILED:");
+        console.error("   Errors:", valErrors);
+        toast.error(`Invalid: ${valErrors[0]}`);
+        return;
+      }
+      console.log("   ✅ Validation passed");
+
+      // BUG FIX #1: Check for IN instruction in COMPILED instructions only (not all canvas nodes)
+      console.log("\n🔒 Step 2.5: Checking for IN instruction in compiled program...");
+      const hasInInProgram = items.some(item => item.instruction?.toUpperCase() === "IN");
+      if (hasInInProgram) {
+        console.error("   ❌ INSTANT RUN BLOCKED: IN instruction found in program flow");
+        toast.error("Input (IN) not supported in Instant Mode. Use Debugger.", {
+          icon: '🚫',
+          style: { borderRadius: '10px', background: '#333', color: '#fff' },
+        });
+        return;
+      }
+      console.log("   ✅ No IN instruction in program flow");
+
+      console.log("\n🗺️ Step 3: Building instruction map...");
+      const instructionMap = buildInstructionMap(items);
+      console.log("   ✅ Map size:", instructionMap.size);
+
+      console.log("\n💾 Step 4: Initializing CPU...");
+      const freshCpu = buildInitialCPUState(assignment);
+      console.log("   Initial state:", freshCpu);
+
+      console.log("\n⚙️ Step 5: EXECUTING PROGRAM...");
+      const result = await executeProgram(items, freshCpu, 10000, {}, ioHandlerRef.current);
+      console.log("   ✅ EXECUTION COMPLETE!");
+      console.log("   📊 Result:", result);
+
+      console.log("\n🔄 Step 6: Updating React state...");
+      console.log("   - Registers:", result.registers);
+      console.log("   - Flags:", result.flags);
+      console.log("   - Memory:", result.memory_sparse);
+
+      setExecRegisters(result.registers);
+      setExecFlags(result.flags);
+      setExecMemorySparse(result.memory_sparse);
+      console.log("   ✅ State update functions called");
+
+      // Sync IO State from execution result
+      if (result.io_state) {
+        console.log("\n📺 Step 7: Updating IO state...");
+        console.log("   IO State:", result.io_state);
+        setExecIO({
+          logs: result.io_state.logs || [],
+          consoleBuffer: result.io_state.consoleBuffer || "",
+          sevenSegment: result.io_state.sevenSegment || 0,
+          ledMatrix: result.io_state.ledMatrix || [0, 0, 0, 0, 0, 0, 0, 0],
+          ledSelectedRow: result.io_state.ledSelectedRow || 0,
+        });
+        console.log("   ✅ IO state updated");
+      }
+
+      // Handle logs (legacy - kept for backward compatibility)
+      if (result.logs) {
+        result.logs.forEach(l => appendLog(l));
+      }
+
+      // Highlight end
+      setHighlightedLine(null);
+
+      toast.success("Execution Complete!", { position: "bottom-center" });
+
+      console.log("\n═══════════════════════════════════════════════════════");
+      console.log("🎉🎉🎉 [INSTANT RUN] COMPLETED SUCCESSFULLY 🎉🎉🎉");
+      console.log("═══════════════════════════════════════════════════════\n\n");
+
+    } catch (e: any) {
+      console.log("\n═══════════════════════════════════════════════════════");
+      console.error("💥💥💥 [INSTANT RUN] ERROR 💥💥💥");
+      console.log("═══════════════════════════════════════════════════════");
+      console.error("Error details:", e);
+      console.error("Stack trace:", e.stack);
+      toast.error(`Error: ${e.message}`);
+      appendLog(`[ERROR] ${e.message}`);
+    }
+  }, [nodes, edges, assignment, appendLog]);
+
+  // 1.5 Step Back
+  const handleStepBack = useCallback(() => {
+    console.log("⏮️ [handleStepBack] Attempting step back. History length:", historyRef.current.length);
+
+    if (historyRef.current.length === 0 || !simulationRef.current.cpu) {
+      console.log("❌ [handleStepBack] Cannot step back - no history or no CPU");
+      return;
+    }
+
+    const snapshot: any = historyRef.current.pop();
+    if (snapshot) {
+      console.log("✅ [handleStepBack] Restoring snapshot. PC:", snapshot.pc);
+
+      // Restore CPU state
+      simulationRef.current.cpu.restoreSnapshot(snapshot);
+
+      // Restore IO state if present
+      if (snapshot.ioState) {
+        console.log("🔄 [handleStepBack] Restoring IO state. Logs:", snapshot.ioState.logs.length, "KeyBuf:", snapshot.ioState.keyBuffer.length);
+        ioHandlerRef.current.restoreSnapshot(snapshot.ioState);
+      }
+
+      setHistoryLength(historyRef.current.length);
+
+      // Sync UI
+      const currentCpu = simulationRef.current.cpu;
+      console.log("🔄 [handleStepBack] Syncing UI - Registers:", currentCpu.registers);
+      setExecRegisters({ ...currentCpu.registers });
+      setExecFlags({ ...currentCpu.flags });
+      setExecMemorySparse(currentCpu.getMemorySparse());
+      setHighlightedLine(currentCpu.pc);
+
+      // Sync IO UI
+      const ioRestoreState = ioHandlerRef.current.getSnapshot();
+      setExecIO({
+        logs: ioRestoreState.logs,
+        consoleBuffer: ioRestoreState.consoleBuffer,
+        sevenSegment: ioRestoreState.sevenSegment,
+        ledMatrix: Array.from(ioRestoreState.ledMatrix),
+        ledSelectedRow: ioRestoreState.ledSelectedRow,
+      });
+
+      // Auto-pause if running
+      if (isRunning) {
+        setIsRunning(false);
+        if (simulationRef.current.interval) {
+          clearInterval(simulationRef.current.interval);
+          simulationRef.current.interval = null;
+        }
+      }
+
+      console.log("✅ [handleStepBack] Step back completed. New history length:", historyRef.current.length);
+    }
+  }, [isRunning]);
+
+  // 2. Debug Run (Step / Play) using existing simulationRef structure
+  const handleStep = useCallback(async () => {
+    console.log("��� [handleStep] Starting step...");
+
+    // Clear selection to show results
+    setSelectedNode(null);
+
+    // BUG FIX #7: Use cached items instead of re-parsing every step
+    let items = simulationRef.current.cachedItems;
+    if (!items) {
+      console.log("📝 [handleStep] Parsing items (first time)...");
+      items = parseProgramItems(nodes, edges);
+      simulationRef.current.cachedItems = items;
+      console.log("✅ [handleStep] Cached", items.length, "items");
+    } else {
+      console.log("♻️ [handleStep] Using cached items:", items.length);
+    }
+
+    if (!simulationRef.current.cpu) {
+      console.log("🆕 [handleStep] Initializing new CPU...");
+
+      // Init CPU if needed
+      const valErrors = validateProgramItems(items);
+      if (valErrors.length) {
+        toast.error(valErrors[0]);
+        return;
+      }
+
+      const fresh = new CPU(buildInitialCPUState(assignment));
+      // Find START
+      const startItem = items.find(i => i.instruction?.toUpperCase() === 'START');
+      if (startItem) fresh.pc = startItem.id;
+      simulationRef.current.cpu = fresh;
+      console.log("✅ [handleStep] CPU initialized at PC:", fresh.pc);
+    }
+
+    const currentCpu = simulationRef.current.cpu;
+
+    // BUG FIX #3: Stop the interval immediately if CPU is halted (prevent zombie loop)
+    if (!currentCpu || currentCpu.halted) {
+      console.log("⏸️ [handleStep] CPU halted or missing - STOPPING INTERVAL");
+
+      // Stop the play interval
+      setIsRunning(false);
+      if (simulationRef.current.interval) {
+        clearInterval(simulationRef.current.interval);
+        simulationRef.current.interval = null;
+        console.log("✅ [handleStep] Interval cleared");
+      }
+
+      return;
+    }
+
+    try {
+      const instructionMap = buildInstructionMap(items);
+      const item = instructionMap.get(currentCpu.pc);
+
+      console.log("🎯 [handleStep] Executing PC:", currentCpu.pc, "Instruction:", item?.instruction);
+
+      if (!item) {
+        currentCpu.halt(`Invalid PC: ${currentCpu.pc}`);
+        // Sync UI one last time
+        const newRegisters = { ...currentCpu.registers };
+        setExecRegisters(newRegisters);
+        setExecFlags({ ...currentCpu.flags });
+        return;
+      }
+
+      // Save Snapshot for Time Travel BEFORE execution (CPU + IO State)
+      const cpuSnapshot = currentCpu.getSnapshot();
+      const ioSnapshot = ioHandlerRef.current.getSnapshot();
+      const fullSnapshot = {
+        ...cpuSnapshot,
+        ioState: ioSnapshot
+      };
+      historyRef.current.push(fullSnapshot);
+      setHistoryLength(historyRef.current.length);
+      console.log("📸 [handleStep] Saved snapshot. PC:", cpuSnapshot.pc, "IO Logs:", ioSnapshot.logs.length, "History:", historyRef.current.length);
+
+      executeInstruction(currentCpu, item, instructionMap, undefined, ioHandlerRef.current);
+
+      // Sync UI
+      const newRegisters = { ...currentCpu.registers };
+      console.log("🔄 [handleStep] Updating registers:", newRegisters);
+      setExecRegisters(newRegisters);
+      setExecFlags({ ...currentCpu.flags });
+      setExecMemorySparse(currentCpu.getMemorySparse());
+
+      // Sync IO State from handler
+      const ioSnapshotSync = ioHandlerRef.current.getSnapshot();
+      setExecIO({
+        logs: ioSnapshotSync.logs || [],
+        consoleBuffer: ioSnapshotSync.consoleBuffer || "",
+        sevenSegment: ioSnapshotSync.sevenSegment || 0,
+        ledMatrix: Array.from(ioSnapshotSync.ledMatrix) || [0, 0, 0, 0, 0, 0, 0, 0],
+        ledSelectedRow: ioSnapshotSync.ledSelectedRow || 0,
+      });
+
+      // Highlight
+      setHighlightedLine(currentCpu.pc);
+
+      // Clear waiting flag on successful execution
+      setWaitingForInput(false);
+
+      if (currentCpu.halted) {
+        console.log("✅ [handleStep] CPU halted - stopping execution");
+        setIsRunning(false);
+
+        // Clear the interval to prevent further step calls
+        if (simulationRef.current.interval) {
+          clearInterval(simulationRef.current.interval);
+          simulationRef.current.interval = null;
+          console.log("✅ [handleStep] Interval cleared on halt");
+        }
+
+        toast.success("Halted");
+      }
+    } catch (e: any) {
+      // BUG FIX #6: Handle blocking I/O (INPUT_REQUIRED exception)
+      if (e.message === 'INPUT_REQUIRED') {
+        console.log("⏸️ [handleStep] INPUT_REQUIRED - pausing for input");
+        setIsRunning(false);
+        setWaitingForInput(true); // Set flag for auto-resume
+
+        // Clear interval to stop continuous stepping
+        if (simulationRef.current.interval) {
+          clearInterval(simulationRef.current.interval);
+          simulationRef.current.interval = null;
+        }
+
+
+        toast("Waiting for input...", {
+          icon: '⌨️',
+          duration: 2000,
+          style: { borderRadius: '10px', background: '#3b82f6', color: '#fff' }
+        });
+
+
+        // Don't halt CPU - just pause. PC remains on IN instruction.
+        // When user types and hits Step/Play again, it will retry the IN.
+        return;
+      }
+
+      // Other errors: halt execution
+      console.error("💥 [handleStep] Error:", e);
+      setIsRunning(false);
+      toast.error(e.message);
+      currentCpu.halt(e.message);
+    }
+  }, [nodes, edges, assignment]);
+
+  const toggleDebugPlay = useCallback(() => {
+    if (isRunning) {
+      setIsRunning(false);
+      if (simulationRef.current.interval) {
+        clearInterval(simulationRef.current.interval);
+        simulationRef.current.interval = null;
+      }
+    } else {
+      setIsRunning(true);
+      simulationRef.current.interval = setInterval(() => {
+        handleStep();
+      }, 1000 / speed); // Use state speed
+    }
+  }, [isRunning, handleStep, speed]);
+
+  // Update interval when speed changes
+  useEffect(() => {
+    if (isRunning && simulationRef.current.interval) {
+      clearInterval(simulationRef.current.interval);
+      simulationRef.current.interval = setInterval(() => {
+        handleStep();
+      }, 1000 / speed);
+    }
+  }, [speed, isRunning, handleStep]);
+
+
+  // 3. Test Suite (Mock)
+  const runTests = useCallback(async () => {
+    setTestStatus("running");
+
+    // Simulate Delay
+    await new Promise(r => setTimeout(r, 1500));
+
+    toast.success("All Tests Passed!");
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setIsRunning(false);
     if (simulationRef.current.interval) {
       clearInterval(simulationRef.current.interval);
       simulationRef.current.interval = null;
     }
-    setIsRunning(false);
-  }, []);
+    simulationRef.current.cpu = null;
 
-  /* end handleRun seccton */
-  /* end handleRun seccton */
+    // BUG FIX #7: Clear cached items on reset
+    simulationRef.current.cachedItems = null;
+    console.log("🗑️ [handleReset] Cleared cached items");
 
-  const handleSubmit = () => {
-    /* TODO: submit solution */
-  };
+    setLogs([]);
+    setLogs([]);
+    setTestStatus(null);
+    setHighlightedLine(null);
 
-  // Navbar wants this symbol; delegate to handleRun("default")
-  const handleNavbarRun = (mode: string) => handleRun(mode);
+    // Clear History
+    historyRef.current = [];
+    setHistoryLength(0);
+
+    // Reset UI State
+    const initial = buildInitialCPUState(assignment);
+    setExecRegisters(initial.registers);
+    setExecFlags(initial.flags);
+    setExecMemorySparse({});
+    setExecIO(undefined);
+
+    ioHandlerRef.current.reset();
+  }, [assignment]);
 
   if (loading) {
     return (
@@ -1265,9 +1692,10 @@ export default function AssignmentPlaygroundPage() {
       <PlaygroundNavbar
         assignmentTitle={assignment?.title || "..."}
         onBack={() => router.back()}
-        onRun={handleNavbarRun}
-        onSubmit={handleSubmit}
-        onReset={resetSave}
+        mode={executionMode}
+        onRun={setExecutionMode}
+        onSubmit={() => toast("Submit feature coming soon!")}
+        onReset={handleReset}
       />
 
       {/* 2. Main Workspace (Flex Row) */}
@@ -1307,13 +1735,48 @@ export default function AssignmentPlaygroundPage() {
             {/* Properties Panel has been moved to RightInspector context */}
           </div>
 
-          {/* Bottom Deck */}
+          {/* Bottom Deck with Embedded Execution Controls */}
           <BottomDeck
             logs={execIO?.logs ?? []}
             consoleBuffer={execIO?.consoleBuffer ?? ""}
-            onConsoleInput={(key: string) => ioHandlerRef.current.receiveInput(key)}
+            onConsoleInput={(key: string) => {
+              console.log("⌨️ [Console Input] Key:", JSON.stringify(key), "Code:", key.charCodeAt(0), "waitingForInput:", waitingForInput);
+              ioHandlerRef.current.receiveInput(key);
+              // Auto-resume with Play mode if waiting for input and user pressed Enter
+              // Terminal sends "Enter" string, not '\n'
+              if (waitingForInput && key === 'Enter') {
+                console.log("✅ [Auto-Resume] Conditions met! Starting Play mode");
+                setWaitingForInput(false);
+                toggleDebugPlay(); // Start continuous play instead of single step
+              } else {
+                console.log("❌ [Auto-Resume] Conditions not met:", {
+                  waitingForInput,
+                  isEnter: key === 'Enter',
+                  keyCode: key.charCodeAt(0)
+                });
+              }
+            }}
             sevenSegment={execIO?.sevenSegment ?? 0}
             ledMatrix={execIO?.ledMatrix ?? [0, 0, 0, 0, 0, 0, 0, 0]}
+            headerControls={
+              <ExecutionDeck
+                mode={executionMode}
+                isPlaying={isRunning}
+                isRunning={isRunning || testStatus === "running"}
+                speed={speed}
+                setSpeed={setSpeed}
+                onRunInstant={runInstant}
+                onStep={handleStep}
+                onStepBack={handleStepBack}
+                canStepBack={canStepBack}
+                onPause={() => { setIsRunning(false); }}
+                onPlay={toggleDebugPlay}
+                onReset={handleReset}
+                onRunTests={runTests}
+                testStatus={testStatus}
+                embedded={true}
+              />
+            }
           />
         </div>
 

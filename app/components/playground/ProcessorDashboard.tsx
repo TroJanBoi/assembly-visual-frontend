@@ -159,9 +159,7 @@ export default React.memo(function ProcessorDashboard({
         />
       )}
 
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">
-        Processor Dashboard
-      </h2>
+
 
       {/* Registers */}
       <section>
@@ -193,7 +191,7 @@ export default React.memo(function ProcessorDashboard({
             <p className="text-sm text-gray-400">No flags</p>
           ) : (
             Object.keys(flags).map((f) => (
-              <div key={f} className="flex-1 min-w-[60px]">
+              <div key={f} className="flex-1 w-full">
                 <StateCell label={f} value={flags[f] ?? 0} />
               </div>
             ))

@@ -166,4 +166,42 @@ export class CPU {
             this.error = error;
         }
     }
+
+    /**
+     * Create a deep copy of the current CPU state
+     */
+    getSnapshot(): CPUSnapshot {
+        return {
+            registers: { ...this.registers },
+            flags: { ...this.flags },
+            memory: new Uint8Array(this.memory), // Copy memory
+            sp: this.sp,
+            pc: this.pc,
+            halted: this.halted,
+            error: this.error
+        };
+    }
+
+    /**
+     * Restore CPU state from a snapshot
+     */
+    restoreSnapshot(snapshot: CPUSnapshot): void {
+        this.registers = { ...snapshot.registers };
+        this.flags = { ...snapshot.flags };
+        this.memory = new Uint8Array(snapshot.memory); // Copy back
+        this.sp = snapshot.sp;
+        this.pc = snapshot.pc;
+        this.halted = snapshot.halted;
+        this.error = snapshot.error;
+    }
 }
+
+export type CPUSnapshot = {
+    registers: Record<string, number>;
+    flags: { Z: number; C: number; V: number; N: number };
+    memory: Uint8Array;
+    sp: number;
+    pc: number;
+    halted: boolean;
+    error: string | null;
+};

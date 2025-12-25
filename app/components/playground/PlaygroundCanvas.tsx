@@ -14,7 +14,11 @@ import ReactFlow, {
   ReactFlowInstance,
   ConnectionLineType,
 } from "reactflow";
-import "reactflow/dist/style.css";
+import CircuitLoopEdge from "./edges/CircuitLoopEdge";
+
+const edgeTypes = {
+  circuitLoop: CircuitLoopEdge,
+};
 
 export type PlaygroundCanvasProps = {
   nodes: Node[];
@@ -58,6 +62,7 @@ export default React.memo(function PlaygroundCanvas({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -70,10 +75,10 @@ export default React.memo(function PlaygroundCanvas({
         snapToGrid={true}
         snapGrid={[20, 20]}
         defaultEdgeOptions={{
-          type: 'smoothstep',
+          type: 'default',
           animated: false,
         }}
-        connectionLineType={ConnectionLineType.SmoothStep}
+        connectionLineType={ConnectionLineType.Bezier}
         fitView
       >
         <Background gap={16} size={1} />
