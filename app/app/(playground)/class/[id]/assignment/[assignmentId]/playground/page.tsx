@@ -813,6 +813,16 @@ export default function AssignmentPlaygroundPage() {
     const reachableNodeIds = new Set<string>();
     const queue: string[] = [startNode.id];
 
+    // Phase 1: Global Label Indexing (Wireless Support)
+    // Map Label Name -> Node ID
+    const labelMap = new Map<string, string>();
+    for (const n of nds) {
+      const instr = getInstr(n);
+      if (instr === "LABEL" && n.data?.label) {
+        labelMap.set(n.data.label, n.id);
+      }
+    }
+
     while (queue.length > 0) {
       const currentId = queue.shift()!;
 
@@ -822,12 +832,30 @@ export default function AssignmentPlaygroundPage() {
       // Find all outgoing edges from this node
       const outEdges = eds.filter(e => e.source === currentId);
 
-      // Add all target nodes to queue
+      // Add all target nodes to queue (Physical Connections)
       outEdges.forEach(edge => {
         if (!reachableNodeIds.has(edge.target)) {
           queue.push(edge.target);
         }
       });
+
+      // Phase 2: Enhanced Traversal (Wireless Jumps)
+      // If current node is a Jump/Call, add the target label to queue
+      const currentNode = nds.find(n => n.id === currentId);
+      if (currentNode) {
+        const instr = getInstr(currentNode);
+        // implicit connection instructions
+        if (["JMP", "JZ", "JNZ", "CALL"].includes(instr)) {
+          const targetLabel = currentNode.data?.label;
+          if (targetLabel && labelMap.has(targetLabel)) {
+            const targetId = labelMap.get(targetLabel)!;
+            if (!reachableNodeIds.has(targetId)) {
+              console.log(`📡 [Wireless] Jumping from ${instr} to LABEL ${targetLabel} (${targetId})`);
+              queue.push(targetId);
+            }
+          }
+        }
+      }
     }
 
     console.log("✅ [parseProgramItems] Reachable nodes:", reachableNodeIds.size, "of", nds.length);
@@ -927,7 +955,7 @@ export default function AssignmentPlaygroundPage() {
         }
       }
 
-      if ((instruction === "JMP" || instruction === "JZ" || instruction === "JNZ") && node.data?.label) {
+      if ((instruction === "JMP" || instruction === "JZ" || instruction === "JNZ" || instruction === "CALL") && node.data?.label) {
         operands.push({ type: "Label", value: String(node.data.label) });
       }
 

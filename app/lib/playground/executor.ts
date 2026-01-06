@@ -453,14 +453,26 @@ function executeLOAD(cpu: CPU, operands: Operand[]) {
     if (operands.length !== 2) throw new Error('LOAD requires 2 operands');
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('LOAD destination must be a register');
-    cpu.setRegister(dest.value, cpu.readMemory(getOperandValue(cpu, src)));
+
+    const address = getOperandValue(cpu, src);
+    if (address >= 224) {
+        throw new Error(`Access Violation: Cannot read from Stack Memory (${address})`);
+    }
+
+    cpu.setRegister(dest.value, cpu.readMemory(address));
 }
 
 function executeSTORE(cpu: CPU, operands: Operand[]) {
     if (operands.length !== 2) throw new Error('STORE requires 2 operands');
     const [dest, src] = operands;
     if (src.type !== 'Register') throw new Error('STORE source must be a register');
-    cpu.writeMemory(getOperandValue(cpu, dest), cpu.getRegister(src.value));
+
+    const address = getOperandValue(cpu, dest);
+    if (address >= 224) {
+        throw new Error(`Access Violation: Cannot write to Stack Memory (${address})`);
+    }
+
+    cpu.writeMemory(address, cpu.getRegister(src.value));
 }
 
 function executePUSH(cpu: CPU, operands: Operand[]) {

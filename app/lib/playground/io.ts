@@ -117,7 +117,7 @@ export class VirtualIO implements IOHandler {
         const val = value & 0xFF; // Ensure 8-bit
 
         switch (port) {
-            case 0: // Console Output
+            case 0: // Console Output (ASCII)
                 // We need to buffer this char-by-char if we want to print words...
                 // OR adapt the standardized CPU to write whole strings? 
                 // The current CPU writes char by char (INT output).
@@ -129,15 +129,19 @@ export class VirtualIO implements IOHandler {
                 this.handleConsoleWrite(val);
                 break;
 
-            case 1: // 7-Segment Display
+            case 1: // Console Output (Number)
+                this.addLog('OUTPUT', val.toString());
+                break;
+
+            case 2: // 7-Segment Display
                 this.state.sevenSegment = val;
                 break;
 
-            case 2: // LED Matrix Row Select
+            case 3: // LED Matrix Row Select
                 this.state.ledSelectedRow = val % 8;
                 break;
 
-            case 3: // LED Matrix Row Data
+            case 4: // LED Matrix Row Data
                 this.state.ledMatrix[this.state.ledSelectedRow] = val;
                 break;
 

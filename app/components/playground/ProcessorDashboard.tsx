@@ -235,6 +235,8 @@ export default React.memo(function ProcessorDashboard({
           <div className="mt-4 grid grid-cols-16 border-t border-l border-gray-300 rounded-lg overflow-hidden">
             {Array.from({ length: 256 }).map((_, i) => {
               const hasValue = memoryMap.has(i);
+              const isStack = i >= 224;
+
               return (
                 <div
                   key={i}
@@ -242,10 +244,14 @@ export default React.memo(function ProcessorDashboard({
                   onMouseMove={(e) => handleMouseMove(e, i)}
                   onMouseLeave={handleMouseLeave}
                   className={cn(
-                    "aspect-square text-[9px] flex items-center justify-center border-r border-b border-gray-200 cursor-pointer",
+                    "aspect-square text-[9px] flex items-center justify-center border-r border-b border-gray-200 cursor-pointer transition-colors",
                     hasValue
-                      ? "bg-indigo-200 font-bold text-indigo-800"
-                      : "text-gray-400 hover:bg-gray-100",
+                      ? isStack
+                        ? "bg-amber-200 font-bold text-amber-900" // Stack Value
+                        : "bg-indigo-200 font-bold text-indigo-800" // Heap/Code Value
+                      : isStack
+                        ? "bg-slate-100 text-slate-400 hover:bg-slate-200" // Stack Empty (Gray Zone)
+                        : "text-gray-400 hover:bg-gray-100", // Heap/Code Empty
                   )}
                 >
                   {hasValue ? (memoryMap.get(i) as number) : i}

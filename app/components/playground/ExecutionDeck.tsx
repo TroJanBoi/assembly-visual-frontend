@@ -1,7 +1,9 @@
 import React from "react";
-import { Play, Pause, FastForward, RotateCcw, Zap, CheckCircle2, Loader2, Bug } from "lucide-react";
+import { Play, Pause, FastForward, RotateCcw, Zap, CheckCircle2, Loader2, Bug, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Slider } from "@/components/ui/slider";
+
+// Discrete speed steps in Hz
+const SPEED_STEPS = [1, 2, 5, 10, 20, 50, 100];
 
 export type ExecutionMode = "instant" | "debug" | "test";
 
@@ -50,6 +52,23 @@ export function ExecutionDeck({
             "rounded-full shadow-2xl border border-slate-200 dark:border-slate-700",
             "transition-all duration-300 ease-out"
         );
+
+    // Find the closest step index for the current speed
+    // This handles cases where 'speed' might be a custom value not in the array
+    const currentStepIndex = SPEED_STEPS.reduce((prev, curr, index) =>
+        Math.abs(curr - speed) < Math.abs(SPEED_STEPS[prev] - speed) ? index : prev, 0);
+
+    const handleSpeedDecrease = () => {
+        if (currentStepIndex > 0) {
+            setSpeed(SPEED_STEPS[currentStepIndex - 1]);
+        }
+    };
+
+    const handleSpeedIncrease = () => {
+        if (currentStepIndex < SPEED_STEPS.length - 1) {
+            setSpeed(SPEED_STEPS[currentStepIndex + 1]);
+        }
+    };
 
     return (
         <div className={baseClasses}>
@@ -135,19 +154,29 @@ export function ExecutionDeck({
                         </button>
                     </div>
 
-                    {/* Speed Control */}
-                    <div className="flex items-center gap-2 ml-2 w-24 group">
-                        <span className="text-[10px] font-mono text-slate-400 group-hover:text-slate-600 transition-colors w-6 text-right">
+                    {/* Speed Control (Step-based) */}
+                    <div className="flex items-center gap-1 ml-2 bg-slate-100 dark:bg-slate-800 rounded-full p-0.5 px-2">
+                        <button
+                            onClick={handleSpeedDecrease}
+                            disabled={currentStepIndex === 0}
+                            className="p-1 rounded-full hover:bg-white dark:hover:bg-slate-700 text-slate-500 disabled:opacity-30 transition"
+                            title="Decrease Speed"
+                        >
+                            <Minus className="w-3 h-3" />
+                        </button>
+
+                        <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-400 w-10 text-center select-none">
                             {speed}Hz
                         </span>
-                        <Slider
-                            value={[speed]}
-                            min={1}
-                            max={50}
-                            step={1}
-                            onValueChange={(vals) => setSpeed(vals[0])}
-                            className="scale-90"
-                        />
+
+                        <button
+                            onClick={handleSpeedIncrease}
+                            disabled={currentStepIndex === SPEED_STEPS.length - 1}
+                            className="p-1 rounded-full hover:bg-white dark:hover:bg-slate-700 text-slate-500 disabled:opacity-30 transition"
+                            title="Increase Speed"
+                        >
+                            <Plus className="w-3 h-3" />
+                        </button>
                     </div>
                 </>
             )}

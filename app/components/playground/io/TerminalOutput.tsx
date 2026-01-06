@@ -114,7 +114,7 @@ export function TerminalOutput({ logs, consoleBuffer, onInput }: TerminalOutputP
                     ref={inputRef}
                     type="text"
                     className="flex-1 bg-transparent border-none outline-none text-gray-200 placeholder-gray-600 font-mono h-6"
-                    placeholder="Type commands here..."
+                    placeholder="Type here..."
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
