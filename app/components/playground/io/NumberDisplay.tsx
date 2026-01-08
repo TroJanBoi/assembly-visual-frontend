@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 type NumberDisplayProps = {
@@ -73,6 +73,10 @@ export function NumberDisplay({ value }: NumberDisplayProps) {
     const safeValue = value & 0xFF;
     const hexString = safeValue.toString(16).toUpperCase().padStart(2, '0');
     const [digit1, digit2] = hexString.split('');
+
+    useEffect(() => {
+        console.log(`[HW: 7-Seg] Val: ${safeValue} (0x${hexString})`);
+    }, [safeValue, hexString]);
 
     return (
         <div className="bg-neutral-900 rounded-lg p-3 flex flex-col items-center justify-center border-4 border-neutral-700 shadow-xl min-w-[120px] relative select-none">

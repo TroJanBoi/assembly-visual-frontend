@@ -313,7 +313,6 @@ export default React.memo(function EmbeddedPropertyPanel({
                 label: p.name,
                 value: p.id,
             })),
-            { label: "Custom Port #", value: -1 }
         ];
 
         return (
@@ -439,11 +438,6 @@ export default React.memo(function EmbeddedPropertyPanel({
                         <div className="pt-2 border-t border-gray-100">
                             <L>Input Port</L>
                             <SelectPort value={data.srcImm} onChange={(v) => patch({ srcImm: v })} type="INPUT" />
-                            {data.srcImm === -1 && (
-                                <div className="mt-2">
-                                    <InputByte value={undefined} onChange={(v) => patch({ srcImm: v })} placeholder="Port ID (0-255)" />
-                                </div>
-                            )}
                         </div>
                     </div>
                 )}
@@ -453,11 +447,6 @@ export default React.memo(function EmbeddedPropertyPanel({
                         <div>
                             <L>Output Port</L>
                             <SelectPort value={data.memImm} onChange={(v) => patch({ memImm: v })} type="OUTPUT" />
-                            {data.memImm === -1 && (
-                                <div className="mt-2">
-                                    <InputByte value={undefined} onChange={(v) => patch({ memImm: v })} placeholder="Port ID (0-255)" />
-                                </div>
-                            )}
                         </div>
                         <div className="pt-2 border-t border-gray-100">
                             <L>Value to Output</L>

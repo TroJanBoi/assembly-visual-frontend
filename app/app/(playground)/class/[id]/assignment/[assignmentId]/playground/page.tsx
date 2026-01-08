@@ -16,6 +16,9 @@ import {
 } from "reactflow";
 
 
+import { useMemo } from "react";
+
+
 
 import PlaygroundNavbar from "@/components/playground/PlaygroundNavbar";
 import InstructionNode from "@/components/playground/InstructionNode";
@@ -53,6 +56,7 @@ type CPUState = {
   registers: Record<string, number>;
   flags: Record<string, number>;
   memory: { address: number; value: number }[];
+  ports: Record<number, number>;
 };
 
 type AllowedMap = Record<string, 1>;
@@ -80,6 +84,7 @@ function buildInitialCPUState(assignment: Assignment | null): CPUState {
     registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0, R6: 0, R7: 0 },
     flags: { Z: 0, C: 0, V: 0, O: 0 },
     memory: [],
+    ports: { 5: 0 },
   };
   if (!assignment) return defaults;
 
@@ -101,6 +106,7 @@ function buildInitialCPUState(assignment: Assignment | null): CPUState {
     registers: Object.keys(registers).length ? registers : defaults.registers,
     flags: { Z: 0, C: 0, V: 0, O: 0 },
     memory,
+    ports: { 5: 0 },
   };
 }
 
@@ -157,6 +163,19 @@ export default function AssignmentPlaygroundPage() {
   const [execMemorySparse, setExecMemorySparse] = useState<
     Record<string, number>
   >({});
+  const [execPorts, setExecPorts] = useState<Record<number, number>>({});
+  const [execOutputLines, setExecOutputLines] = useState<string[]>([]); // Clean Output Stream
+  // IO State (Console, 7-Seg, LED Matrix) is managed in VirtualIO but reflected here
+  const [execIO, setExecIO] = useState<
+    {
+      logs: any[];
+      consoleBuffer: string;
+      sevenSegment: number;
+      ledMatrix: number[];
+      ledSelectedRow: number;
+    }
+    | undefined
+  >(undefined);
 
   // ===== Auto Save =====
   const onAutoSaveLoad = useCallback((savedNodes: Node[], savedEdges: Edge[], savedMemory: Record<string, number>) => {
@@ -191,15 +210,6 @@ export default function AssignmentPlaygroundPage() {
 
 
   // IO State
-  const [execIO, setExecIO] = useState<{
-    logs: import("@/lib/playground/io").LogEntry[];
-    consoleBuffer: string;
-    sevenSegment: number;
-    ledMatrix: number[];
-    ledSelectedRow: number;
-  } | undefined>(undefined);
-
-  // Gamepad Input State
   const [gamepadState, setGamepadState] = useState<number>(0);
 
   // Persistent IO Handler for Keyboard Buffer
@@ -1019,6 +1029,7 @@ export default function AssignmentPlaygroundPage() {
         instruction,
         label: node.data?.label || "",
         operands: [],
+        sourceNodeId: node.id, // Map for UI highlighting
       };
 
       if (instruction === "CMP") {
@@ -1484,10 +1495,24 @@ export default function AssignmentPlaygroundPage() {
       console.log("   - Registers:", result.registers);
       console.log("   - Flags:", result.flags);
       console.log("   - Memory:", result.memory_sparse);
+      console.log("   - Ports:", result.ports);
 
       setExecRegisters(result.registers);
       setExecFlags(result.flags);
       setExecMemorySparse(result.memory_sparse);
+      setExecPorts(result.ports || {});
+
+      // Update IO State (Debug Logs + Clean Output)
+      if (result.io_state) {
+        setExecIO({
+          logs: result.io_state.logs,
+          consoleBuffer: result.io_state.consoleBuffer,
+          sevenSegment: result.io_state.sevenSegment,
+          ledMatrix: Array.from(result.io_state.ledMatrix),
+          ledSelectedRow: result.io_state.ledSelectedRow,
+        });
+        setExecOutputLines(result.io_state.outputLines || []);
+      }
       console.log("   ✅ State update functions called");
 
       // Sync IO State from execution result
@@ -1527,7 +1552,7 @@ export default function AssignmentPlaygroundPage() {
       toast.error(`Error: ${e.message}`);
       appendLog(`[ERROR] ${e.message}`);
     }
-  }, [nodes, edges, assignment, appendLog]);
+  }, [nodes, edges, assignment, appendLog, variables]);
 
   // 1.5 Step Back
   const handleStepBack = useCallback(() => {
@@ -1570,6 +1595,7 @@ export default function AssignmentPlaygroundPage() {
         ledMatrix: Array.from(ioRestoreState.ledMatrix),
         ledSelectedRow: ioRestoreState.ledSelectedRow,
       });
+      setExecOutputLines(ioRestoreState.outputLines || []);
 
       // Auto-pause if running
       if (isRunning) {
@@ -1586,7 +1612,7 @@ export default function AssignmentPlaygroundPage() {
 
   // 2. Debug Run (Step / Play) using existing simulationRef structure
   const handleStep = useCallback(async () => {
-    console.log("��� [handleStep] Starting step...");
+    console.log(" [handleStep] Starting step...");
 
     // Clear selection to show results
     setSelectedNode(null);
@@ -1703,6 +1729,12 @@ export default function AssignmentPlaygroundPage() {
       setExecFlags({ ...currentCpu.flags });
       setExecMemorySparse(currentCpu.getMemorySparse());
 
+      // FIX: Update Ports State
+      if (currentCpu.ports) {
+        setExecPorts({ ...currentCpu.ports });
+        console.log("🔌 [handleStep] Ports Updated:", currentCpu.ports);
+      }
+
       // Sync IO State from handler
       const ioSnapshotSync = ioHandlerRef.current.getSnapshot();
       setExecIO({
@@ -1712,6 +1744,7 @@ export default function AssignmentPlaygroundPage() {
         ledMatrix: Array.from(ioSnapshotSync.ledMatrix) || [0, 0, 0, 0, 0, 0, 0, 0],
         ledSelectedRow: ioSnapshotSync.ledSelectedRow || 0,
       });
+      setExecOutputLines(ioSnapshotSync.outputLines || []);
 
       // Highlight
       setHighlightedLine(currentCpu.pc);
@@ -1764,7 +1797,7 @@ export default function AssignmentPlaygroundPage() {
       toast.error(e.message);
       currentCpu.halt(e.message);
     }
-  }, [nodes, edges, assignment, cpu]);
+  }, [nodes, edges, assignment, variables]);
 
   const toggleDebugPlay = useCallback(() => {
     if (isRunning) {
@@ -1780,6 +1813,63 @@ export default function AssignmentPlaygroundPage() {
       }, 1000 / speed); // Use state speed
     }
   }, [isRunning, handleStep, speed]);
+
+  // VISUAL HIGHLIGHT: execution pop effect
+  useEffect(() => {
+    // 1. Identify active node
+    const items = simulationRef.current.cachedItems;
+
+    // If no execution context, clear all
+    if (!items || highlightedLine === null) {
+      setNodes((nds) => nds.map(n => {
+        // Always sanitize to be safe
+        const s = { ...n.style };
+        if (s.transform) delete s.transform;
+        if (s.zIndex) delete s.zIndex;
+        if (s.border) delete s.border;
+        if (s.boxShadow) delete s.boxShadow;
+        if (s.transition) delete s.transition;
+
+        if (n.data?.isActiveExec) {
+          return { ...n, style: s, data: { ...n.data, isActiveExec: false } };
+        }
+        // Even if not active, return sanitized style
+        return { ...n, style: s };
+      }));
+      return;
+    }
+
+    const activeItem = items.find(i => i.id === highlightedLine);
+    const activeNodeId = activeItem?.sourceNodeId;
+
+    if (!activeNodeId) return;
+
+    setNodes((nds) => nds.map((n) => {
+      const isTarget = n.id === activeNodeId;
+      const wasActive = n.data?.isActiveExec;
+
+      if (isTarget && wasActive) return n; // No change
+      if (!isTarget && !wasActive) return n; // No change
+
+      if (isTarget) {
+        // Apply Pop Flag
+        return {
+          ...n,
+          data: { ...n.data, isActiveExec: true }
+        };
+      } else {
+        // Clear Pop Flag AND sanitize styles (legacy cleanup)
+        const s = { ...n.style };
+        if (s.transform) delete s.transform;
+        if (s.zIndex) delete s.zIndex;
+        if (s.border) delete s.border;
+        if (s.boxShadow) delete s.boxShadow;
+        if (s.transition) delete s.transition;
+        return { ...n, style: s, data: { ...n.data, isActiveExec: false } };
+      }
+    }));
+
+  }, [highlightedLine, setNodes]);
 
   // Update interval when speed changes
   useEffect(() => {
@@ -1842,10 +1932,34 @@ export default function AssignmentPlaygroundPage() {
     setExecRegisters(initial.registers);
     setExecFlags(initial.flags);
     setExecMemorySparse(initialMemory);
+    setExecPorts(initial.ports);
     setExecIO(undefined);
+    setExecOutputLines([]);
 
     ioHandlerRef.current.reset();
   }, [assignment, cpu]);
+
+  // Compute dense memory array for LedPanel (Address 0-255)
+  // MOVED UP to prevent Hook Order Violation (must be called before conditional return)
+  const displayMemoryArray = useMemo(() => {
+    const arr = new Array(256).fill(0);
+
+    // 1. Fill from execMemorySparse if active (Execution Mode)
+    if (Object.keys(execMemorySparse).length > 0) {
+      for (const [addrStr, val] of Object.entries(execMemorySparse)) {
+        const addr = Number(addrStr);
+        if (addr >= 0 && addr < 256) arr[addr] = val;
+      }
+    }
+    // 2. Fallback to CPU memory (Edit Mode / Initial State)
+    else if (cpu.memory && Array.isArray(cpu.memory)) {
+      cpu.memory.forEach(m => {
+        if (m.address >= 0 && m.address < 256) arr[m.address] = m.value;
+      });
+    }
+
+    return arr;
+  }, [execMemorySparse, cpu?.memory]);
 
   if (loading) {
     return (
@@ -1947,6 +2061,8 @@ export default function AssignmentPlaygroundPage() {
         .sort((a, b) => a.address - b.address)
       : cpu.memory;
 
+
+
   // New Layout Imports (Dynamic imports might be better but direct is fine for now)
   const SlimToolbar = require("@/components/playground/layout/SlimToolbar").default;
   const BottomDeck = require("@/components/playground/layout/BottomDeck").default;
@@ -2024,6 +2140,9 @@ export default function AssignmentPlaygroundPage() {
             }}
             sevenSegment={execIO?.sevenSegment ?? 0}
             ledMatrix={execIO?.ledMatrix ?? [0, 0, 0, 0, 0, 0, 0, 0]}
+            ledPanelValue={execPorts[5] || 0}
+            memory={displayMemoryArray}
+            outputLines={execOutputLines}
             headerControls={
               <ExecutionDeck
                 mode={executionMode}

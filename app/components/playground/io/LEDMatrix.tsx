@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 type LEDMatrixProps = {
     rows: Uint8Array | number[];
@@ -15,6 +15,10 @@ export function LEDMatrix({ rows }: LEDMatrixProps) {
             return bit === 1;
         });
     });
+
+    useEffect(() => {
+        console.log("[HW: LEDMatrix] Rows updated:", rows);
+    }, [rows]);
 
     return (
         <div className="bg-white shadow-sm rounded-xl border border-slate-200 p-4 w-fit">

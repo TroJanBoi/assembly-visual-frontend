@@ -59,6 +59,7 @@ export type ProgramItem = {
   next_true: number | null;
   next_false: number | null;
   operands: Operand[];
+  sourceNodeId?: string; // Links back to React Flow Node ID
 };
 
 export type PlaygroundItemPayload = {
@@ -82,6 +83,7 @@ export type ExecutionState = {
     sevenSegment: number;
     ledMatrix: number[];
     ledSelectedRow: number;
+    outputLines: string[]; // Standard Output
   };
 };
 

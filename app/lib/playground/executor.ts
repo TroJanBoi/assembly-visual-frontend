@@ -13,10 +13,29 @@ const UINT8_MASK = 0xFF;
 const SIGN_BIT_MASK = 0x80;
 const MAX_UINT8 = 255;
 
+// Helper to format operands for logging
+function formatOperand(op: Operand): string {
+    if (!op) return '';
+    if (typeof op === 'string') return op;
+    if (typeof op === 'number') return String(op);
+
+    // Handle the Operand object structure
+    switch (op.type) {
+        case 'Register': return op.value;
+        case 'Immediate': return `${op.value}`; // Usually includes # or not depending on parser
+        case 'Memory': return `[${op.value}]`;
+        case 'Label': return op.value;
+        default:
+            // Fallback for any other structure
+            return (op as any).value || JSON.stringify(op);
+    }
+}
+
 export type ExecutionResult = {
     registers: Record<string, number>;
     flags: Record<string, number>;
     memory_sparse: Record<string, number>;
+    ports?: Record<number, number>;
     halted: boolean;
     error: string | null;
     logs?: string[];
@@ -26,6 +45,7 @@ export type ExecutionResult = {
         sevenSegment: number;
         ledMatrix: number[];
         ledSelectedRow: number;
+        outputLines: string[];
     };
 };
 
@@ -119,6 +139,7 @@ export async function executeProgram(
             registers: { ...cpu.registers },
             flags: { ...cpu.flags },
             memory_sparse: cpu.getMemorySparse(),
+            ports: { ...cpu.ports },
             halted: cpu.halted,
             error: cpu.error,
             logs,
@@ -171,7 +192,13 @@ export function executeInstruction(
     const operands = item.operands || [];
 
     // 🔥 DEBUG LOG REQUESTED BY USER
-    console.log('🔥 EXECUTE:', instruction, 'ARGS:', JSON.stringify(operands));
+    // console.log('🔥 EXECUTE:', instruction, 'ARGS:', JSON.stringify(operands));
+
+    // LOG TYPE: CPU_INTERNAL
+    // Format: [PC:xx] Instruction OP1, OP2
+    const pcStr = `[0x${cpu.pc.toString(16).toUpperCase().padStart(2, '0')}]`;
+    const argsStr = operands.map(formatOperand).join(', ');
+    ioHandler.addLog('CPU_INTERNAL', `${pcStr} ${instruction} ${argsStr}`);
 
     switch (instruction) {
         case 'START':
@@ -526,6 +553,13 @@ function executeOUT(cpu: CPU, operands: Operand[], logs: string[], io: IOHandler
     const [portOp, valOp] = operands;
     const portVal = getOperandValue(cpu, portOp);
     const value = getOperandValue(cpu, valOp);
+
+    // 1. Virtual IO (Side Effects like Console)
     io.onWrite(portVal, value);
+
+    // 2. Port State Update (Persistent Hardware State)
+    if (!cpu.ports) cpu.ports = {};
+    cpu.ports[portVal] = value & 0xFF; // Ensure 8-bit
+
     if (logs) logs.push(`> OUT Port ${portVal}: ${value}`);
 }

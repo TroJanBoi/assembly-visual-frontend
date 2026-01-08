@@ -188,6 +188,14 @@ export default memo(function InstructionNode({
     return borderClass.replace(/-200$/, "-500").replace(/-300$/, "-500");
   };
 
+  // Extract color name for dynamic highlight
+  const getColorFamily = () => {
+    // Expected format: "border-{color}-200" or similar
+    const match = styles.borderColor.match(/border-([a-z]+)-/);
+    return match ? match[1] : 'gray';
+  };
+  const colorFamily = getColorFamily();
+
   return (
     <div
       style={{ width: nodeWidth }}
@@ -200,12 +208,17 @@ export default memo(function InstructionNode({
         data.isProximity
           ? "scale-105 shadow-xl ring-4 ring-offset-2 ring-indigo-400/50 z-50"
           : "shadow-md hover:shadow-lg",
+
+        // EXECUTION HIGHLIGHT (Pop Effect)
+        // EXECUTION HIGHLIGHT (Pop Effect)
+        data.isActiveExec && `scale-110 !border-${colorFamily}-500 shadow-[0_0_25px_5px_rgba(0,0,0,0.1)] shadow-${colorFamily}-500/50 z-[1000] ring-4 ring-offset-2 ring-${colorFamily}-400/30`,
+
         // Selection State (Lower Priority than Proximity if overlapping, or merge?)
         // If selected AND proximity, proximity should win for "drag target" feel, or both? 
         // User asked for "Base State: ring-0". 
         // Existing selection logic: "ring-2 ring-offset-2 ring-indigo-500 shadow-lg scale-105"
         // We replace it or append. 
-        (!data.isProximity && selected) && "ring-2 ring-offset-2 ring-indigo-500 shadow-lg scale-105"
+        (!data.isProximity && !data.isActiveExec && selected) && "ring-2 ring-offset-2 ring-indigo-500 shadow-lg scale-105"
       )}
     >
       {/* Handles */}

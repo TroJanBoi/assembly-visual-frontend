@@ -8,11 +8,15 @@ export type CPUState = {
     registers: Record<string, number>;
     flags: Record<string, number>;
     memory: { address: number; value: number }[];
+    ports?: Record<number, number>;
 };
 
 export class CPU {
     // Registers (R0-R7 or as configured)
     registers: Record<string, number>;
+
+    // Ports (0-255) - Output State
+    ports: Record<number, number>;
 
     // Flags: Z (Zero), C (Carry), V (Overflow), N (Negative)
     flags: { Z: number; C: number; V: number; N: number };
@@ -34,6 +38,9 @@ export class CPU {
 
         // Initialize flags
         this.flags = { Z: 0, C: 0, V: 0, N: 0 };
+
+        // Initialize ports
+        this.ports = initialState.ports ? { ...initialState.ports } : {};
 
         // Initialize memory (256 bytes)
         this.memory = new Uint8Array(256);
@@ -178,7 +185,8 @@ export class CPU {
             sp: this.sp,
             pc: this.pc,
             halted: this.halted,
-            error: this.error
+            error: this.error,
+            ports: { ...this.ports }
         };
     }
 
@@ -193,6 +201,7 @@ export class CPU {
         this.pc = snapshot.pc;
         this.halted = snapshot.halted;
         this.error = snapshot.error;
+        this.ports = { ...(snapshot.ports || {}) };
     }
 }
 
@@ -204,4 +213,5 @@ export type CPUSnapshot = {
     pc: number;
     halted: boolean;
     error: string | null;
+    ports?: Record<number, number>;
 };

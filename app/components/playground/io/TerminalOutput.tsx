@@ -71,6 +71,27 @@ export function TerminalOutput({ logs, consoleBuffer, onInput }: TerminalOutputP
                             </>
                         )}
 
+                        {log.type === 'IO_TEXT' && (
+                            <>
+                                <span className="text-cyan-500 font-bold mr-2 select-none">[TXT]</span>
+                                <span className="text-cyan-300">{log.content}</span>
+                            </>
+                        )}
+
+                        {log.type === 'IO_VISUAL' && (
+                            <>
+                                <span className="text-fuchsia-500 font-bold mr-2 select-none">[VIS]</span>
+                                <span className="text-fuchsia-400">{log.content}</span>
+                            </>
+                        )}
+
+                        {log.type === 'CPU_INTERNAL' && (
+                            <>
+                                <span className="text-emerald-500 font-bold mr-2 select-none">[CPU]</span>
+                                <span className="text-emerald-400/80 font-normal">{log.content}</span>
+                            </>
+                        )}
+
                         {log.type === 'INPUT' && (
                             <>
                                 <span className="text-blue-500 font-bold mr-2 select-none">&lt;&lt;</span>

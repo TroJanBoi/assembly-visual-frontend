@@ -3,7 +3,7 @@
  * Handles communication between CPU and virtual peripherals
  */
 
-export type LogType = 'SYSTEM' | 'OUTPUT' | 'INPUT' | 'ERROR';
+export type LogType = 'SYSTEM' | 'OUTPUT' | 'INPUT' | 'ERROR' | 'CPU_INTERNAL' | 'IO_VISUAL' | 'IO_TEXT';
 
 export interface LogEntry {
     id: string;
@@ -27,6 +27,7 @@ export type IOState = {
     ledSelectedRow: number;
     gamepadState: number;
     keyBuffer: number[]; // For time travel: save input buffer state
+    outputLines: string[]; // Dual-Channel: Clean Output separate from Logs
 };
 
 export class VirtualIO implements IOHandler {
@@ -41,6 +42,7 @@ export class VirtualIO implements IOHandler {
             ledSelectedRow: 0,
             gamepadState: 0,
             keyBuffer: [], // Initialize key buffer
+            outputLines: [], // Init Output
             ...initialState
         };
         this.keyBuffer = initialState?.keyBuffer ? [...initialState.keyBuffer] : [];
@@ -103,7 +105,11 @@ export class VirtualIO implements IOHandler {
         // Newline triggers a log commit
         if (val === 10 || val === 13) {
             if (this.state.consoleBuffer.length > 0) {
-                this.addLog('OUTPUT', this.state.consoleBuffer);
+                // 1. Log to System (Debug) as IO_TEXT
+                this.addLog('IO_TEXT', `Console Output: "${this.state.consoleBuffer}"`);
+                // 2. Commit to Clean Output
+                this.state.outputLines.push(this.state.consoleBuffer);
+
                 this.state.consoleBuffer = "";
             }
             return;
@@ -130,23 +136,29 @@ export class VirtualIO implements IOHandler {
                 break;
 
             case 1: // Console Output (Number)
-                this.addLog('OUTPUT', val.toString());
+                const numStr = val.toString();
+                this.addLog('IO_TEXT', `Console Output (Num): ${numStr}`);
+                this.state.outputLines.push(numStr);
                 break;
 
             case 2: // 7-Segment Display
                 this.state.sevenSegment = val;
+                this.addLog('IO_VISUAL', `7-Seg Update: ${val}`);
                 break;
 
             case 3: // LED Matrix Row Select
                 this.state.ledSelectedRow = val % 8;
+                // this.addLog('IO_VISUAL', `LED Row Select: ${this.state.ledSelectedRow}`); // Too verbose?
                 break;
 
             case 4: // LED Matrix Row Data
                 this.state.ledMatrix[this.state.ledSelectedRow] = val;
+                this.addLog('IO_VISUAL', `LED Matrix Update Row ${this.state.ledSelectedRow}: ${val.toString(2).padStart(8, '0')}`);
                 break;
 
             default:
                 // Unknown port, ignore or log
+                this.addLog('SYSTEM', `Unmapped Port Write: ${port} -> ${val}`);
                 break;
         }
     }
@@ -184,6 +196,7 @@ export class VirtualIO implements IOHandler {
             ledSelectedRow: 0,
             gamepadState: 0,
             keyBuffer: [], // Reset key buffer
+            outputLines: [],
         };
         this.keyBuffer = []; // Clear the input buffer
         // Initial System Log
@@ -200,6 +213,7 @@ export class VirtualIO implements IOHandler {
             ledSelectedRow: this.state.ledSelectedRow,
             gamepadState: this.state.gamepadState,
             keyBuffer: [...this.keyBuffer], // Include input buffer for time travel
+            outputLines: [...this.state.outputLines],
         };
     }
 
@@ -213,6 +227,7 @@ export class VirtualIO implements IOHandler {
             ledSelectedRow: snapshot.ledSelectedRow,
             gamepadState: snapshot.gamepadState,
             keyBuffer: [...snapshot.keyBuffer],
+            outputLines: [...(snapshot.outputLines || [])],
         };
         this.keyBuffer = [...snapshot.keyBuffer]; // Restore input buffer
     }

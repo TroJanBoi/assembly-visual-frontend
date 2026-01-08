@@ -3,9 +3,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp, Terminal, Monitor, GripHorizontal, GripVertical } from "lucide-react";
-import { TerminalOutput } from "@/components/playground/io/TerminalOutput";
+import { ConsolePanel } from "@/components/playground/io/ConsolePanel";
 import { NumberDisplay } from "@/components/playground/io/NumberDisplay";
 import { LEDMatrix } from "@/components/playground/io/LEDMatrix";
+import LedPanel from "@/components/playground/LedPanel";
 
 import { LogEntry } from "@/lib/playground/io";
 
@@ -15,6 +16,9 @@ type Props = {
     onConsoleInput: (key: string) => void;
     sevenSegment: number;
     ledMatrix: number[];
+    ledPanelValue: number;
+    memory: number[];
+    outputLines: string[];
     headerControls?: React.ReactNode;
 };
 
@@ -24,6 +28,9 @@ export default function BottomDeck({
     onConsoleInput,
     sevenSegment,
     ledMatrix,
+    ledPanelValue,
+    memory,
+    outputLines,
     headerControls,
 }: Props) {
     const [isOpen, setIsOpen] = useState(true);
@@ -164,9 +171,14 @@ export default function BottomDeck({
                         </div>
 
                         <div className="flex-1 p-0 overflow-hidden relative">
-                            {/* Wrapper to ensure TerminalOutput fits */}
+                            {/* Wrapper to ensure ConsolePanel fits */}
                             <div className="absolute inset-0">
-                                <TerminalOutput logs={logs} consoleBuffer={consoleBuffer} onInput={onConsoleInput} />
+                                <ConsolePanel
+                                    logs={logs}
+                                    outputLines={outputLines || []}
+                                    consoleBuffer={consoleBuffer}
+                                    onInput={onConsoleInput}
+                                />
                             </div>
                         </div>
                     </div>
@@ -195,10 +207,15 @@ export default function BottomDeck({
                                 <NumberDisplay value={sevenSegment} />
                             </div>
 
-                            {/* Device 2: LED Matrix */}
                             <div className="flex flex-col items-center gap-2 scale-90 origin-center bg-white p-3 rounded-xl border border-gray-200/60 shadow-sm">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Port 2+3</span>
                                 <LEDMatrix rows={ledMatrix} />
+                            </div>
+
+                            {/* Device 3: LED Panel (Address 255) */}
+                            <div className="flex flex-col items-center gap-2 scale-90 origin-center bg-white p-3 rounded-xl border border-gray-200/60 shadow-sm">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">Port 5 (Output)</span>
+                                <LedPanel value={ledPanelValue} />
                             </div>
 
                         </div>
