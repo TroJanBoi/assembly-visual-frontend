@@ -7,6 +7,8 @@ import ProcessorDashboard from "../ProcessorDashboard";
 
 import EmbeddedPropertyPanel from "./EmbeddedPropertyPanel";
 
+import { Variable } from "../VariableManager";
+
 type Props = {
     registers: { [key: string]: number };
     flags: { [key: string]: number };
@@ -17,6 +19,12 @@ type Props = {
     onCloseInspector?: () => void;
     availableRegisters?: string[];
     availableLabels?: string[];
+
+    // Variables Props
+    variables?: Variable[];
+    onAddVariable?: (name: string, value: number) => void;
+    onEditVariable?: (id: string, name: string, value: number) => void;
+    onDeleteVariable?: (id: string) => void;
 };
 
 export default function RightInspector({
@@ -27,7 +35,11 @@ export default function RightInspector({
     onNodeChange,
     onCloseInspector,
     availableRegisters = [],
-    availableLabels = []
+    availableLabels = [],
+    variables,
+    onAddVariable,
+    onEditVariable,
+    onDeleteVariable
 }: Props) {
     const [isOpen, setIsOpen] = useState(true);
 
@@ -79,6 +91,10 @@ export default function RightInspector({
                                 registers={registers}
                                 flags={flags}
                                 memory={memory}
+                                variables={variables}
+                                onAddVariable={onAddVariable}
+                                onEditVariable={onEditVariable}
+                                onDeleteVariable={onDeleteVariable}
                             />
                         </div>
                     </div>
@@ -96,6 +112,7 @@ export default function RightInspector({
                             onClose={onCloseInspector}
                             registers={availableRegisters}
                             labels={availableLabels}
+                            variables={variables || []}
                         />
                     )}
                 </div>

@@ -5,7 +5,8 @@ import { post, put } from "@/lib/api/client";
 export type Operand =
   | { type: "Register"; value: string }
   | { type: "Immediate"; value: string } // เช่น "#10"
-  | { type: "Label"; value: string };
+  | { type: "Label"; value: string }
+  | { type: "Memory"; value: string }; // Address for implicit dereferencing
 
 export type ItemNode = {
   id: number;

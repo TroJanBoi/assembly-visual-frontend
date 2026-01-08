@@ -73,7 +73,7 @@ export default function PlaygroundNavbar({
                   : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
               )}
             >
-              {m === "instant" && "Instant"}
+              {m === "instant" && "Execute"}
               {m === "debug" && "Debugger"}
               {m === "test" && "Test Suite"}
             </button>

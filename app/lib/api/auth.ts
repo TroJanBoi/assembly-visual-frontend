@@ -55,7 +55,7 @@ export async function signin(data: SigninInput): Promise<SigninResponse> {
   if (res && typeof window !== "undefined" && res.token) {
     console.log("🔑 Token received:", res.token);   // ✅
     localStorage.setItem("authToken", res.token);
-    
+
   }
 
   if (res?.token) setToken(res.token);

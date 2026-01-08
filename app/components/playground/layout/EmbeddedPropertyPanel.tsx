@@ -14,12 +14,16 @@ type SrcMode = "imm" | "reg";
 
 import ModernDropdown, { type DropdownOption } from "@/components/ui/ModernDropdown";
 
+import { Variable } from "@/components/playground/VariableManager";
+import SmartCombobox, { ComboOption } from "@/components/ui/SmartCombobox";
+
 export type EmbeddedPanelProps = {
     node: { id: string; type: string; data: any } | null;
     onChange: (nodeId: string, patch: Record<string, any>) => void;
     onClose: () => void; // Used to go back to dashboard
     registers: string[];
     labels: string[];
+    variables: Variable[];
 };
 
 const defs = instructionCategories.flatMap((c) => c.instructions);
@@ -32,6 +36,7 @@ export default React.memo(function EmbeddedPropertyPanel({
     onClose,
     registers,
     labels,
+    variables = [],
 }: EmbeddedPanelProps) {
     const [data, setData] = useState(node?.data || {});
 
@@ -74,22 +79,30 @@ export default React.memo(function EmbeddedPropertyPanel({
         onChange: (v: string) => void;
         disabledOption?: string;
     }) => {
-        const options: DropdownOption[] = registers.map(r => ({
-            label: r + (disabledOption === r ? " (in use)" : ""),
-            value: r,
-            disabled: disabledOption === r
-        }));
+        // We use SmartOperandInput but force "reg" mode for UX consistency
+        // This ensures it looks and feels like the Source inputs
+        const handleSmartChange = (val: string | number, mode: "reg" | "imm") => {
+            // Force register selection logic if needed, but usually the input handles it.
+            // If user types a register name, mode will be 'reg'.
+            // If they type a random number, mode might be 'imm', but specific instructions (DEST) usually require REG.
+            // For now, we trust the user or the validation. 
+            // Since this is "SelectRegister", we nominally expect a string.
+            onChange(String(val));
+        };
 
         return (
-            <ModernDropdown
+            <SmartOperandInput
                 value={value}
-                onChange={onChange}
-                options={options}
-                placeholder="Select Register"
+                mode="reg"
+                onChange={handleSmartChange}
+                disabledRegister={disabledOption}
+                placeholder="Register (e.g. R0)"
+                hideVariables={true}
             />
         );
     };
 
+    // --- Unified Smart Input ---
     const InputByte = ({
         value,
         onChange,
@@ -158,6 +171,60 @@ export default React.memo(function EmbeddedPropertyPanel({
         );
     };
 
+    const SmartOperandInput = ({
+        value,        // current raw value in data (e.g. "R0", "10", "count")
+        mode,         // current mode in data ("reg" | "imm")
+        onChange,     // (val: string | number, newMode: "reg" | "imm") => void
+        placeholder = "Register, Variable, or Value",
+        disabledRegister, // Optional: register to exclude
+        hideVariables = false, // Optional: hide variable options
+    }: {
+        value?: string | number;
+        mode?: "reg" | "imm";
+        onChange: (v: string | number, m: "reg" | "imm") => void;
+        placeholder?: string;
+        disabledRegister?: string;
+        hideVariables?: boolean;
+    }) => {
+        // Build Options
+        const options: ComboOption[] = [
+            // Registers
+            ...registers
+                .filter(r => r !== disabledRegister)
+                .map(r => ({ label: r, value: r, type: "register" } as ComboOption)),
+            // Variables
+            ...(hideVariables ? [] : variables.map(v => ({
+                label: `${v.name} (#${v.address})`,
+                value: v.name,
+                type: "variable"
+            } as ComboOption))),
+        ];
+
+        const handleSmartChange = (val: string | number) => {
+            const strVal = String(val);
+
+            // Check if it matches a register
+            const isReg = registers.includes(strVal);
+
+            if (isReg) {
+                onChange(strVal, "reg");
+            } else {
+                // Determine if number or variable -> logic is handled by parser
+                // For UI state, we treat everything else as 'imm' (Immediate/Address/Label)
+                onChange(val, "imm");
+            }
+        };
+
+        return (
+            <SmartCombobox
+                value={value}
+                onChange={handleSmartChange}
+                options={options}
+                placeholder={placeholder}
+            />
+        );
+    };
+
     const Toggle = ({
         left,
         right,
@@ -201,19 +268,35 @@ export default React.memo(function EmbeddedPropertyPanel({
 
     const setDest = (v: string) => {
         const patchObj: any = { dest: v };
-        if ((data.srcMode ?? "imm") === "reg" && data.srcReg === v)
-            patchObj.srcReg = "";
-        if ((data.memMode ?? "imm") === "reg" && data.memReg === v)
-            patchObj.memReg = "";
+        // Clear conflict if needed, though with SmartInput logic we update separate fields.
+        // For Load/Store logic:
+        if ((data.memMode ?? "imm") === "reg" && data.memReg === v) patchObj.memReg = "";
+        if ((data.srcMode ?? "imm") === "reg" && data.srcReg === v) patchObj.srcReg = "";
         patch(patchObj);
     };
+
     const setSrcReg = (v: string) => {
         if (v === data.dest) return;
         patch({ srcReg: v });
     };
-    const setMemReg = (v: string) => {
-        if (v === data.dest) return;
-        patch({ memReg: v });
+
+    // Unified setters using mode
+    const handleSrcChange = (val: string | number, mode: "reg" | "imm") => {
+        if (mode === "reg") {
+            // If picking register, clear imm, set reg, set mode
+            patch({ srcMode: "reg", srcReg: val, srcImm: undefined });
+        } else {
+            // Text/Number -> imm
+            patch({ srcMode: "imm", srcImm: val, srcReg: "" });
+        }
+    };
+
+    const handleMemChange = (val: string | number, mode: "reg" | "imm") => {
+        if (mode === "reg") {
+            patch({ memMode: "reg", memReg: val, memImm: undefined });
+        } else {
+            patch({ memMode: "imm", memImm: val, memReg: "" });
+        }
     };
 
     const SelectPort = ({
@@ -316,20 +399,13 @@ export default React.memo(function EmbeddedPropertyPanel({
 
                         <div className="pt-2 border-t border-gray-100">
                             <L>Source Address</L>
-                            <div className="mb-2">
-                                <Toggle
-                                    left="Value [10]"
-                                    right="Register [R0]"
-                                    active={memMode === "imm" ? "left" : "right"}
-                                    onLeft={() => patch({ memMode: "imm", memReg: "" })}
-                                    onRight={() => patch({ memMode: "reg", memImm: undefined })}
-                                />
-                            </div>
-                            {memMode === "imm" ? (
-                                <InputByte value={data.memImm} onChange={(v) => patch({ memImm: v })} placeholder="Address (0-255)" />
-                            ) : (
-                                <SelectRegister value={data.memReg} onChange={setMemReg} disabledOption={data.dest} />
-                            )}
+                            <SmartOperandInput
+                                value={memMode === "reg" ? data.memReg : data.memImm}
+                                mode={memMode}
+                                onChange={handleMemChange}
+                                disabledRegister={data.dest}
+                                placeholder="Address (0-255), Variable, Register"
+                            />
                         </div>
                     </div>
                 )}
@@ -343,20 +419,13 @@ export default React.memo(function EmbeddedPropertyPanel({
 
                         <div className="pt-2 border-t border-gray-100">
                             <L>Target Address</L>
-                            <div className="mb-2">
-                                <Toggle
-                                    left="Value [10]"
-                                    right="Register [R0]"
-                                    active={memMode === "imm" ? "left" : "right"}
-                                    onLeft={() => patch({ memMode: "imm", memReg: "" })}
-                                    onRight={() => patch({ memMode: "reg", memImm: undefined })}
-                                />
-                            </div>
-                            {memMode === "imm" ? (
-                                <InputByte value={data.memImm} onChange={(v) => patch({ memImm: v })} placeholder="Address (0-255)" />
-                            ) : (
-                                <SelectRegister value={data.memReg} onChange={setMemReg} disabledOption={data.srcReg} />
-                            )}
+                            <SmartOperandInput
+                                value={memMode === "reg" ? data.memReg : data.memImm}
+                                mode={memMode}
+                                onChange={handleMemChange}
+                                disabledRegister={data.srcReg}
+                                placeholder="Address (0-255), Variable, Register"
+                            />
                         </div>
                     </div>
                 )}
@@ -392,20 +461,13 @@ export default React.memo(function EmbeddedPropertyPanel({
                         </div>
                         <div className="pt-2 border-t border-gray-100">
                             <L>Value to Output</L>
-                            <div className="mb-2">
-                                <Toggle
-                                    left="Immediate"
-                                    right="Register"
-                                    active={srcMode === "imm" ? "left" : "right"}
-                                    onLeft={() => patch({ srcMode: "imm", srcReg: "" })}
-                                    onRight={() => patch({ srcMode: "reg", srcImm: undefined })}
-                                />
-                            </div>
-                            {srcMode === "imm" ? (
-                                <InputByte value={data.srcImm} onChange={(v) => patch({ srcImm: v })} />
-                            ) : (
-                                <SelectRegister value={data.srcReg} onChange={setSrcReg} disabledOption="" />
-                            )}
+                            <SmartOperandInput
+                                value={srcMode === "reg" ? data.srcReg : data.srcImm}
+                                mode={srcMode}
+                                onChange={handleSrcChange}
+                                placeholder="Value or Register"
+                                hideVariables={true}
+                            />
                         </div>
                     </div>
                 )}
@@ -418,20 +480,13 @@ export default React.memo(function EmbeddedPropertyPanel({
                         </div>
                         <div className="pt-2 border-t border-gray-100">
                             <L>Compare With (Right)</L>
-                            <div className="mb-2">
-                                <Toggle
-                                    left="Value"
-                                    right="Register"
-                                    active={srcMode === "imm" ? "left" : "right"}
-                                    onLeft={() => patch({ srcMode: "imm", srcReg: "" })}
-                                    onRight={() => patch({ srcMode: "reg", srcImm: undefined })}
-                                />
-                            </div>
-                            {srcMode === "imm" ? (
-                                <InputByte value={data.srcImm} onChange={(v) => patch({ srcImm: v })} />
-                            ) : (
-                                <SelectRegister value={data.srcReg} onChange={setSrcReg} disabledOption={data.dest} />
-                            )}
+                            <SmartOperandInput
+                                value={srcMode === "reg" ? data.srcReg : data.srcImm}
+                                mode={srcMode}
+                                onChange={handleSrcChange}
+                                disabledRegister={data.dest}
+                                placeholder="Value, Variable, Register"
+                            />
                         </div>
                     </div>
                 )}
@@ -452,20 +507,13 @@ export default React.memo(function EmbeddedPropertyPanel({
 
                         <div className="pt-2 border-t border-gray-100">
                             <L>Source Value</L>
-                            <div className="mb-2">
-                                <Toggle
-                                    left="Immediate"
-                                    right="Register"
-                                    active={srcMode === "imm" ? "left" : "right"}
-                                    onLeft={() => patch({ srcMode: "imm", srcReg: "" })}
-                                    onRight={() => patch({ srcMode: "reg", srcImm: undefined })}
-                                />
-                            </div>
-                            {srcMode === "imm" ? (
-                                <InputByte value={data.srcImm} onChange={(v) => patch({ srcImm: v })} />
-                            ) : (
-                                <SelectRegister value={data.srcReg} onChange={setSrcReg} disabledOption={data.dest} />
-                            )}
+                            <SmartOperandInput
+                                value={srcMode === "reg" ? data.srcReg : data.srcImm}
+                                mode={srcMode}
+                                onChange={handleSrcChange}
+                                disabledRegister={data.dest}
+                                placeholder="Value, Variable, Register"
+                            />
                         </div>
                     </div>
                 )}

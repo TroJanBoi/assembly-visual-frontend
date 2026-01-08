@@ -20,6 +20,7 @@ import {
 import PlaygroundNavbar from "@/components/playground/PlaygroundNavbar";
 import InstructionNode from "@/components/playground/InstructionNode";
 import PlaygroundCanvas from "@/components/playground/PlaygroundCanvas";
+import { Variable } from "@/components/playground/VariableManager";
 
 import { getAssignmentById, Assignment } from "@/lib/api/assignment";
 import {
@@ -229,6 +230,145 @@ export default function AssignmentPlaygroundPage() {
 
   // Track if CPU is waiting for input (for auto-resume on Enter)
   const [waitingForInput, setWaitingForInput] = useState(false);
+
+  // ===== Variables Manager State =====
+  const [variables, setVariables] = useState<Variable[]>([]);
+
+  // Helper to sync variable changes to memory
+  // Helper to sync variable changes to memory
+  const syncVariableToMemory = (address: number, value: number | null) => {
+    // 1. Update Initial CPU State (so Reset restores it)
+    setCpu((prev) => {
+      const mem = [...prev.memory];
+      const idx = mem.findIndex((m) => m.address === address);
+
+      if (value === null) {
+        // Deletion: Remove entry
+        if (idx !== -1) mem.splice(idx, 1);
+      } else {
+        if (idx !== -1) {
+          mem[idx] = { ...mem[idx], value };
+        } else {
+          mem.push({ address, value });
+          mem.sort((a, b) => a.address - b.address);
+        }
+      }
+      return { ...prev, memory: mem };
+    });
+
+    // 2. Update Exec State (Immediate visibility + Persistence via AutoSave)
+    setExecMemorySparse((prev) => {
+      if (value === null) {
+        const next = { ...prev };
+        delete next[address];
+        return next;
+      }
+      return { ...prev, [address]: value };
+    });
+  };
+
+  // ===== PERSISTENCE: Variables & Memory =====
+  // 1. Auto-Load on Mount
+  // 1. Auto-Load on Mount
+  useEffect(() => {
+    try {
+      const savedVarsStr = localStorage.getItem("asm_variables");
+      const savedMemStr = localStorage.getItem("asm_memory");
+
+      let loadedVars: Variable[] = [];
+      if (savedVarsStr) {
+        loadedVars = JSON.parse(savedVarsStr);
+        setVariables(loadedVars);
+      }
+
+      let memList: { address: number; value: number }[] = [];
+      if (savedMemStr) {
+        memList = JSON.parse(savedMemStr);
+      }
+
+      // HYDRATION FIX: Ensure Variables are written to Memory
+      // Even if memory was saved, we enforce consistency with variables on load.
+      if (loadedVars.length > 0) {
+        const memMap = new Map<number, number>();
+        // 1. Load existing memory into Map
+        memList.forEach(m => memMap.set(m.address, m.value));
+
+        // 2. Overwrite/Ensure Variable values
+        loadedVars.forEach(v => {
+          memMap.set(v.address, v.value);
+        });
+
+        // 3. Rebuild List
+        memList = [];
+        memMap.forEach((value, address) => {
+          memList.push({ address, value });
+        });
+        memList.sort((a, b) => a.address - b.address);
+      }
+
+      // Commit to State
+      setCpu((prev) => ({ ...prev, memory: memList }));
+
+      // Rebuild Exec Memory Sparse
+      const sparse: Record<string, number> = {};
+      memList.forEach((m) => {
+        sparse[m.address] = m.value;
+      });
+      setExecMemorySparse(sparse);
+
+    } catch (e) {
+      console.error("Failed to load persistence:", e);
+    }
+  }, []);
+
+  // 2. Auto-Save on Change
+  useEffect(() => {
+    const memList = cpu?.memory || [];
+    localStorage.setItem("asm_variables", JSON.stringify(variables));
+    localStorage.setItem("asm_memory", JSON.stringify(memList));
+  }, [variables, cpu?.memory]);
+
+  const handleAddVariable = (name: string, value: number) => {
+    // Auto-Addressing: First-Fit Strategy (Fill Gaps)
+    let newAddress = 0;
+    const usedAddresses = new Set(variables.map((v) => v.address));
+    while (usedAddresses.has(newAddress)) {
+      newAddress++;
+    }
+
+    const newVar: Variable = {
+      id: crypto.randomUUID(),
+      name,
+      value,
+      address: newAddress,
+    };
+    setVariables((prev) => [...prev, newVar]);
+    syncVariableToMemory(newAddress, value);
+  };
+
+
+  const handleEditVariable = (id: string, name: string, value: number) => {
+    setVariables((prev) => {
+      const target = prev.find((v) => v.id === id);
+      if (target && target.value !== value) {
+        syncVariableToMemory(target.address, value);
+      }
+      return prev.map((v) => (v.id === id ? { ...v, name, value } : v));
+    });
+  };
+
+  const handleDeleteVariable = (id: string) => {
+    setVariables((prev) => {
+      const target = prev.find((v) => v.id === id);
+      if (target) {
+        // Option: clear memory or leave it. 
+        // Clearing it (null) ensures UI shows it as empty
+        syncVariableToMemory(target.address, null);
+        return prev.filter((v) => v.id !== id);
+      }
+      return prev;
+    });
+  };
 
   // ===== Property Panel state =====
   const [panelOpen, setPanelOpen] = useState(false);
@@ -797,7 +937,7 @@ export default function AssignmentPlaygroundPage() {
     });
   }
 
-  function parseProgramItems(nds: Node[], eds: Edge[]): ProgramItem[] {
+  function parseProgramItems(nds: Node[], eds: Edge[], vars: Variable[] = []): ProgramItem[] {
     console.log("🔍 [parseProgramItems] Starting - Total nodes:", nds.length);
 
     // BUG FIX #4: Only parse nodes reachable from START (ignore unconnected nodes)
@@ -899,6 +1039,27 @@ export default function AssignmentPlaygroundPage() {
 
       const operands: Operand[] = [];
 
+      // Variables Lookup Helper
+      const resolveVariable = (val: string | number): { value: string; type: "Immediate" | "Memory" } => {
+        // 1. Priority Check: Is it a Variable? (Case-Insensitive)
+        const valStr = String(val).trim();
+        const foundVar = vars.find((v) => v.name.toLowerCase() === valStr.toLowerCase());
+
+        if (foundVar) {
+          console.log(`🔍 [Parser] Resolved Variable '${valStr}' -> Address ${foundVar.address} (Memory Access)`);
+          return { value: String(foundVar.address), type: "Memory" };
+        }
+
+        // 2. Number Check (Fallthrough)
+        // If it's not a variable, but is a number, treat as Immediate
+        if (!isNaN(Number(val))) {
+          return { value: String(val), type: "Immediate" };
+        }
+
+        // 3. Fallback
+        return { value: String(val), type: "Immediate" };
+      };
+
       if (instruction === "LOAD" || instruction === "STORE") {
         const memMode = node.data?.memMode ?? "imm";
         const memImm = node.data?.memImm;
@@ -909,13 +1070,17 @@ export default function AssignmentPlaygroundPage() {
           if (dest) operands.push({ type: "Register", value: String(dest) });
 
           if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
-            operands.push({ type: "Immediate", value: String(memImm) });
+            // Memory Address for LOAD is always treated as Immediate/Direct Address
+            const resolved = resolveVariable(memImm);
+            operands.push({ type: "Immediate", value: resolved.value });
           } else if (memMode === "reg" && memReg) {
             operands.push({ type: "Register", value: String(memReg) });
           }
         } else if (instruction === "STORE") {
           if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
-            operands.push({ type: "Immediate", value: String(memImm) });
+            // Memory Address for STORE is always treated as Immediate/Direct Address
+            const resolved = resolveVariable(memImm);
+            operands.push({ type: "Immediate", value: resolved.value });
           } else if (memMode === "reg" && memReg) {
             operands.push({ type: "Register", value: String(memReg) });
           }
@@ -932,7 +1097,12 @@ export default function AssignmentPlaygroundPage() {
         let pushedSrc = false;
         const immRaw = node.data?.srcImm ?? node.data?.imm ?? node.data?.value ?? node.data?.val;
         if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
-          operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
+          const resolved = resolveVariable(immRaw);
+          if (resolved.type === "Memory") {
+            operands.push({ type: "Memory", value: resolved.value });
+          } else {
+            operands.push({ type: "Immediate", value: `#${resolved.value}` });
+          }
           pushedSrc = true;
         }
         if (!pushedSrc) {
@@ -946,13 +1116,21 @@ export default function AssignmentPlaygroundPage() {
         let pushedSrc = false;
         const immRaw = node.data?.srcImm ?? node.data?.imm ?? node.data?.value ?? node.data?.val;
         if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
-          operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
+          const resolved = resolveVariable(immRaw);
+          if (resolved.type === "Memory") {
+            operands.push({ type: "Memory", value: resolved.value });
+          } else {
+            operands.push({ type: "Immediate", value: `#${resolved.value}` });
+          }
           pushedSrc = true;
         }
         if (!pushedSrc) {
           const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
           if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
         }
+        // Handle direct memory address if applicable (e.g. MOV R0, [100]) - depends on UI node data structure
+        // If there's a specific 'memAddr' field for non-load/store instructions?
+        // Current UI structure seems to use 'srcImm' for immediates.
       }
 
       if ((instruction === "JMP" || instruction === "JZ" || instruction === "JNZ" || instruction === "CALL") && node.data?.label) {
@@ -1247,7 +1425,7 @@ export default function AssignmentPlaygroundPage() {
 
     try {
       console.log("\n📝 Step 1: Parsing nodes to program items...");
-      const items = parseProgramItems(nodes, edges);
+      const items = parseProgramItems(nodes, edges, variables);
       console.log("   ✅ Parsed", items.length, "items");
       console.log("   📋 Items:", items);
 
@@ -1279,8 +1457,23 @@ export default function AssignmentPlaygroundPage() {
       console.log("   ✅ Map size:", instructionMap.size);
 
       console.log("\n💾 Step 4: Initializing CPU...");
-      const freshCpu = buildInitialCPUState(assignment);
-      console.log("   Initial state:", freshCpu);
+      const initialState = buildInitialCPUState(assignment);
+
+      // FIX: Inject Variables into Instant Run Memory
+      const computedMemory = [...(initialState.memory || [])];
+      variables.forEach(v => {
+        const existingIdx = computedMemory.findIndex(m => m.address === v.address);
+        if (existingIdx !== -1) {
+          computedMemory[existingIdx].value = v.value;
+        } else {
+          computedMemory.push({ address: v.address, value: v.value });
+        }
+      });
+      computedMemory.sort((a, b) => a.address - b.address);
+      initialState.memory = computedMemory;
+
+      const freshCpu = initialState;
+      console.log("   Initial state with vars:", freshCpu);
 
       console.log("\n⚙️ Step 5: EXECUTING PROGRAM...");
       const result = await executeProgram(items, freshCpu, 10000, {}, ioHandlerRef.current);
@@ -1322,12 +1515,12 @@ export default function AssignmentPlaygroundPage() {
       toast.success("Execution Complete!", { position: "bottom-center" });
 
       console.log("\n═══════════════════════════════════════════════════════");
-      console.log("🎉🎉🎉 [INSTANT RUN] COMPLETED SUCCESSFULLY 🎉🎉🎉");
+      console.log("🎉🎉🎉 [EXECUTE] COMPLETED SUCCESSFULLY 🎉🎉🎉");
       console.log("═══════════════════════════════════════════════════════\n\n");
 
     } catch (e: any) {
       console.log("\n═══════════════════════════════════════════════════════");
-      console.error("💥💥💥 [INSTANT RUN] ERROR 💥💥💥");
+      console.error("💥💥💥 [EXECUTE] ERROR 💥💥💥");
       console.log("═══════════════════════════════════════════════════════");
       console.error("Error details:", e);
       console.error("Stack trace:", e.stack);
@@ -1402,7 +1595,7 @@ export default function AssignmentPlaygroundPage() {
     let items = simulationRef.current.cachedItems;
     if (!items) {
       console.log("📝 [handleStep] Parsing items (first time)...");
-      items = parseProgramItems(nodes, edges);
+      items = parseProgramItems(nodes, edges, variables);
       simulationRef.current.cachedItems = items;
       console.log("✅ [handleStep] Cached", items.length, "items");
     } else {
@@ -1419,12 +1612,43 @@ export default function AssignmentPlaygroundPage() {
         return;
       }
 
-      const fresh = new CPU(buildInitialCPUState(assignment));
+      // CRITICAL FIX: Ensure Variables Interop!
+      // 'assignment' defines the template, but 'variables' (React State) holds the *current* user definitions.
+      // We must merge the current variables into the fresh CPU memory.
+      const initialState = buildInitialCPUState(assignment);
+
+      // Initialize memory array if needed (assumes max size 256 or similar from CPU default)
+      // We'll create a sparse map or array approach depending on CPU constructor expectations.
+      // Assuming CPU handles an array of {address, value} or a raw array.
+      // Let's force it to be an array that includes our variables.
+
+      const computedMemory = [...(initialState.memory || [])]; // Start with assignment defaults
+
+      // Inject Variables (Source of Truth)
+      // This fixes the issue where cpu.memory might be empty on first load.
+      variables.forEach(v => {
+        // Find if this address already has a value in initial state, if so overwrite, else add
+        const existingIdx = computedMemory.findIndex(m => m.address === v.address);
+        if (existingIdx !== -1) {
+          computedMemory[existingIdx].value = v.value;
+        } else {
+          computedMemory.push({ address: v.address, value: v.value });
+        }
+      });
+      // Sort for cleanliness (optional but good for debugging)
+      computedMemory.sort((a, b) => a.address - b.address);
+
+      initialState.memory = computedMemory;
+
+      const fresh = new CPU(initialState);
       // Find START
       const startItem = items.find(i => i.instruction?.toUpperCase() === 'START');
       if (startItem) fresh.pc = startItem.id;
       simulationRef.current.cpu = fresh;
       console.log("✅ [handleStep] CPU initialized at PC:", fresh.pc);
+
+      // LOG MEMORY STATE
+      console.log("🔍 [handleStep] Fresh CPU Memory State:", fresh.memory);
     }
 
     const currentCpu = simulationRef.current.cpu;
@@ -1540,7 +1764,7 @@ export default function AssignmentPlaygroundPage() {
       toast.error(e.message);
       currentCpu.halt(e.message);
     }
-  }, [nodes, edges, assignment]);
+  }, [nodes, edges, assignment, cpu]);
 
   const toggleDebugPlay = useCallback(() => {
     if (isRunning) {
@@ -1601,13 +1825,27 @@ export default function AssignmentPlaygroundPage() {
 
     // Reset UI State
     const initial = buildInitialCPUState(assignment);
+
+    // FIX: Re-hydrate UI Memory from Variables (Reset to Initial with Vars)
+    const initialMemory: Record<string, number> = {};
+    console.log("🧹 [handleReset] Resetting... CPU State found:", !!cpu);
+    if (cpu?.memory) {
+      console.log("💧 [handleReset] Hydrating from cpu.memory:", cpu.memory);
+      cpu.memory.forEach(m => {
+        initialMemory[m.address] = m.value;
+      });
+    } else {
+      console.warn("⚠️ [handleReset] cpu.memory is missing! Variables will not be loaded.");
+    }
+    console.log("📦 [handleReset] Final Initial Memory:", initialMemory);
+
     setExecRegisters(initial.registers);
     setExecFlags(initial.flags);
-    setExecMemorySparse({});
+    setExecMemorySparse(initialMemory);
     setExecIO(undefined);
 
     ioHandlerRef.current.reset();
-  }, [assignment]);
+  }, [assignment, cpu]);
 
   if (loading) {
     return (
@@ -1818,6 +2056,10 @@ export default function AssignmentPlaygroundPage() {
           onCloseInspector={() => setPanelOpen(false)}
           availableRegisters={registerNames}
           availableLabels={labelOptions}
+          variables={variables}
+          onAddVariable={handleAddVariable}
+          onEditVariable={handleEditVariable}
+          onDeleteVariable={handleDeleteVariable}
         />
       </div>
     </div>

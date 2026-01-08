@@ -4,11 +4,18 @@ import React, { useRef, useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { HiSearch, HiViewGrid, HiViewList } from "react-icons/hi";
 import { cn } from "@/lib/utils";
+import VariableManager, { Variable } from "./VariableManager";
 
 interface ProcessorDashboardProps {
   registers: { [key: string]: number };
   flags: { [key: string]: number };
   memory: { address: number; value: number }[];
+
+  // Variable Manager Props
+  variables?: Variable[];
+  onAddVariable?: (name: string, value: number) => void;
+  onEditVariable?: (id: string, name: string, value: number) => void;
+  onDeleteVariable?: (id: string) => void;
 }
 
 const StateCell = ({ label, value }: { label: string; value: number }) => (
@@ -88,6 +95,10 @@ export default React.memo(function ProcessorDashboard({
   registers,
   flags,
   memory,
+  variables = [],
+  onAddVariable,
+  onEditVariable,
+  onDeleteVariable,
 }: ProcessorDashboardProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -198,6 +209,16 @@ export default React.memo(function ProcessorDashboard({
           )}
         </div>
       </section>
+
+      {/* Variables Manager */}
+      {onAddVariable && onEditVariable && onDeleteVariable && (
+        <VariableManager
+          variables={variables}
+          onAdd={onAddVariable}
+          onEdit={onEditVariable}
+          onDelete={onDeleteVariable}
+        />
+      )}
 
       {/* Memory */}
       <section className="mt-6">

@@ -170,6 +170,9 @@ export function executeInstruction(
     const instruction = item.instruction?.toUpperCase() || '';
     const operands = item.operands || [];
 
+    // 🔥 DEBUG LOG REQUESTED BY USER
+    console.log('🔥 EXECUTE:', instruction, 'ARGS:', JSON.stringify(operands));
+
     switch (instruction) {
         case 'START':
         case 'NOP':
@@ -302,6 +305,21 @@ function getOperandValue(cpu: CPU, operand: Operand): number {
             const value = parseInt(imm, 10);
             if (isNaN(value)) throw new Error(`Invalid immediate value: ${operand.value}`);
             return value;
+        case 'Memory':
+            const addr = parseInt(operand.value, 10);
+            if (isNaN(addr)) throw new Error(`Invalid memory address: ${operand.value}`);
+            const rawValue = cpu.readMemory(addr);
+
+            // Debug Logging requested by User
+            console.group(`🔍 Debugging Fetch: Memory[${addr}]`);
+            console.log('Target Address:', addr);
+            // cpu.memory is sparse map in simulation? No, cpu.readMemory accesses cpu.memory array in CPU class?
+            // Checking CPU class interface... assuming cpu.getMemorySparse() or similar is available for debug?
+            // Or just logging the value found.
+            console.log('Value Found:', rawValue);
+            console.groupEnd();
+
+            return rawValue;
         default:
             throw new Error(`Unsupported operand type: ${operand.type}`);
     }
