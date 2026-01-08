@@ -42,9 +42,11 @@ import { useAutoSave } from "@/hooks/useAutoSave";
 import { ExecutionDeck, ExecutionMode } from "@/components/playground/ExecutionDeck";
 import toast from "react-hot-toast";
 
+import TestManagerModal from "@/components/playground/test_cases/TestManagerModal";
+import { TestCase, TestSuite, runTestCase, runTestSuite, TestResult, TestSuiteResult } from '@/lib/playground/test_runner';
+
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
 const getId = () => crypto.randomUUID();
-// Removed simplistic ID counter
 // let id = 0; 
 // const getId = () => ...
 
@@ -380,9 +382,196 @@ export default function AssignmentPlaygroundPage() {
     });
   };
 
+  // ===== Test Manager State =====
+  const [isTestManagerOpen, setIsTestManagerOpen] = useState(false);
+
+  const handleRunTestCase = async (testCase: TestCase): Promise<TestResult> => {
+    console.log("🧪 [DEV] Running Test Case:", testCase);
+
+    // 1. Prepare Program
+    const nodeMap = new Map<string, number>();
+    nodes.forEach((node, index) => {
+      nodeMap.set(node.id, index);
+    });
+
+    const program: ProgramItem[] = [];
+    const edgesMap = new Map<string, { next?: string, nextTrue?: string, nextFalse?: string }>();
+
+    edges.forEach(edge => {
+      const source = edge.source;
+      const target = edge.target;
+      const existing = edgesMap.get(source) || {};
+      if (edge.sourceHandle === 'true') existing.nextTrue = target;
+      else if (edge.sourceHandle === 'false') existing.nextFalse = target;
+      else existing.next = target;
+      edgesMap.set(source, existing);
+    });
+
+    nodes.forEach((node) => {
+      const numericId = nodeMap.get(node.id)!;
+      const links = edgesMap.get(node.id);
+
+      const nextId = links?.next ? nodeMap.get(links.next) ?? -1 : -1;
+      const nextTrueId = links?.nextTrue ? nodeMap.get(links.nextTrue) ?? -1 : -1;
+      const nextFalseId = links?.nextFalse ? nodeMap.get(links.nextFalse) ?? -1 : -1;
+
+      // Extract operands based on instruction type and node data
+      const type = node.data.instructionType;
+      const d = node.data;
+      const operands: any[] = [];
+
+      // Debug log (keep for verification)
+      if (type === 'MOV') {
+        console.log(`🔍 [DEV] Compiling MOV Node ${node.id}:`, d);
+      }
+
+      // 1. Jump/Label Instructions
+      if (['JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN', 'CALL'].includes(type) || type === 'LABEL') {
+        if (d.label) operands.push({ type: 'Label', value: d.label });
+      }
+      // 2. LOAD (Reg, Addr)
+      else if (type === 'LOAD') {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        if (d.memMode === 'reg') {
+          operands.push({ type: 'Register', value: d.memReg || 'R0' });
+        } else {
+          operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
+        }
+      }
+      // 3. STORE (Addr, Reg) - Note: executor expects [Dest(Addr), Src(Val)]
+      else if (type === 'STORE') {
+        if (d.memMode === 'reg') {
+          operands.push({ type: 'Register', value: d.memReg || 'R0' });
+        } else {
+          operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
+        }
+        operands.push({ type: 'Register', value: d.srcReg || 'R0' });
+      }
+      // 4. IN (Reg, Port)
+      else if (type === 'IN') {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        operands.push({ type: 'Immediate', value: String(d.srcImm || 0) }); // Port ID is in srcImm
+      }
+      // 5. OUT (Port, Val)
+      else if (type === 'OUT') {
+        operands.push({ type: 'Immediate', value: String(d.memImm || 0) }); // Port ID is in memImm (per InstructionNode logic)
+        if (d.srcMode === 'reg') {
+          operands.push({ type: 'Register', value: d.srcReg || 'R0' });
+        } else {
+          operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
+        }
+      }
+      // 6. Standard 2-Operand (MOV, ADD, SUB, etc.)
+      else if (['MOV', 'ADD', 'SUB', 'MUL', 'DIV', 'AND', 'OR', 'XOR', 'SHL', 'SHR', 'CMP'].includes(type)) {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        if (d.srcMode === 'reg') {
+          operands.push({ type: 'Register', value: d.srcReg || 'R0' });
+        } else {
+          operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
+        }
+      }
+      // 7. Standard 1-Operand (INC, DEC, PUSH, POP, NOT)
+      else if (['INC', 'DEC', 'PUSH', 'POP', 'NOT'].includes(type)) {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+      }
+
+      program.push({
+        id: numericId,
+        instruction: type,
+        label: d.label,
+        operands: operands,
+        next: nextId,
+        next_true: nextTrueId,
+        next_false: nextFalseId
+      });
+    });
+    program.sort((a, b) => a.id - b.id);
+
+    // 2. Run Test
+    const result = await runTestCase(testCase, program, cpu);
+
+    // 3. Feedback
+    if (result.passed) {
+      toast.success(`Test '${testCase.name}' Passed!`);
+    } else {
+      toast.error(`Test '${testCase.name}' Failed`);
+    }
+
+    return result;
+  };
+
+  const handleRunTestSuite = async (suite: TestSuite): Promise<TestSuiteResult> => {
+    console.log("🧪 [DEV] Running Test Suite:", suite);
+
+    // 1. Compiler Logic
+    const nodeMap = new Map<string, number>();
+    nodes.forEach((node, index) => nodeMap.set(node.id, index));
+
+    const program: ProgramItem[] = [];
+    const edgesMap = new Map<string, { next?: string, nextTrue?: string, nextFalse?: string }>();
+    edges.forEach(edge => {
+      const source = edge.source;
+      const target = edge.target;
+      const existing = edgesMap.get(source) || {};
+      if (edge.sourceHandle === 'true') existing.nextTrue = target;
+      else if (edge.sourceHandle === 'false') existing.nextFalse = target;
+      else existing.next = target;
+      edgesMap.set(source, existing);
+    });
+    nodes.forEach((node) => {
+      const numericId = nodeMap.get(node.id)!;
+      const links = edgesMap.get(node.id);
+
+      // Extract operands based on instruction type (Duplicated logic from handleRunTestCase)
+      const type = node.data.instructionType;
+      const d = node.data;
+      const operands: any[] = [];
+
+      if (['JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN', 'CALL'].includes(type) || type === 'LABEL') {
+        if (d.label) operands.push({ type: 'Label', value: d.label });
+      } else if (type === 'LOAD') {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        operands.push(d.memMode === 'reg' ? { type: 'Register', value: d.memReg || 'R0' } : { type: 'Immediate', value: String(d.memImm || 0) });
+      } else if (type === 'STORE') {
+        operands.push(d.memMode === 'reg' ? { type: 'Register', value: d.memReg || 'R0' } : { type: 'Immediate', value: String(d.memImm || 0) });
+        operands.push({ type: 'Register', value: d.srcReg || 'R0' });
+      } else if (type === 'IN') {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
+      } else if (type === 'OUT') {
+        operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
+        operands.push(d.srcMode === 'reg' ? { type: 'Register', value: d.srcReg || 'R0' } : { type: 'Immediate', value: String(d.srcImm || 0) });
+      } else if (['MOV', 'ADD', 'SUB', 'MUL', 'DIV', 'AND', 'OR', 'XOR', 'SHL', 'SHR', 'CMP'].includes(type)) {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        operands.push(d.srcMode === 'reg' ? { type: 'Register', value: d.srcReg || 'R0' } : { type: 'Immediate', value: String(d.srcImm || 0) });
+      } else if (['INC', 'DEC', 'PUSH', 'POP', 'NOT'].includes(type)) {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+      }
+
+      program.push({
+        id: numericId,
+        instruction: type,
+        label: d.label,
+        operands: operands,
+        next: links?.next ? nodeMap.get(links.next) ?? -1 : -1,
+        next_true: links?.nextTrue ? nodeMap.get(links.nextTrue) ?? -1 : -1,
+        next_false: links?.nextFalse ? nodeMap.get(links.nextFalse) ?? -1 : -1
+      });
+    });
+    program.sort((a, b) => a.id - b.id);
+
+    // 2. Run Suite
+    const result = await runTestSuite(suite, program, cpu);
+
+    return result;
+  };
+
   // ===== Property Panel state =====
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+
+  // (Duplicate removed)
+
 
   const onNodeClick = useCallback((_e: any, node: Node) => {
     setSelectedNode(node);
@@ -2072,13 +2261,22 @@ export default function AssignmentPlaygroundPage() {
     <div className="h-screen w-screen flex flex-col bg-gray-50 font-sans overflow-hidden">
       {/* 1. Navbar (Top) */}
       <PlaygroundNavbar
-        assignmentTitle={assignment?.title || "..."}
+        assignmentTitle={labName}
         onBack={() => router.back()}
         mode={executionMode}
         onRun={setExecutionMode}
-        onSubmit={() => toast("Submit feature coming soon!")}
-        onReset={handleReset}
+        onSubmit={() => { }}
+        onOpenTestManager={() => setIsTestManagerOpen(true)}
       />
+
+      <TestManagerModal
+        isOpen={isTestManagerOpen}
+        onClose={() => setIsTestManagerOpen(false)}
+        onRunTestCase={handleRunTestCase}
+        onRunTestSuite={handleRunTestSuite}
+        availableRegisters={registerNames}
+      />
+
 
       {/* 2. Main Workspace (Flex Row) */}
       <div className="flex-1 flex overflow-hidden">

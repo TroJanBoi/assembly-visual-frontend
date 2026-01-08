@@ -1,0 +1,321 @@
+
+import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { TestCase, TestCondition, TestLocationType } from "@/lib/playground/test_runner";
+import { cn } from "@/lib/utils";
+import ModernDropdown from "@/components/ui/ModernDropdown";
+
+interface Props {
+    testCase: TestCase | null;
+    onUpdate: (updated: TestCase) => void;
+    onRun?: () => void;
+    isRunning?: boolean;
+    availableRegisters: string[];
+}
+
+export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, availableRegisters }: Props) {
+    if (!testCase) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <p>Select a test case to edit</p>
+            </div>
+        );
+    }
+
+    const addCondition = (target: "initialState" | "expectedState") => {
+        const newCond: TestCondition = {
+            id: crypto.randomUUID(),
+            type: "Register",
+            location: "R0",
+            value: "0"
+        };
+        onUpdate({
+            ...testCase,
+            [target]: [...testCase[target], newCond]
+        });
+    };
+
+    const removeCondition = (target: "initialState" | "expectedState", id: string) => {
+        onUpdate({
+            ...testCase,
+            [target]: testCase[target].filter(c => c.id !== id)
+        });
+    };
+
+    const updateCondition = (
+        target: "initialState" | "expectedState",
+        id: string,
+        field: keyof TestCondition,
+        val: string
+    ) => {
+        onUpdate({
+            ...testCase,
+            [target]: testCase[target].map(c =>
+                c.id === id ? { ...c, [field]: val } : c
+            )
+        });
+    };
+
+    return (
+        <div className="flex flex-col h-full bg-white p-6 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900">{testCase.name}</h2>
+                    <p className="text-sm text-gray-500 mt-1">Configure inputs and expected outputs.</p>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-8">
+                {/* Initial State Section */}
+                <section>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Initial State</h3>
+                        <button
+                            onClick={() => addCondition("initialState")}
+                            className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
+                        >
+                            <Plus size={14} /> Add Value
+                        </button>
+                    </div>
+
+
+                    <div className="w-full">
+                        {/* Table Header */}
+                        {testCase.initialState.length > 0 && (
+                            <div className="grid grid-cols-12 gap-4 mb-2 text-xs font-semibold text-gray-500 px-2">
+                                <div className="col-span-1">#</div>
+                                <div className="col-span-3">Type</div>
+                                <div className="col-span-3">Target / Address</div>
+                                <div className="col-span-4">Value</div>
+                            </div>
+                        )}
+
+                        <div className="space-y-1">
+                            {testCase.initialState.map((cond, idx) => (
+                                <ConditionRow
+                                    key={cond.id}
+                                    index={idx + 1}
+                                    condition={cond}
+                                    onChange={(f, v) => updateCondition("initialState", cond.id, f, v)}
+                                    onRemove={() => removeCondition("initialState", cond.id)}
+                                    availableRegisters={availableRegisters}
+                                />
+                            ))}
+                        </div>
+
+                        {testCase.initialState.length === 0 && (
+                            <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg">
+                                No initial conditions set
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                <hr className="border-gray-100" />
+
+                {/* Expected Final State Section */}
+                <section>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Expected Final State</h3>
+                        <button
+                            onClick={() => addCondition("expectedState")}
+                            className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
+                        >
+                            <Plus size={14} /> Add Expectation
+                        </button>
+                    </div>
+
+                    <div className="w-full">
+                        {/* Table Header */}
+                        {testCase.expectedState.length > 0 && (
+                            <div className="grid grid-cols-12 gap-4 mb-2 text-xs font-semibold text-gray-500 px-2">
+                                <div className="col-span-1">#</div>
+                                <div className="col-span-3">Type</div>
+                                <div className="col-span-3">Target / Address</div>
+                                <div className="col-span-4">Value</div>
+                            </div>
+                        )}
+
+                        <div className="space-y-1">
+                            {testCase.expectedState.map((cond, idx) => (
+                                <ConditionRow
+                                    key={cond.id}
+                                    index={idx + 1}
+                                    condition={cond}
+                                    onChange={(f, v) => updateCondition("expectedState", cond.id, f, v)}
+                                    onRemove={() => removeCondition("expectedState", cond.id)}
+                                    availableRegisters={availableRegisters}
+                                />
+                            ))}
+                        </div>
+
+                        {testCase.expectedState.length === 0 && (
+                            <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg">
+                                No expectations set
+                            </div>
+                        )}
+                    </div>
+                </section>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                <button className="px-6 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                    Reset
+                </button>
+                <button
+                    onClick={onRun}
+                    disabled={isRunning}
+                    className="px-8 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md"
+                >
+                    {isRunning ? "Running..." : "Run Test"}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function ConditionRow({
+    index,
+    condition,
+    onChange,
+    onRemove,
+    availableRegisters
+}: {
+    index: number;
+    condition: TestCondition;
+    onChange: (field: keyof TestCondition, value: string) => void;
+    onRemove: () => void;
+    availableRegisters: string[];
+}) {
+
+    // --- Helpers for Options ---
+    const FLAGS = ['Z', 'C', 'V', 'O'];
+    const OUT_PORTS = [
+        { id: '0', name: '0: Console (ASCII)' },
+        { id: '1', name: '1: Console (Num)' },
+        { id: '2', name: '2: 7-Segment' },
+        { id: '3', name: '3: LED Select' },
+        { id: '4', name: '4: LED Data' },
+    ];
+    const IN_PORTS = [
+        { id: '0', name: '0: Keyboard' },
+        { id: '4', name: '4: Gamepad' },
+        { id: '5', name: '5: RNG' },
+    ];
+
+    const renderLocationInput = () => {
+        switch (condition.type) {
+            case 'Register':
+                return (
+                    <div className="w-full">
+                        <ModernDropdown
+                            value={condition.location}
+                            onChange={(v) => onChange("location", String(v))}
+                            options={availableRegisters.map(r => ({ label: r, value: r }))}
+                            placeholder="Register"
+                        />
+                    </div>
+                );
+            case 'Flag':
+                return (
+                    <div className="w-full">
+                        <ModernDropdown
+                            value={condition.location}
+                            onChange={(v) => onChange("location", String(v))}
+                            options={FLAGS.map(f => ({ label: f, value: f }))}
+                            placeholder="Flag"
+                        />
+                    </div>
+                );
+            case 'Output':
+                return (
+                    <div className="w-full">
+                        <ModernDropdown
+                            value={condition.location}
+                            onChange={(v) => onChange("location", String(v))}
+                            options={OUT_PORTS.map(p => ({ label: p.name, value: p.id }))}
+                            placeholder="Port"
+                        />
+                    </div>
+                );
+            case 'Input':
+                return (
+                    <div className="w-full">
+                        <ModernDropdown
+                            value={condition.location}
+                            onChange={(v) => onChange("location", String(v))}
+                            options={IN_PORTS.map(p => ({ label: p.name, value: p.id }))}
+                            placeholder="Port"
+                        />
+                    </div>
+                );
+            case 'Memory':
+            default:
+                return (
+                    <input
+                        type="number"
+                        min="0"
+                        max="255"
+                        value={condition.location}
+                        onChange={(e) => onChange("location", e.target.value)}
+                        placeholder="Addr"
+                        className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                    />
+                );
+        }
+    };
+
+    return (
+        <div className="grid grid-cols-12 gap-4 items-center p-2 rounded-lg hover:bg-gray-50 group border border-transparent hover:border-gray-200 transition-colors">
+            {/* Index */}
+            <div className="col-span-1 text-xs text-gray-400 font-mono text-center">
+                {index}
+            </div>
+
+            {/* Type Selector */}
+            <div className="col-span-3">
+                <ModernDropdown
+                    value={condition.type}
+                    onChange={(v) => onChange("type", v as any)}
+                    options={[
+                        { label: "Register", value: "Register" },
+                        { label: "Memory", value: "Memory" },
+                        { label: "Flag", value: "Flag" },
+                        { label: "Output", value: "Output" },
+                        { label: "Input", value: "Input" },
+                    ]}
+                    placeholder="Type"
+                />
+            </div>
+
+            {/* Location / Address */}
+            <div className="col-span-3">
+                {renderLocationInput()}
+            </div>
+
+            {/* Value Input */}
+            <div className="col-span-4">
+                <input
+                    type="text"
+                    value={condition.value}
+                    onChange={(e) => onChange("value", e.target.value)}
+                    placeholder="Value"
+                    className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                />
+            </div>
+
+            {/* Actions */}
+            <div className="col-span-1 flex justify-center">
+                <button
+                    onClick={onRemove}
+                    className="p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                    title="Remove Condition"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+        </div>
+    );
+}

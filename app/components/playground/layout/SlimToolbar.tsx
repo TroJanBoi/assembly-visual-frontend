@@ -186,9 +186,7 @@ export default React.memo(function SlimToolbar({
 
     return (
         <aside className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-4 z-40 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] relative">
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold mb-2 shadow-lg shadow-indigo-200">
-                AV
-            </div>
+
 
             <nav className="flex flex-col gap-3 w-full">
                 {filteredCategories.map((cat) => (
