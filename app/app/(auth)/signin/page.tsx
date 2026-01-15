@@ -2,10 +2,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { use, useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { oauthLogin, signin } from "@/lib/api/auth";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signin } from "@/lib/api/auth";
 
 // SweetAlert2
 import Swal from "sweetalert2";
@@ -15,17 +14,14 @@ import LandingNav from "@/components/layout/TopNav";
 
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { useGlobalLoading } from "@/components/providers/GlobalLoadingProvider";
-
-function authSuccess() {
-  window.location.href = "http://localhost:9090/api/v2/oauth/google/login";
-}
+import AuthDemo from "@/components/ui/Auth/AuthDemo";
+import { FaGoogle, FaArrowLeft } from "react-icons/fa6";
 
 const MySwal = withReactContent(Swal);
 
 export default function SignInPage() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-  const pathname = usePathname();
   const router = useRouter();
 
   const { show: showGlobalLoading } = useGlobalLoading();
@@ -38,240 +34,154 @@ export default function SignInPage() {
     const password = String(form.get("password") || "");
     const remember = Boolean(form.get("remember"));
 
-    // validate ง่ายๆ
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       return MySwal.fire({
         icon: "warning",
         title: "Please enter a valid email.",
+        toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
       });
     }
     if (!password) {
       return MySwal.fire({
         icon: "warning",
         title: "Please enter your password.",
+        toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
       });
     }
 
     try {
       setLoading(true);
-
-      // 🔐 เรียก backend ผ่าน lib/api/auth.ts
       const res = await signin({ email, password, remember });
 
       await MySwal.fire({
         icon: "success",
-        title: "Welcome back 🎉",
-        text: res?.user?.email || "Signed in successfully.",
-        showConfirmButton: false,
-        timer: 1300,
-        timerProgressBar: true,
+        title: "Welcome back!",
+        text: "Redirecting to your workspace...",
+        toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true
       });
 
-      // Show global overlay before redirecting to prevent interaction
       showGlobalLoading();
       router.push("/home");
     } catch (err: any) {
-      setLoading(false); // Only stop button loading on error
-      MySwal.close();
+      setLoading(false);
       MySwal.fire({
         icon: "error",
         title: "Sign in failed",
         text: err?.message || "Invalid credentials.",
-        confirmButtonText: "Close",
+        confirmButtonText: "Try Again",
       });
     }
-    // Note: If success, we don't setLoading(false) because we want button to stay loading 
-    // or global loader to take over until page change.
   };
 
   return (
-    <div className="min-h-screen bg-white text-neutral-800">
-      <LandingNav />
-      {/* TOP BAR */}
+    <div className="min-h-screen bg-white flex flex-col md:flex-row font-sans">
+      {/* LEFT: Form Section */}
+      {/* LEFT: Visual Side (Hidden on Mobile) */}
+      <section className="hidden md:flex flex-1 bg-slate-50 p-0 items-center justify-center relative overflow-hidden border-r border-slate-200">
+        {/* Background Patterns */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:40px_40px] opacity-40" />
+        
+        {/* The AuthDemo Component - Full Size */}
+        <div className="w-full h-full relative z-10">
+            <AuthDemo />
+        </div>
+      </section>
 
-      {/* BODY */}
-      <main className="min-h-screen pt-[var(--topbar-height,64px)] flex flex-col gap-6 md:flex-row md:items-center p-6">
-        {/* LEFT */}
-        <section className="flex-1 rounded-xl p-4">
-          <Image
-            src="/images/signin-1.png"
-            alt="Sign In Illustration"
-            width={500}
-            height={500}
-            className="mx-auto"
-            priority
-          />
-        </section>
+      {/* RIGHT: Form Section */}
+      <section className="flex-1 flex flex-col justify-center px-4 sm:px-8 md:px-12 relative z-10 bg-white">
+        <div className="absolute top-8 left-8">
+            <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors">
+                <FaArrowLeft /> Back
+            </Link>
+        </div>
 
-        {/* RIGHT */}
-        <section className="flex-1 rounded-xl p-4  flex flex-col gap-6 justify-center items-center">
-          <div className="w-full max-w-sm space-y-3 text-left">
-            <h1 className="text-2xl font-extrabold">
-              Welcome back to{" "}
-              <span className="text-[var(--color-primary)]">BLYLAB.</span>
-            </h1>
+        <div className="max-w-md w-full mx-auto space-y-8">
+            <div className="space-y-2">
+                <Link href="/" className="inline-block mb-4">
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">BLYLAB<span className="text-indigo-600">.</span></h1>
+                </Link>
+                <h2 className="text-3xl font-bold text-slate-900 leading-tight">Welcome back</h2>
+                <p className="text-slate-500">Please enter your details to sign in.</p>
+            </div>
 
-            <p className="text-sm text-sub">
-              Time to learn! <span className="sr-only">Please</span> Please
-              enter your details.
-            </p>
-
-            {/* FORM */}
-            <form onSubmit={onSubmit} className="space-y-4">
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder="Enter your email."
-                  className="h-11 w-full rounded-lg border border-[var(--color-border)] px-3
-                             text-sm outline-none focus:border-[var(--color-primary)] focus:ring-4
-                             focus:ring-[color:rgba(104,127,229,0.18)]"
-                />
-              </div>
-
-              {/* Password + toggle */}
-              <div>
-                <label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type={show ? "text" : "password"}
-                    required
-                    autoComplete="current-password"
-                    placeholder="Enter your password."
-                    className="h-11 w-full rounded-lg border border-[var(--color-border)] px-3 pr-10
-                               text-sm outline-none focus:border-[var(--color-primary)] focus:ring-4
-                               focus:ring-[color:rgba(104,127,229,0.18)]"
-                  />
-                  <button
-                    type="button"
-                    aria-label={show ? "Hide password" : "Show password"}
-                    aria-pressed={show}
-                    onClick={() => setShow((s) => !s)}
-                    className="absolute inset-y-0 right-2 my-auto h-7 w-7 rounded-md text-neutral-500 hover:bg-neutral-100 flex items-center justify-center"
-                  >
-                    {show ? (
-                      // Eye-off
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M3 3l18 18" />
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    ) : (
-                      // Eye
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <label className="inline-flex items-center gap-2 text-xs text-sub">
-                    <input
-                      type="checkbox"
-                      name="remember"
-                      className="h-4 w-4 align-middle accent-[var(--color-primary)]"
+            <form onSubmit={onSubmit} className="space-y-5">
+                <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700" htmlFor="email">Email</label>
+                    <input 
+                        id="email" 
+                        name="email" 
+                        type="email" 
+                        required
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:text-slate-400"
+                        placeholder="name@example.com"
                     />
-                    Remember for 30 days
-                  </label>
-                  <Link
-                    href="/forgot"
-                    className="text-xs text-[var(--color-primary)] underline underline-offset-2 hover:opacity-90 focus-visible:ring-2"
-                  >
-                    Forgot password
-                  </Link>
                 </div>
-              </div>
 
-              {/* Submit */}
-              {/* Submit */}
-              <LoadingButton
-                type="submit"
-                isLoading={loading}
-                loadingText="Signing In..."
-                className="w-full"
-              >
-                Sign In
-              </LoadingButton>
+                <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700" htmlFor="password">Password</label>
+                    <div className="relative">
+                        <input
+                            id="password"
+                            name="password"
+                            type={show ? "text" : "password"}
+                            required
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:text-slate-400"
+                            placeholder="••••••••"
+                        />
+                         <button
+                            type="button"
+                            onClick={() => setShow(!show)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-indigo-600 px-2 py-1"
+                        >
+                            {show ? "Hide" : "Show"}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                        <input type="checkbox" name="remember" className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                        Remember me
+                    </label>
+                    <Link href="/forgot" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:underline">
+                        Forgot password?
+                    </Link>
+                </div>
+
+                <LoadingButton
+                    type="submit"
+                    isLoading={loading}
+                    loadingText="Signing In..."
+                    className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                >
+                    Sign In
+                </LoadingButton>
             </form>
 
-            {/* OAuth (ถ้ามี route จริงค่อยเชื่อม) */}
+            <div className="relative">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-4 text-slate-400 font-medium">Or continue with</span></div>
+            </div>
+
             <button
-              onClick={() => {
-                authSuccess();
-              }}
-              className="h-11 w-full text-sm font-medium border border-[var(--color-border)] rounded-lg hover:bg-neutral-50
-                         inline-flex items-center justify-center gap-2"
+                type="button"
+                className="w-full py-3.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-all flex items-center justify-center gap-2"
+                onClick={() => {
+                     window.location.href = "http://localhost:9090/api/v2/oauth/google/login";
+                }}
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 18 18"
-                aria-hidden
-                className="-ml-1 shrink-0"
-              >
-                <path
-                  fill="#4285F4"
-                  d="M17.64 9.204c0-.638-.057-1.252-.163-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.797 2.718v2.258h2.908c1.699-1.565 2.685-3.87 2.685-6.617z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M9 18c2.43 0 4.467-.806 5.956-2.179l-2.908-2.258c-.806.54-1.836.86-3.048.86-2.344 0-4.33-1.58-5.036-3.708H.957v2.332C2.438 15.978 5.481 18 9 18z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M3.964 10.715A5.41 5.41 0 013.684 9c0-.6.103-1.181.28-1.715V4.953H.957A9.01 9.01 0 000 9c0 1.477.354 2.872.957 4.047l3.007-2.332z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M9 3.542c1.322 0 2.512.455 3.447 1.35l2.59-2.59C13.463.86 11.426 0 9 0 5.481 0 2.438 2.022.957 4.953l3.007 2.332C3.67 5.157 5.656 3.542 9 3.542z"
-                />
-              </svg>
-              Sign In with Google
+                <FaGoogle className="text-slate-900" />
+                Google
             </button>
 
-            <p className="text-center text-xs text-sub">
-              Don’t have an account?{" "}
-              <Link
-                href="/signup"
-                className="text-[var(--color-primary)] underline underline-offset-2"
-              >
-                Sign Up
-              </Link>
+            <p className="text-center text-sm text-slate-600">
+                Don’t have an account?{" "}
+                <Link href="/signup" className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline">
+                    Sign up for free
+                </Link>
             </p>
-          </div>
-        </section>
-      </main>
+        </div>
+      </section>
     </div>
   );
 }

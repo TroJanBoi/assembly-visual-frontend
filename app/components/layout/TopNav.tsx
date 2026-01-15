@@ -3,121 +3,98 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HiOutlineBell, HiOutlineSearch, HiOutlineUser } from "react-icons/hi";
+import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 
 export default function TopNav() {
-  // ปรับความสูง topbar ลงใน CSS variable
-  useEffect(() => {
-    const HEIGHT = 64;
-    document.documentElement.style.setProperty("--topbar-height", `${HEIGHT}px`);
-  }, []);
-
+  const [isHidden, setIsHidden] = useState(false);
+  const { scrollY } = useScroll();
   const pathname = usePathname();
-  const isLanding = pathname === "/" || pathname === "/signin" || pathname === "/signup"; // หน้า Overview
+  const isLanding = pathname === "/" || pathname === "/signin" || pathname === "/signup";
 
-  // วันที่ (ใช้เฉพาะโหมด dashboard)
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    if (!isLanding) return;
+    
+    // Hide if scrolled past 80% of the viewport height (approx end of section 1)
+    if (typeof window !== "undefined") {
+        const threshold = window.innerHeight * 0.8;
+        if (latest > threshold) {
+            setIsHidden(true);
+        } else {
+            setIsHidden(false);
+        }
+    }
+  });
+
+  // Date for dashboard mode
   const [dateStr, setDateStr] = useState("");
   useEffect(() => {
     if (isLanding) return;
     try {
       const now = new Date();
-      const month = now.toLocaleString("en-US", { month: "long" });
-      const day = now.getDate();
-      const year = now.getFullYear();
-      setDateStr(`${month}, ${day} ${year}`);
+      setDateStr(now.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric" }));
     } catch { }
   }, [isLanding]);
 
+  if (isLanding) {
+    return (
+        <motion.header
+            variants={{
+                visible: { y: 0, opacity: 1 },
+                hidden: { y: -100, opacity: 0 }
+            }}
+            animate={isHidden ? "hidden" : "visible"}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="fixed top-6 left-0 right-0 z-50 flex justify-center pointer-events-none"
+        >
+            <nav className="pointer-events-auto bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-white/20 dark:border-slate-800/50 shadow-xl rounded-full px-6 py-3 flex items-center gap-12 transition-all">
+                
+                {/* Logo */}
+                <Link href="/" className="flex items-center gap-1 group">
+                    <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">BLYLAB</span>
+                    <span className="text-indigo-500 font-bold text-xl">.</span>
+                </Link>
+
+                {/* Links */}
+                <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
+                    <Link href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Features</Link>
+                    <Link href="#demo" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Demo</Link>
+                    <Link href="#team" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Team</Link>
+                </div>
+
+                {/* Auth Actions */}
+                <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-slate-700">
+                    <Link href="/signin" className="text-sm font-semibold text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-white transition-colors">
+                        Log in
+                    </Link>
+                    <Link href="/signup" className="text-sm font-semibold bg-slate-900 text-white hover:bg-indigo-600 px-4 py-2 rounded-full transition-all shadow-lg shadow-indigo-500/20">
+                        Get Started
+                    </Link>
+                </div>
+            </nav>
+        </motion.header>
+    );
+  }
+
+  // --- DASHBOARD MODE (Unchanged logic, just kept structure) ---
   return (
     <header
-      role="banner"
-      className="fixed top-0 z-30 backdrop-blur bg-white/80 dark:bg-slate-900/80 
-                 border-b border-gray-100 dark:border-slate-800"
-      style={{
-        // landing ไม่ต้องเลื่อนตาม sidebar, dashboard ให้ชิดขวาตาม sidebar
-        left: isLanding ? 0 : "var(--sidebar-width, 240px)",
-        right: 0,
-        height: "var(--topbar-height, 64px)",
-      }}
+      className="fixed top-0 z-30 backdrop-blur bg-white/80 dark:bg-slate-900/80 border-b border-gray-100 dark:border-slate-800"
+      style={{ left: "var(--sidebar-width, 240px)", right: 0, height: "64px" }}
     >
-      {/* Landing: ใช้ container กลาง, Dashboard: ใช้ flex เต็มความกว้าง */}
-      <div
-        className={
-          isLanding
-            ? "mx-auto max-w-7xl px-6 h-full flex items-center justify-between"
-            : "px-4 h-full flex items-center gap-4"
-        }
-      >
-        {/* LEFT */}
-        {isLanding ? (
-          // L A N D I N G  — โลโก้
-          <Link
-            href="/"
-
-          >
-            <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400 ">BLYLAB</span>
-            <span className="text-gray-800 dark:text-gray-400 font-bold text-2xl">.</span>
-          </Link>
-        ) : (
-          // D A S H B O A R D — วันที่
+      <div className="px-4 h-full flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-700 dark:text-gray-200 font-medium">
-              {dateStr}
-            </div>
+            <div className="text-sm text-gray-700 dark:text-gray-200 font-medium">{dateStr}</div>
           </div>
-        )}
-
-        {/* CENTER (เฉพาะ dashboard) */}
-        {!isLanding && (
           <div className="flex-1">
-            <div className="max-w-lg mx-auto">
-              <label className="sr-only">Search</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <HiOutlineSearch />
-                </span>
-                <input
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-100 dark:border-slate-700
-                             bg-gray-50 dark:bg-slate-800 text-sm placeholder-gray-400 dark:placeholder-gray-500
-                             text-gray-700 dark:text-gray-200"
-                  placeholder="Search courses, assignments..."
-                  aria-label="Search"
-                />
-              </div>
+            <div className="max-w-lg mx-auto relative">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><HiOutlineSearch /></span>
+                <input className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm" placeholder="Search..." />
             </div>
           </div>
-        )}
-
-        {/* RIGHT */}
-        {isLanding ? (
-          // L A N D I N G — Sign in / up
-          <div className="flex items-center gap-4 text-sm">
-            <Link
-              href="/signin"
-              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium hover:underline"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/signup"
-              className="bg-indigo-600 dark:bg-indigo-500 text-white rounded-md px-4 py-1.5 font-medium hover:bg-indigo-700 dark:hover:bg-indigo-400 transition"
-            >
-              Sign Up
-            </Link>
-          </div>
-        ) : (
-          // D A S H B O A R D — icons
           <nav className="flex items-center gap-3">
-            <button className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800">
-              <HiOutlineBell size={20} />
-            </button>
-            <Link
-              href="/profile"
-              className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800"
-            >
-              <HiOutlineUser size={20} />
-            </Link>
+            <button className="p-2 rounded-md hover:bg-gray-100"><HiOutlineBell size={20}/></button>
+            <Link href="/profile" className="p-2 rounded-md hover:bg-gray-100"><HiOutlineUser size={20}/></Link>
           </nav>
-        )}
       </div>
     </header>
   );

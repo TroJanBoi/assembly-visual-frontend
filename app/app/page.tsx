@@ -16,6 +16,9 @@ import PixelBackground from "@/components/ui/PixelBackground";
 import PixelBlast from "@/components/ui/LandingPage/PixelBlast";
 import DarkVeil from "@/components/ui/LandingPage/DarkVeil";
 import LogoWall from "@/components/ui/LandingPage/LogoWall";
+import Footer from "@/components/layout/Footer";
+import InteractiveDemo from "@/components/ui/LandingPage/InteractiveDemo";
+import ProfileCard from "@/components/ui/LandingPage/ProfileCard";
 
 // --- Logic ---
 function checkKey() {
@@ -30,9 +33,9 @@ function checkKey() {
 
 // --- Components ---
 
-const Section = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
+const Section = ({ children, className = "", id }: { children: React.ReactNode; className?: string; id?: string }) => {
     return (
-        <section className={`relative h-screen w-full snap-start overflow-hidden flex flex-col items-center justify-center ${className}`}>
+        <section id={id} className={`relative h-screen h-[100dvh] w-full snap-start overflow-hidden flex flex-col items-center justify-center ${className}`}>
             {children}
         </section>
     );
@@ -49,7 +52,7 @@ export default function Overview() {
     });
 
     return (
-        <div className="w-full h-screen overflow-y-scroll snap-y snap-mandatory scroll-smooth bg-slate-50 text-slate-900 selection:bg-indigo-500/30 font-sans">
+        <div className="w-full h-screen h-[100dvh] overflow-y-scroll snap-y snap-mandatory scroll-smooth bg-slate-50 text-slate-900 selection:bg-indigo-500/30 font-sans">
             {/* ProgressBar */}
             <motion.div
                 className="fixed top-0 left-0 right-0 h-1 bg-indigo-600 origin-left z-[60]"
@@ -82,7 +85,7 @@ export default function Overview() {
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
                         </span>
-                        Assembly Visual v1.0
+                        BLYLAB. v1.0
                     </motion.div>
 
                     <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-900 mb-[-0.2em] flex flex-col items-center gap-2">
@@ -142,13 +145,13 @@ export default function Overview() {
                 </div>
 
                 {/* Tech Stack Logo Wall */}
-                <div className="absolute bottom-0 w-full z-20 pointer-events-auto">
+                <div className="absolute bottom-0 w-full z-20 pointer-events-auto py-12">
                     <LogoWall />
                 </div>
             </Section>
 
             {/* SECTION 2: FEATURES (Spotlight Cards) */}
-            <Section className="bg-white relative">
+            <Section className="bg-white relative" id="features">
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:40px_40px]"></div>
 
                 <div className="relative z-10 max-w-7xl mx-auto px-6 w-full pointer-events-none">
@@ -207,7 +210,7 @@ export default function Overview() {
             </Section>
 
             {/* SECTION 3: INTERACTIVE DEMO (Screenshot/Animation) */}
-            <Section className="bg-slate-50">
+            <Section className="bg-slate-50" id="demo">
                 <div className="absolute inset-0 bg-white/40" />
 
                 <div className="relative z-10 container mx-auto px-6 text-center">
@@ -234,74 +237,70 @@ export default function Overview() {
                                 </div>
                                 <div className="h-6 w-32 bg-slate-200/50 rounded-full" />
                             </div>
-                            {/* Content Mock */}
-                            <div className="flex-1 relative bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-slate-50 flex items-center justify-center p-8 overflow-hidden">
-                                {/* Grid Background */}
-                                <div className="absolute inset-0 opacity-[0.05] bg-[size:20px_20px] bg-[linear-gradient(to_right,#000_1px,transparent_1px),linear-gradient(to_bottom,#000_1px,transparent_1px)]" />
-
-                                {/* Floating Nodes Animation */}
-                                <motion.div
-                                    drag
-                                    animate={{ x: [-50, 0, -50], y: [-20, 0, -20] }}
-                                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                                    className="absolute left-[20%] top-[30%] cursor-grab active:cursor-grabbing"
-                                >
-                                    <div className="px-5 py-3 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-indigo-100 text-indigo-700 font-mono font-bold flex items-center gap-3">
-                                        <div className="w-2 h-2 bg-indigo-500 rounded-full" />
-                                        MOV AX, 5
-                                    </div>
-                                </motion.div>
-
-                                <svg className="absolute inset-0 pointer-events-none w-full h-full filter drop-shadow-sm">
-                                    <motion.path
-                                        d="M 350 220 C 450 220 450 400 550 400"
-                                        stroke="#cbd5e1"
-                                        strokeWidth="3"
-                                        fill="none"
-                                    />
-                                    <motion.path
-                                        d="M 350 220 C 450 220 450 400 550 400"
-                                        stroke="#6366f1"
-                                        strokeWidth="3"
-                                        fill="none"
-                                        initial={{ pathLength: 0 }}
-                                        whileInView={{ pathLength: 1 }}
-                                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                    />
-                                    <circle cx="550" cy="400" r="4" fill="#6366f1" />
-                                    <circle cx="350" cy="220" r="4" fill="#cbd5e1" />
-                                </svg>
-
-                                <motion.div
-                                    drag
-                                    animate={{ x: [50, 0, 50], y: [20, 0, 20] }}
-                                    transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                                    className="absolute right-[20%] bottom-[30%] cursor-grab active:cursor-grabbing"
-                                >
-                                    <div className="px-5 py-3 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-purple-100 text-purple-700 font-mono font-bold flex items-center gap-3">
-                                        <div className="w-2 h-2 bg-purple-500 rounded-full" />
-                                        ADD AX, BX
-                                    </div>
-                                </motion.div>
+                            {/* Content - Real Component */}
+                            <div className="flex-1 relative">
+                                <InteractiveDemo />
                             </div>
                         </div>
                     </div>
                 </div>
             </Section>
 
-            {/* SECTION 4: FOOTER */}
-            <Section className="bg-slate-50 h-[50vh] min-h-[400px]">
-                <div className="w-full max-w-7xl px-6 grid gap-10 md:grid-cols-4 items-start">
-                    <div className="md:col-span-1">
-                        <h3 className="text-2xl font-black text-slate-900">BLYLAB<span className="text-indigo-600">.</span></h3>
-                        <p className="mt-4 text-sm text-slate-500 leading-relaxed">
-                            Empowering the next generation of systems programmers with visual learning tools.
-                        </p>
+            {/* SECTION 4: FOOTER & PROFILE */}
+            <Section className="h-auto bg-slate-950 flex flex-col " id="team">
+                <div className="w-full flex flex-col items-center py-20 relative z-20 px-6">
+                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-12 text-center">Meet the Team</h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto w-full">
+                        {/* Profile 1 */}
+                        <div className="flex justify-center">
+                            <ProfileCard
+                                name="Prakan Suma"
+                                title="Fontend Devoloper"
+                                handle="prakan"
+                                status="Building"
+                                contactText="Contact"
+                                avatarUrl="https://ui-avatars.com/api/?name=Prakan+Suma&background=random" 
+                                showUserInfo={true}
+                                enableTilt={true}
+                                enableMobileTilt={false}
+                            />
+                        </div>
+
+                        {/* Profile 2 */}
+                        <div className="flex justify-center">
+                            <ProfileCard
+                                name="xx"
+                                title="Backend Devoloper"
+                                handle="Perapon"
+                                status="Building"
+                                contactText="Portfolio"
+                                avatarUrl="https://ui-avatars.com/api/?name=Perapon+pil&background=random" 
+                                showUserInfo={true}
+                                enableTilt={true}
+                                enableMobileTilt={false}
+                            />
+                        </div>
+
+                        {/* Profile 3 */}
+                        <div className="flex justify-center">
+                            <ProfileCard
+                                name="xx"
+                                title="Fullstack Devoloper"
+                                handle="xx"
+                                status="Online"
+                                contactText="Connect"
+                                avatarUrl="https://ui-avatars.com/api/?name=xx&background=random" // Different mock ID
+                                showUserInfo={true}
+                                enableTilt={true}
+                                enableMobileTilt={false}
+                            />
+                        </div>
                     </div>
                 </div>
-                <div className="mt-20 text-slate-400 text-sm">
-                    © {new Date().getFullYear()} Assembly Visual. All rights reserved.
-                </div>
+                 <div className="w-full">
+                    <Footer />
+                 </div>
             </Section>
         </div>
     );

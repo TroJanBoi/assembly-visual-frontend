@@ -13,33 +13,21 @@ const logos = [
 
 export default function LogoWall() {
     return (
-        <div className="relative flex min-h-[100px] w-full flex-col items-center justify-center overflow-hidden bg-transparent py-4">
+        <div className="relative flex w-full flex-col items-center justify-center overflow-hidden bg-transparent py-2">
             <div className="flex w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20%,black_80%,transparent)]">
                 <motion.div
                     animate={{ x: "-50%" }}
                     transition={{
-                        duration: 20,
+                        duration: 40,
                         ease: "linear",
                         repeat: Infinity,
                     }}
                     className="flex flex-none gap-16 pr-16"
                 >
-                    {/* First set of logos */}
-                    {logos.map((logo, index) => (
+                    {/* Render 4 sets of logos to ensure seamless loop on wide screens */}
+                    {[...new Array(4)].fill(logos).flat().map((logo, index) => (
                         <div
                             key={index}
-                            className="flex items-center gap-2 transition-all hover:opacity-80"
-                        >
-                            <logo.icon className={`h-8 w-8 ${logo.color}`} />
-                            <span className="text-lg font-semibold text-slate-600">
-                                {logo.name}
-                            </span>
-                        </div>
-                    ))}
-                    {/* Second set of logos for seamless loop */}
-                    {logos.map((logo, index) => (
-                        <div
-                            key={`dup-${index}`}
                             className="flex items-center gap-2 transition-all hover:opacity-80"
                         >
                             <logo.icon className={`h-8 w-8 ${logo.color}`} />

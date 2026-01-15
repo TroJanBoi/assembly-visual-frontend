@@ -2,12 +2,11 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { signup } from "@/lib/api/auth";
 
-// Phone input (ธง+ประเทศครบ)
+// Phone input (Flag + Country)
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 
@@ -19,6 +18,8 @@ import "sweetalert2/dist/sweetalert2.min.css";
 import LandingNav from "@/components/layout/TopNav";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { useGlobalLoading } from "@/components/providers/GlobalLoadingProvider";
+import AuthDemo from "@/components/ui/Auth/AuthDemo";
+import { FaGoogle, FaArrowLeft } from "react-icons/fa6";
 
 const MySwal = withReactContent(Swal);
 
@@ -31,8 +32,8 @@ function PhoneField({
 }) {
   return (
     <div>
-      <label className="text-sm font-medium">Phone number</label>
-      <div className="mt-1">
+      <label className="text-sm font-semibold text-slate-700">Phone number</label>
+      <div className="mt-1.5">
         <PhoneInput
           country="th"
           value={value}
@@ -40,10 +41,10 @@ function PhoneField({
           enableSearch
           inputProps={{ name: "tel", required: true, autoFocus: false }}
           containerClass="!w-full"
-          inputClass="!w-full !h-11 !text-sm !rounded-lg !border !border-[var(--color-border)] !px-3
-                      focus:!border-[var(--color-primary)] focus:!ring-4 focus:!ring-[color:rgba(104,127,229,0.18)]"
-          buttonClass="!border-[var(--color-border)] !bg-white !rounded-l-lg"
-          dropdownClass="!z-50"
+          inputClass="!w-full !h-[46px] !text-sm !rounded-xl !border !border-slate-200 !bg-slate-50 !px-3 font-medium placeholder:text-slate-400
+                      focus:!border-indigo-500 focus:!ring-2 focus:!ring-indigo-500/20 !outline-none !transition-all"
+          buttonClass="!border-slate-200 !bg-slate-100 !rounded-l-xl hover:!bg-slate-200"
+          dropdownClass="!z-50 !shadow-lg !rounded-xl !border-slate-100"
         />
       </div>
     </div>
@@ -51,7 +52,6 @@ function PhoneField({
 }
 
 export default function SignUpPage() {
-  const pathname = usePathname();
   const router = useRouter();
 
   const [showPwd, setShowPwd] = useState(false);
@@ -76,39 +76,32 @@ export default function SignUpPage() {
     const email = String(form.get("email") || "").trim();
     const tel = "+" + String(phone).replace(/\D/g, ""); // E.164
 
-    // validate ด่วนๆ
-    if (!agree) return MySwal.fire({ icon: "warning", title: "Please accept the terms first." });
-    if (!firstName || !lastName) return MySwal.fire({ icon: "warning", title: "Please fill first/last name." });
-    if (!/^\S+@\S+\.\S+$/.test(email)) return MySwal.fire({ icon: "warning", title: "Please enter a valid email." });
-    if (pwd.length < 8) return MySwal.fire({ icon: "warning", title: "Password must be at least 8 characters." });
-    if (pwdMismatch) return MySwal.fire({ icon: "error", title: "Passwords do not match." });
+    if (!agree) return MySwal.fire({ icon: "warning", title: "Please accept the terms first.", toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+    if (!firstName || !lastName) return MySwal.fire({ icon: "warning", title: "Please fill first/last name.", toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+    if (!/^\S+@\S+\.\S+$/.test(email)) return MySwal.fire({ icon: "warning", title: "Please enter a valid email.", toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+    if (pwd.length < 8) return MySwal.fire({ icon: "warning", title: "Password must be at least 8 characters.", toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+    if (pwdMismatch) return MySwal.fire({ icon: "error", title: "Passwords do not match.", toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
 
     try {
       setLoading(true);
-      // await MySwal.fire({
-      //   title: "Processing...",
-      //   allowOutsideClick: false,
-      //   didOpen: () => { MySwal.showLoading(); },
-      // });
 
       const name = `${firstName} ${lastName}`;
       const res = await signup({ name, email, password: pwd, tel });
 
       await MySwal.fire({
         icon: "success",
-        title: "Welcome 🎉",
-        text: `Signup success: ${res?.email || name}`,
-        // confirmButtonText: "Go to Sign In",
+        title: "Welcome! account created.",
+        text: "Redirecting you to sign in...",
         showConfirmButton: false,
-        timer: 1300,
-        timerProgressBar: true
+        timer: 1500,
+        timerProgressBar: true,
+        toast: true, position: 'top-end'
       });
 
-      showGlobalLoading(); // Optional: if we want to block while going to signin
+      showGlobalLoading(); 
       router.push("/signin");
     } catch (err: any) {
       setLoading(false);
-      MySwal.close();
       MySwal.fire({
         icon: "error",
         title: "Signup failed",
@@ -116,153 +109,127 @@ export default function SignUpPage() {
         confirmButtonText: "Close",
       });
     }
-    // No finally { setLoading(false) } on success to keep UI stable during redirect
   };
 
   return (
-    <div className="min-h-screen bg-white text-neutral-800">
+    <div className="min-h-screen bg-white flex flex-col md:flex-row font-sans">
+      
+      {/* LEFT: Form Section */}
+      {/* LEFT: Visual Side (Hidden on Mobile) */}
+      <section className="hidden md:flex flex-1 bg-slate-50 p-0 items-center justify-center relative overflow-hidden border-r border-slate-200">
+        {/* Background Patterns */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:40px_40px] opacity-40" />
+        
+        {/* The AuthDemo Component - Full Size */}
+        <div className="w-full h-full relative z-10">
+            <AuthDemo />
+        </div>
+      </section>
 
-      {/* TOP BAR */}
-      <LandingNav />
-      {/* BODY */}
-      <main className="min-h-screen pt-[var(--topbar-height,64px)] flex flex-col gap-6 md:flex-row md:items-center p-6">
+      {/* RIGHT: Form Section */}
+      <section className="flex-1 flex flex-col justify-center px-4 sm:px-8 md:px-12 relative z-10 bg-white py-12">
+        <div className="absolute top-8 left-8">
+            <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors">
+                <FaArrowLeft /> Back
+            </Link>
+        </div>
 
-        {/* LEFT */}
-        <section className="flex-1 rounded-xl p-4">
-          <Image
-            src="/images/signin-1.png"
-            alt="Sign Up Illustration"
-            width={500}
-            height={500}
-            className="mx-auto"
-            priority
-          />
-        </section>
+        <div className="max-w-md w-full mx-auto space-y-6">
+            <div className="space-y-2">
+                <Link href="/" className="inline-block mb-2">
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">BLYLAB<span className="text-indigo-600">.</span></h1>
+                </Link>
+                <h2 className="text-3xl font-bold text-slate-900 leading-tight">Create an account</h2>
+                <p className="text-slate-500">Start learning low-level programming today.</p>
+            </div>
 
-        {/* RIGHT */}
-        <section className="flex-1 rounded-xl p-4 flex flex-col gap-6 justify-center items-center">
-          <div className="w-full text-neutral-800 flex justify-center p-6 md:p-0">
-            <div className="w-full max-w-sm">
-              <h1 className="text-2xl font-extrabold">
-                Welcome to <span className="text-[var(--color-primary)]">BLYLAB</span>.
-              </h1>
-              <p className="mt-1 text-sm text-sub">Time to learn! Please enter your details.</p>
-
-              {/* FORM */}
-              <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+            <form className="space-y-4" onSubmit={onSubmit}>
                 {/* Name pair */}
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="flex-1">
-                    <label htmlFor="firstName" className="text-sm font-medium">First name</label>
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <div className="flex-1 space-y-1.5">
+                    <label htmlFor="firstName" className="text-sm font-semibold text-slate-700">First name</label>
                     <input
-                      id="firstName" name="firstName" required placeholder="Enter your first name"
-                      className="mt-1 h-11 w-full rounded-lg border border-[var(--color-border)] px-3 text-sm
-                                 outline-none focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[color:rgba(104,127,229,0.18)]"
+                      id="firstName" name="firstName" required placeholder="John"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:text-slate-400"
                     />
                   </div>
-                  <div className="flex-1">
-                    <label htmlFor="lastName" className="text-sm font-medium">Last name</label>
+                  <div className="flex-1 space-y-1.5">
+                    <label htmlFor="lastName" className="text-sm font-semibold text-slate-700">Last name</label>
                     <input
-                      id="lastName" name="lastName" required placeholder="Enter your last name"
-                      className="mt-1 h-11 w-full rounded-lg border border-[var(--color-border)] px-3 text-sm
-                                 outline-none focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[color:rgba(104,127,229,0.18)]"
+                      id="lastName" name="lastName" required placeholder="Doe"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:text-slate-400"
                     />
                   </div>
                 </div>
 
                 {/* Email */}
-                <div>
-                  <label htmlFor="email" className="text-sm font-medium">Email</label>
+                <div className="space-y-1.5">
+                  <label htmlFor="email" className="text-sm font-semibold text-slate-700">Email</label>
                   <input
-                    id="email" name="email" type="email" autoComplete="email" required placeholder="Enter your email"
-                    className="mt-1 h-11 w-full rounded-lg border border-[var(--color-border)] px-3 text-sm
-                               outline-none focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[color:rgba(104,127,229,0.18)]"
+                    id="email" name="email" type="email" autoComplete="email" required placeholder="name@example.com"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:text-slate-400"
                   />
                 </div>
 
                 {/* Password */}
-                <div>
-                  <label htmlFor="password" className="text-sm font-medium">Password</label>
+                <div className="space-y-1.5">
+                  <label htmlFor="password" className="text-sm font-semibold text-slate-700">Password</label>
                   <div className="relative">
                     <input
                       id="password" name="password" type={showPwd ? "text" : "password"} minLength={8} required
                       onChange={(e) => setPwd(e.target.value)}
-                      placeholder="Enter your password"
-                      className="mt-1 h-11 w-full rounded-lg border border-[var(--color-border)] px-3 pr-12 text-sm
-                                 outline-none focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[color:rgba(104,127,229,0.18)]"
+                      placeholder="At least 8 characters"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:text-slate-400"
                     />
                     <button
-                      type="button" aria-label={showPwd ? "Hide password" : "Show password"}
+                      type="button" 
                       onClick={() => setShowPwd((s) => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md flex items-center justify-center
-                                 text-neutral-500 hover:text-[var(--color-primary)] hover:bg-neutral-100"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-indigo-600 px-2 py-1"
                     >
-                      {showPwd ? (
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 3l18 18" /><path d="M10.5 10.5a3 3 0 104.2 4.2" />
-                          <path d="M2 12s4-7 10-7c1.1 0 2.2.2 3.2.5" /><path d="M22 12s-4 7-10 7c-1.2 0-2.3-.2-3.3-.6" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
+                        {showPwd ? "Hide" : "Show"}
                     </button>
                   </div>
                 </div>
 
                 {/* Confirm Password */}
-                <div>
-                  <label htmlFor="confirm" className="text-sm font-medium">Confirm Password</label>
+                <div className="space-y-1.5">
+                  <label htmlFor="confirm" className="text-sm font-semibold text-slate-700">Confirm Password</label>
                   <div className="relative">
                     <input
                       id="confirm" name="confirm" type={showPwd2 ? "text" : "password"} minLength={8} required
                       onChange={(e) => setPwd2(e.target.value)}
-                      placeholder="Enter your confirm password"
-                      className={`mt-1 h-11 w-full rounded-lg border px-3 pr-12 text-sm outline-none
-                        ${pwdMismatch ? "border-red-300 focus:border-red-500 focus:ring-red-200" :
-                          "border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[color:rgba(104,127,229,0.18)]"}`}
+                      placeholder="Confirm your password"
+                      className={`w-full px-4 py-3 rounded-xl border bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium placeholder:text-slate-400
+                        ${pwdMismatch ? "border-red-300 focus:border-red-500" : "border-slate-200 focus:border-indigo-500"}`}
                     />
-                    <button
-                      type="button" aria-label={showPwd2 ? "Hide password" : "Show password"}
+                     <button
+                      type="button" 
                       onClick={() => setShowPwd2((s) => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md flex items-center justify-center
-                                 text-neutral-500 hover:text-[var(--color-primary)] hover:bg-neutral-100"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-indigo-600 px-2 py-1"
                     >
-                      {showPwd2 ? (
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 3l18 18" /><path d="M10.5 10.5a3 3 0 104.2 4.2" />
-                          <path d="M2 12s4-7 10-7c1.1 0 2.2.2 3.2.5" /><path d="M22 12s-4 7-10 7c-1.2 0-2.3-.2-3.3-.6" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
+                        {showPwd2 ? "Hide" : "Show"}
                     </button>
                   </div>
-                  {pwdMismatch && <p className="mt-1 text-xs text-red-600">Passwords do not match.</p>}
+                  {pwdMismatch && <p className="text-xs text-red-600 font-medium">Passwords do not match.</p>}
                 </div>
 
                 {/* Phone */}
                 <PhoneField value={phone} onChange={setPhone} />
 
                 {/* Terms */}
-                <label className="mt-3 inline-flex items-start gap-3 text-sm text-sub select-none">
+                <label className="flex items-start gap-3 text-sm text-slate-600 cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    className="mt-1 h-4 w-4 rounded accent-[var(--color-primary)]"
+                    className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 bg-slate-100"
                     checked={agree}
                     onChange={(e) => setAgree(e.target.checked)}
                     required
                   />
-                  <span className="leading-6">
+                  <span className="leading-snug">
                     I agree to the{" "}
-                    <a href="/terms" className="text-[var(--color-primary)] underline underline-offset-2">terms of service</a>{" "}
+                    <a href="/terms" className="font-semibold text-indigo-600 hover:underline">Terms of Service</a>{" "}
                     and{" "}
-                    <a href="/privacy" className="text-[var(--color-primary)] underline underline-offset-2">privacy policy</a>.
+                    <a href="/privacy" className="font-semibold text-indigo-600 hover:underline">Privacy Policy</a>.
                   </span>
                 </label>
 
@@ -272,36 +239,33 @@ export default function SignUpPage() {
                   isLoading={loading}
                   disabled={!agree || pwdMismatch}
                   loadingText="Creating account..."
-                  className="w-full"
+                  className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                 >
-                  Sign Up
+                  Create Account
                 </LoadingButton>
 
-                {/* OAuth (ตัวอย่างปุ่ม) */}
+                <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-4 text-slate-400 font-medium">Or continue with</span></div>
+                </div>
+
+                {/* OAuth */}
                 <button
                   type="button"
                   onClick={() => (window.location.href = "/api/auth/signin/google")}
-                  className="h-11 w-full rounded-lg border border-[var(--color-border)] bg-white text-sm font-medium hover:bg-neutral-50
-                             inline-flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-all flex items-center justify-center gap-2"
                 >
-                  <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden className="-ml-1 shrink-0">
-                    <path fill="#4285F4" d="M17.64 9.204c0-.638-.057-1.252-.163-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.797 2.718v2.258h2.908c1.699-1.565 2.685-3.87 2.685-6.617z" />
-                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.179l-2.908-2.258c-.806.54-1.836.86-3.048.86-2.344 0-4.33-1.58-5.036-3.708H.957v2.332C2.438 15.978 5.481 18 9 18z" />
-                    <path fill="#FBBC05" d="M3.964 10.715A5.41 5.41 0 013.684 9c0-.6.103-1.181.28-1.715V4.953H.957A9.01 9.01 0 000 9c0 1.477.354 2.872.957 4.047L3.964 10.715z" />
-                    <path fill="#EA4335" d="M9 3.542c1.322 0 2.512.455 3.447 1.35l2.59-2.59C13.463.86 11.426 0 9 0 5.481 0 2.438 2.022.957 4.953l3.007 2.332C3.67 5.157 5.656 3.542 9 3.542z" />
-                  </svg>
-                  Sign In with Google
+                  <FaGoogle className="text-slate-900" />
+                  Sign up with Google
                 </button>
 
-                <p className="text-center text-xs text-sub">
+                <p className="text-center text-sm text-slate-600">
                   Already have an account?{" "}
-                  <Link href="/signin" className="text-[var(--color-primary)] underline underline-offset-2">Sign In</Link>
+                  <Link href="/signin" className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline">Sign In</Link>
                 </p>
-              </form>
-            </div>
-          </div>
-        </section>
-      </main>
+            </form>
+        </div>
+      </section>
     </div>
   );
 }
