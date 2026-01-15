@@ -35,6 +35,9 @@ interface Props {
     // Selection Props
     selectedTestIds?: Set<string>;
     onToggleSelect?: (id: string, type: 'suite' | 'case', suiteId?: string) => void; // Suite toggle / Case toggle
+
+    // Permission Props
+    isOwner?: boolean; // True if user is teacher/owner
 }
 
 export default function TestSuiteList({
@@ -50,7 +53,8 @@ export default function TestSuiteList({
     onRunSuite,
     runningSuiteId,
     selectedTestIds,
-    onToggleSelect
+    onToggleSelect,
+    isOwner = true
 }: Props) {
 
     return (
@@ -77,6 +81,7 @@ export default function TestSuiteList({
                         runningSuiteId={runningSuiteId}
                         selectedTestIds={selectedTestIds}
                         onToggleSelect={onToggleSelect}
+                        isOwner={isOwner}
                     />
                 ))}
 
@@ -103,7 +108,8 @@ function SuiteItem({
     onRunSuite,
     runningSuiteId,
     selectedTestIds,
-    onToggleSelect
+    onToggleSelect,
+    isOwner = true
 }: {
     suite: TestSuite;
     selectedCaseId: string | null;
@@ -117,6 +123,7 @@ function SuiteItem({
     runningSuiteId?: string | null;
     selectedTestIds?: Set<string>;
     onToggleSelect?: (id: string, type: 'suite' | 'case', suiteId?: string) => void;
+    isOwner?: boolean;
 }) {
     const [isOpen, setIsOpen] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -221,6 +228,7 @@ function SuiteItem({
                             onToggleSelect={(cid) => onToggleSelect?.(cid, 'case', suite.id)}
                             onDelete={() => onDeleteCase(suite.id, t.id)}
                             onRename={(name) => onRenameCase(suite.id, t.id, name)}
+                            isOwner={isOwner}
                         />
                     ))}
 
@@ -250,7 +258,8 @@ function CaseItem({
     onSelect,
     onToggleSelect,
     onDelete,
-    onRename
+    onRename,
+    isOwner = true
 }: {
     testCase: TestCase,
     suiteId: string,
@@ -260,7 +269,8 @@ function CaseItem({
     onSelect: () => void,
     onToggleSelect?: (id: string) => void,
     onDelete: () => void,
-    onRename: (n: string) => void
+    onRename: (n: string) => void,
+    isOwner?: boolean
 }) {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(testCase.name);
@@ -298,7 +308,11 @@ function CaseItem({
                 </div>
             )}
 
-            <FileText size={14} className={isSelected ? "text-indigo-500" : "text-gray-400"} />
+            {testCase.isHidden && !isOwner ? (
+                <Lock size={14} className="text-amber-500" />
+            ) : (
+                <FileText size={14} className={isSelected ? "text-indigo-500" : "text-gray-400"} />
+            )}
 
             {isEditing ? (
                 <input
@@ -312,10 +326,13 @@ function CaseItem({
                     onClick={(e) => e.stopPropagation()}
                 />
             ) : (
-                <span className="truncate flex-1">{testCase.name}</span>
+                <span className={cn(
+                    "truncate flex-1",
+                    testCase.isHidden && !isOwner && "text-gray-400 italic"
+                )}>{testCase.name}{testCase.isHidden && !isOwner && " (Hidden)"}</span>
             )}
 
-            {!isLocked && !isEditing && (
+            {!isLocked && !isEditing && isOwner && !testCase.isHidden && (
                 <div className="hidden group-hover/case:flex items-center absolute right-2 bg-white/50 backdrop-blur-sm rounded shadow-sm border border-gray-100">
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}

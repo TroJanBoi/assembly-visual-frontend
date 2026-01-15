@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, ListTodo, Play } from "lucide-react";
+import { X, ListTodo, Play, Save, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     TestSuite,
@@ -12,28 +12,17 @@ import {
 import TestSuiteList from "./TestSuiteList";
 import TestCaseEditor from "./TestCaseEditor";
 import TestReportDialog from "./TestReportDialog";
-
-/* 
-  Mock Data for Dev (Will replace with persistent props later)
-*/
-const DEFAULT_SUITES: TestSuite[] = [
-    {
-        id: "suite-1",
-        name: "My Test Suite 1",
-        cases: [
-            {
-                id: "case-1",
-                name: "Test R0 Accumulator",
-                initialState: [
-                    { id: "c1", type: "Register", location: "R0", value: "0" }
-                ],
-                expectedState: [
-                    { id: "e1", type: "Register", location: "R0", value: "10" }
-                ]
-            }
-        ]
-    }
-];
+import {
+    getTestSuitesForAssignment,
+    createTestSuite,
+    updateTestSuite,
+    deleteTestSuite,
+    createTestCase,
+    updateTestCase,
+    deleteTestCase
+} from "@/lib/api/test_cases";
+import { apiFetch } from "@/lib/api/client";
+import toast from "react-hot-toast";
 
 interface Props {
     isOpen: boolean;
@@ -42,17 +31,58 @@ interface Props {
     onRunTestCase?: (testCase: TestCase) => Promise<TestResult>;
     onRunTestSuite?: (suite: TestSuite) => Promise<TestSuiteResult>;
     availableRegisters: string[];
+    assignmentId?: number; // Added for persistence
 }
 
-export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRunTestSuite, availableRegisters }: Props) {
-    const [suites, setSuites] = useState<TestSuite[]>(DEFAULT_SUITES);
+export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRunTestSuite, availableRegisters, assignmentId }: Props) {
+    const [suites, setSuites] = useState<TestSuite[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [isOwner, setIsOwner] = useState(false); // True if user is teacher/owner
 
     // Selection State
-    const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>("suite-1");
-    const [selectedCaseId, setSelectedCaseId] = useState<string | null>("case-1");
+    const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(null);
+    const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
     const activeSuite = suites.find(s => s.id === selectedSuiteId);
     const activeCase = activeSuite?.cases.find(c => c.id === selectedCaseId) ?? null;
+
+    // Load Data & User Profile
+    useEffect(() => {
+        if (isOpen && assignmentId) {
+            loadData();
+            loadUserProfile();
+        }
+    }, [isOpen, assignmentId]);
+
+    const loadUserProfile = async () => {
+        try {
+            const profile = await apiFetch<{ role: string }>(`/api/v2/profile/`);
+            setIsOwner(profile.role === 'teacher');
+        } catch (e) {
+            console.error('[TestManager] Failed to load user profile', e);
+            setIsOwner(false); // Default to student
+        }
+    };
+
+    const loadData = async () => {
+        if (!assignmentId) return;
+        setLoading(true);
+        try {
+            const data = await getTestSuitesForAssignment(assignmentId);
+            setSuites(data);
+            if (data.length > 0 && !selectedSuiteId) {
+                setSelectedSuiteId(data[0].id);
+                if (data[0].cases.length > 0) {
+                    setSelectedCaseId(data[0].cases[0].id);
+                }
+            }
+        } catch (e) {
+            toast.error("Failed to load test cases");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Handlers
     const handleSelectCase = (sId: string, cId: string) => {
@@ -60,27 +90,147 @@ export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRun
         setSelectedCaseId(cId);
     };
 
-    const handleAddSuite = () => {
-        const newSuite = createEmptyTestSuite();
-        setSuites([...suites, newSuite]);
-        // Auto select
-        setSelectedSuiteId(newSuite.id);
+    // --- Persistence Handlers (Direct API) ---
+
+    // 1. Suite Operations
+    const handleAddSuite = async () => {
+        if (!assignmentId) return;
+        const tempName = "New Test Suite";
+        try {
+            // Optimistic UI updates are complex with ID generation, so we wait for API
+            setSaving(true);
+            const newId = await createTestSuite(assignmentId, tempName);
+            const newSuite: TestSuite = {
+                id: newId.toString(),
+                name: tempName,
+                cases: []
+            };
+            setSuites([...suites, newSuite]);
+            setSelectedSuiteId(newSuite.id);
+            setSelectedCaseId(null);
+            toast.success("Suite created");
+        } catch (e) {
+            toast.error("Failed to create suite");
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const handleAddCase = (suiteId: string) => {
-        const newCase = createEmptyTestCase();
-        setSuites(prev => prev.map(s => {
-            if (s.id === suiteId) {
-                return { ...s, cases: [...s.cases, newCase] };
+    const handleRenameSuite = async (suiteId: string, newName: string) => {
+        try {
+            // Optimistic update
+            setSuites(prev => prev.map(s => s.id === suiteId ? { ...s, name: newName } : s));
+            await updateTestSuite(parseInt(suiteId), newName);
+        } catch (e) {
+            toast.error("Failed to rename suite");
+            // Revert? (Acceptable to skip for now or reload)
+        }
+    };
+
+    const handleDeleteSuite = async (suiteId: string) => {
+        if (!confirm("Are you sure you want to delete this test suite?")) return;
+        try {
+            setSaving(true);
+            await deleteTestSuite(parseInt(suiteId));
+            setSuites(prev => prev.filter(s => s.id !== suiteId));
+            if (selectedSuiteId === suiteId) {
+                setSelectedSuiteId(null);
+                setSelectedCaseId(null);
             }
-            return s;
-        }));
-        // Auto select
-        setSelectedSuiteId(suiteId);
-        setSelectedCaseId(newCase.id);
+            toast.success("Suite deleted");
+        } catch (e) {
+            toast.error("Failed to delete suite");
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const handleUpdateCase = (updated: TestCase) => {
+    // 2. Case Operations
+    const handleAddCase = async (suiteId: string) => {
+        const tempCase = createEmptyTestCase();
+        // Remove UUID, let DB generate? 
+        // Actually createEmptyTestCase generates a UUID. 
+        // We can treat it as temp ID until saved, but to be consistent with DB numeric IDs, 
+        // we should create via API first.
+
+        try {
+            setSaving(true);
+            const newId = await createTestCase(parseInt(suiteId), tempCase);
+            const backendCase: TestCase = { ...tempCase, id: newId.toString() };
+
+            setSuites(prev => prev.map(s => {
+                if (s.id === suiteId) {
+                    return { ...s, cases: [...s.cases, backendCase] };
+                }
+                return s;
+            }));
+
+            setSelectedSuiteId(suiteId);
+            setSelectedCaseId(backendCase.id);
+            toast.success("Test case created");
+        } catch (e) {
+            toast.error("Failed to create test case");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleRenameCase = async (suiteId: string, caseId: string, newName: string) => {
+        // Find case to get full object (needed for PUT)
+        const suite = suites.find(s => s.id === suiteId);
+        const testCase = suite?.cases.find(c => c.id === caseId);
+        if (!testCase) return;
+
+        const updatedCase = { ...testCase, name: newName };
+
+        try {
+            // Optimistic
+            setSuites(prev => prev.map(s => {
+                if (s.id === suiteId) {
+                    return {
+                        ...s,
+                        cases: s.cases.map(c => c.id === caseId ? { ...c, name: newName } : c)
+                    };
+                }
+                return s;
+            }));
+
+            // API
+            await updateTestCase(parseInt(caseId), updatedCase, parseInt(suiteId));
+        } catch (e) {
+            toast.error("Failed to rename case");
+        }
+    };
+
+    const handleDeleteCase = async (suiteId: string, caseId: string) => {
+        if (!confirm("Delete this test case?")) return;
+        try {
+            await deleteTestCase(parseInt(caseId));
+            setSuites(prev => prev.map(s => {
+                if (s.id === suiteId) {
+                    return { ...s, cases: s.cases.filter(c => c.id !== caseId) };
+                }
+                return s;
+            }));
+            if (selectedCaseId === caseId) {
+                setSelectedCaseId(null);
+            }
+            toast.success("Test case deleted");
+        } catch (e) {
+            toast.error("Failed to delete case");
+        }
+    };
+
+    // 3. Full Update (Content)
+    // The editor calls onUpdate when fields change. 
+    // We should probably Debounce this or add a explicit Save button in the Editor? 
+    // For now, let's keep the existing onUpdate (state only) and add a visual "Syncing..." 
+    // OR we change onUpdate to NOT auto-save, but we add a "Save" button to the editor header?
+    // User Requirement: "น่าจะต้องเพิ่มปุ่ม save" (Should add a save button). 
+    // Let's add an explicit save button for the Active Case content.
+
+    const handleUpdateCaseLocal = (updated: TestCase) => {
+        // Just update local state for UI responsiveness
         setSuites(prev => prev.map(s => {
             if (s.id === selectedSuiteId) {
                 return {
@@ -92,52 +242,20 @@ export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRun
         }));
     };
 
-    const handleRun = async () => {
-        if (activeCase && onRunTestCase) {
-            await onRunTestCase(activeCase);
+    const handleSaveCurrentCase = async () => {
+        if (!activeCase || !selectedSuiteId) return;
+        try {
+            setSaving(true);
+            await updateTestCase(parseInt(activeCase.id), activeCase, parseInt(selectedSuiteId));
+            toast.success("Saved changes");
+        } catch (e) {
+            toast.error("Failed to save");
+            console.error(e);
+        } finally {
+            setSaving(false);
         }
     };
 
-    // New Handlers for Edit/Delete actions
-    const handleDeleteSuite = (suiteId: string) => {
-        if (confirm("Are you sure you want to delete this test suite?")) {
-            setSuites(prev => prev.filter(s => s.id !== suiteId));
-            if (selectedSuiteId === suiteId) {
-                setSelectedSuiteId(null);
-                setSelectedCaseId(null);
-            }
-        }
-    };
-
-    const handleRenameSuite = (suiteId: string, newName: string) => {
-        setSuites(prev => prev.map(s => s.id === suiteId ? { ...s, name: newName } : s));
-    };
-
-    const handleDeleteCase = (suiteId: string, caseId: string) => {
-        if (confirm("Delete this test case?")) {
-            setSuites(prev => prev.map(s => {
-                if (s.id === suiteId) {
-                    return { ...s, cases: s.cases.filter(c => c.id !== caseId) };
-                }
-                return s;
-            }));
-            if (selectedCaseId === caseId) {
-                setSelectedCaseId(null);
-            }
-        }
-    };
-
-    const handleRenameCase = (suiteId: string, caseId: string, newName: string) => {
-        setSuites(prev => prev.map(s => {
-            if (s.id === suiteId) {
-                return {
-                    ...s,
-                    cases: s.cases.map(c => c.id === caseId ? { ...c, name: newName } : c)
-                };
-            }
-            return s;
-        }));
-    };
 
     // Report State
     const [reportResult, setReportResult] = useState<TestSuiteResult | null>(null);
@@ -257,11 +375,25 @@ export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRun
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900">Test Manager</h2>
-                                <p className="text-sm text-gray-500">Create, edit, and run test cases</p>
+                                <p className="text-sm text-gray-500">
+                                    {loading ? "Loading..." : "Create, edit, and run test cases"}
+                                </p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {/* Save Button for Active Case */}
+                            {activeCase && (
+                                <button
+                                    onClick={handleSaveCurrentCase}
+                                    disabled={saving}
+                                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg shadow-sm transition-all disabled:opacity-50"
+                                >
+                                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                    Save Changes
+                                </button>
+                            )}
+
                             {selectedTestIds.size > 0 && (
                                 <button
                                     onClick={handleRunSelected}
@@ -285,36 +417,51 @@ export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRun
                     <div className="flex-1 flex overflow-hidden">
                         {/* Left Sidebar: Test Suites & Cases */}
                         <div className="w-80 flex-shrink-0">
-                            <TestSuiteList
-                                suites={suites}
-                                selectedCaseId={selectedCaseId}
-                                onSelectCase={(sId, cId) => {
-                                    setSelectedSuiteId(sId);
-                                    setSelectedCaseId(cId);
-                                }}
-                                onAddSuite={handleAddSuite}
-                                onAddCase={handleAddCase}
-                                onDeleteSuite={handleDeleteSuite}
-                                onRenameSuite={handleRenameSuite}
-                                onDeleteCase={handleDeleteCase}
-                                onRenameCase={handleRenameCase}
-                                // Pass run capability
-                                onRunSuite={handleRunSuite}
-                                runningSuiteId={runningSuiteId}
-                                selectedTestIds={selectedTestIds}
-                                onToggleSelect={handleToggleSelect}
-                            />
+                            {loading ? (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    <Loader2 size={32} className="animate-spin" />
+                                </div>
+                            ) : (
+                                <TestSuiteList
+                                    suites={suites}
+                                    selectedCaseId={selectedCaseId}
+                                    onSelectCase={(sId, cId) => {
+                                        setSelectedSuiteId(sId);
+                                        setSelectedCaseId(cId);
+                                    }}
+                                    onAddSuite={handleAddSuite}
+                                    onAddCase={handleAddCase}
+                                    onDeleteSuite={handleDeleteSuite}
+                                    onRenameSuite={handleRenameSuite}
+                                    onDeleteCase={handleDeleteCase}
+                                    onRenameCase={handleRenameCase}
+                                    // Pass run capability
+                                    onRunSuite={handleRunSuite}
+                                    runningSuiteId={runningSuiteId}
+                                    selectedTestIds={selectedTestIds}
+                                    onToggleSelect={handleToggleSelect}
+                                    isOwner={isOwner}
+                                />
+                            )}
                         </div>
 
                         {/* Right: Case Editor */}
                         <div className="flex-1 bg-white relative">
-                            <TestCaseEditor
-                                testCase={activeCase}
-                                onUpdate={handleUpdateCase}
-                                onRun={handleRunCase}
-                                availableRegisters={availableRegisters}
-                                isRunning={false}
-                            />
+                            {activeCase ? (
+                                <TestCaseEditor
+                                    testCase={activeCase}
+                                    onUpdate={handleUpdateCaseLocal}
+                                    onRun={handleRunCase}
+                                    availableRegisters={availableRegisters}
+                                    isRunning={false}
+                                    isOwner={isOwner}
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50/50">
+                                    <ListTodo size={48} className="mb-4 opacity-20" />
+                                    <p>Select a test case to edit</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

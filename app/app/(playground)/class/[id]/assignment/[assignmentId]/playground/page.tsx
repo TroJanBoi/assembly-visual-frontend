@@ -2275,6 +2275,7 @@ export default function AssignmentPlaygroundPage() {
         onRunTestCase={handleRunTestCase}
         onRunTestSuite={handleRunTestSuite}
         availableRegisters={registerNames}
+        assignmentId={Number(assignmentId)}
       />
 
 

@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Lock } from "lucide-react";
 import { TestCase, TestCondition, TestLocationType } from "@/lib/playground/test_runner";
 import { cn } from "@/lib/utils";
 import ModernDropdown from "@/components/ui/ModernDropdown";
@@ -11,9 +11,10 @@ interface Props {
     onRun?: () => void;
     isRunning?: boolean;
     availableRegisters: string[];
+    isOwner?: boolean; // True if user is teacher/owner
 }
 
-export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, availableRegisters }: Props) {
+export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, availableRegisters, isOwner = true }: Props) {
     if (!testCase) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
@@ -21,6 +22,9 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
             </div>
         );
     }
+
+    const isHidden = testCase.isHidden && !isOwner;
+    const canEdit = isOwner && !testCase.isHidden;
 
     const addCondition = (target: "initialState" | "expectedState") => {
         const newCond: TestCondition = {
@@ -71,43 +75,56 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Initial State</h3>
-                        <button
-                            onClick={() => addCondition("initialState")}
-                            className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
-                        >
-                            <Plus size={14} /> Add Value
-                        </button>
+                        {canEdit && (
+                            <button
+                                onClick={() => addCondition("initialState")}
+                                className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
+                            >
+                                <Plus size={14} /> Add Value
+                            </button>
+                        )}
                     </div>
 
 
                     <div className="w-full">
-                        {/* Table Header */}
-                        {testCase.initialState.length > 0 && (
-                            <div className="grid grid-cols-12 gap-4 mb-2 text-xs font-semibold text-gray-500 px-2">
-                                <div className="col-span-1">#</div>
-                                <div className="col-span-3">Type</div>
-                                <div className="col-span-3">Target / Address</div>
-                                <div className="col-span-4">Value</div>
+                        {isHidden ? (
+                            <div className="text-center py-12 text-gray-400 bg-amber-50 border-2 border-dashed border-amber-200 rounded-lg">
+                                <Lock size={32} className="mx-auto mb-3 text-amber-500" />
+                                <p className="text-sm font-medium text-gray-600">Hidden Test Case</p>
+                                <p className="text-xs mt-1">Initial state is hidden from students</p>
                             </div>
-                        )}
+                        ) : (
+                            <>
+                                {/* Table Header */}
+                                {testCase.initialState.length > 0 && (
+                                    <div className="grid grid-cols-12 gap-4 mb-2 text-xs font-semibold text-gray-500 px-2">
+                                        <div className="col-span-1">#</div>
+                                        <div className="col-span-3">Type</div>
+                                        <div className="col-span-3">Target / Address</div>
+                                        <div className="col-span-4">Value</div>
+                                    </div>
+                                )}
 
-                        <div className="space-y-1">
-                            {testCase.initialState.map((cond, idx) => (
-                                <ConditionRow
-                                    key={cond.id}
-                                    index={idx + 1}
-                                    condition={cond}
-                                    onChange={(f, v) => updateCondition("initialState", cond.id, f, v)}
-                                    onRemove={() => removeCondition("initialState", cond.id)}
-                                    availableRegisters={availableRegisters}
-                                />
-                            ))}
-                        </div>
+                                <div className="space-y-1">
+                                    {testCase.initialState.map((cond, idx) => (
+                                        <ConditionRow
+                                            key={cond.id}
+                                            index={idx + 1}
+                                            condition={cond}
+                                            onChange={(f, v) => updateCondition("initialState", cond.id, f, v)}
+                                            onRemove={() => removeCondition("initialState", cond.id)}
+                                            availableRegisters={availableRegisters}
+                                            readOnly={!canEdit}
+                                        />
+                                    ))}
+                                </div>
 
-                        {testCase.initialState.length === 0 && (
-                            <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg">
-                                No initial conditions set
-                            </div>
+                                {testCase.initialState.length === 0 && (
+                                    <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg">
+                                        No initial conditions set
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </section>
@@ -118,42 +135,55 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Expected Final State</h3>
-                        <button
-                            onClick={() => addCondition("expectedState")}
-                            className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
-                        >
-                            <Plus size={14} /> Add Expectation
-                        </button>
+                        {canEdit && (
+                            <button
+                                onClick={() => addCondition("expectedState")}
+                                className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
+                            >
+                                <Plus size={14} /> Add Expectation
+                            </button>
+                        )}
                     </div>
 
                     <div className="w-full">
-                        {/* Table Header */}
-                        {testCase.expectedState.length > 0 && (
-                            <div className="grid grid-cols-12 gap-4 mb-2 text-xs font-semibold text-gray-500 px-2">
-                                <div className="col-span-1">#</div>
-                                <div className="col-span-3">Type</div>
-                                <div className="col-span-3">Target / Address</div>
-                                <div className="col-span-4">Value</div>
+                        {isHidden ? (
+                            <div className="text-center py-12 text-gray-400 bg-amber-50 border-2 border-dashed border-amber-200 rounded-lg">
+                                <Lock size={32} className="mx-auto mb-3 text-amber-500" />
+                                <p className="text-sm font-medium text-gray-600">Hidden Test Case</p>
+                                <p className="text-xs mt-1">Expected state is hidden from students</p>
                             </div>
-                        )}
+                        ) : (
+                            <>
+                                {/* Table Header */}
+                                {testCase.expectedState.length > 0 && (
+                                    <div className="grid grid-cols-12 gap-4 mb-2 text-xs font-semibold text-gray-500 px-2">
+                                        <div className="col-span-1">#</div>
+                                        <div className="col-span-3">Type</div>
+                                        <div className="col-span-3">Target / Address</div>
+                                        <div className="col-span-4">Value</div>
+                                    </div>
+                                )}
 
-                        <div className="space-y-1">
-                            {testCase.expectedState.map((cond, idx) => (
-                                <ConditionRow
-                                    key={cond.id}
-                                    index={idx + 1}
-                                    condition={cond}
-                                    onChange={(f, v) => updateCondition("expectedState", cond.id, f, v)}
-                                    onRemove={() => removeCondition("expectedState", cond.id)}
-                                    availableRegisters={availableRegisters}
-                                />
-                            ))}
-                        </div>
+                                <div className="space-y-1">
+                                    {testCase.expectedState.map((cond, idx) => (
+                                        <ConditionRow
+                                            key={cond.id}
+                                            index={idx + 1}
+                                            condition={cond}
+                                            onChange={(f, v) => updateCondition("expectedState", cond.id, f, v)}
+                                            onRemove={() => removeCondition("expectedState", cond.id)}
+                                            availableRegisters={availableRegisters}
+                                            readOnly={!canEdit}
+                                        />
+                                    ))}
+                                </div>
 
-                        {testCase.expectedState.length === 0 && (
-                            <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg">
-                                No expectations set
-                            </div>
+                                {testCase.expectedState.length === 0 && (
+                                    <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg">
+                                        No expectations set
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </section>
@@ -181,13 +211,15 @@ function ConditionRow({
     condition,
     onChange,
     onRemove,
-    availableRegisters
+    availableRegisters,
+    readOnly = false
 }: {
     index: number;
     condition: TestCondition;
     onChange: (field: keyof TestCondition, value: string) => void;
     onRemove: () => void;
     availableRegisters: string[];
+    readOnly?: boolean;
 }) {
 
     // --- Helpers for Options ---

@@ -535,5 +535,108 @@
       "description": "Introduction to Assembly Programming",
       "teacher_id": 2
     }
+  ],
+  "test_suites": [
+    {
+      "id": 1,
+      "assignment_id": 3,
+      "name": "Grading Suite (Hidden)",
+      "created_at": "2025-01-14T12:00:00Z"
+    },
+    {
+      "id": 2,
+      "assignment_id": 3,
+      "name": "Practice Suite (Public)",
+      "created_at": "2025-01-14T12:00:00Z"
+    }
+  ],
+  "test_cases": [
+    {
+      "id": 1,
+      "test_suite_id": 1,
+      "name": "Hidden Grade Case 1",
+      "init": {
+        "_meta": {
+          "is_hidden": true
+        },
+        "registers": {
+          "R0": 10
+        },
+        "memory": {},
+        "flags": {
+          "Z": 0,
+          "C": 0
+        },
+        "io_input": {
+          "0": "100\n"
+        }
+      },
+      "assert": {
+        "registers": {
+          "R0": 110
+        },
+        "halted": true
+      },
+      "created_at": "2025-01-14T12:00:00Z"
+    },
+    {
+      "id": 2,
+      "test_suite_id": 1,
+      "name": "Hidden Grade Case 2",
+      "init": {
+        "_meta": {
+          "is_hidden": true
+        },
+        "registers": {
+          "R0": 0
+        },
+        "memory": {
+          "10": 55
+        },
+        "io_input": {}
+      },
+      "assert": {
+        "memory": {
+          "10": 56
+        },
+        "halted": true
+      },
+      "created_at": "2025-01-14T12:00:00Z"
+    },
+    {
+      "id": 3,
+      "test_suite_id": 2,
+      "name": "Public Case 1: IO Check",
+      "init": {
+        "registers": {},
+        "io_input": {
+          "0": "Hello\n"
+        }
+      },
+      "assert": {
+        "io_output": {
+          "10": "Hello\n"
+        }
+      },
+      "created_at": "2025-01-14T12:00:00Z"
+    },
+    {
+      "id": 4,
+      "test_suite_id": 2,
+      "name": "Public Case 2: Zero Flag",
+      "init": {
+        "registers": {
+          "R0": 5,
+          "R1": 5
+        },
+        "io_input": {}
+      },
+      "assert": {
+        "flags": {
+          "Z": 1
+        }
+      },
+      "created_at": "2025-01-14T12:00:00Z"
+    }
   ]
 }

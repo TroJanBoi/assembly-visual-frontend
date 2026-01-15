@@ -18,6 +18,7 @@ export interface TestCase {
     name: string;
     initialState: TestCondition[];
     expectedState: TestCondition[];
+    isHidden?: boolean; // True for grading test cases hidden from students
 }
 
 export interface TestSuite {
