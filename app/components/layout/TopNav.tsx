@@ -24,13 +24,13 @@ export default function TopNav() {
       const day = now.getDate();
       const year = now.getFullYear();
       setDateStr(`${month}, ${day} ${year}`);
-    } catch {}
+    } catch { }
   }, [isLanding]);
 
   return (
     <header
       role="banner"
-      className="fixed top-0 z-30 shadow-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur
+      className="fixed top-0 z-30 backdrop-blur bg-white/80 dark:bg-slate-900/80 
                  border-b border-gray-100 dark:border-slate-800"
       style={{
         // landing ไม่ต้องเลื่อนตาม sidebar, dashboard ให้ชิดขวาตาม sidebar
@@ -52,9 +52,10 @@ export default function TopNav() {
           // L A N D I N G  — โลโก้
           <Link
             href="/"
-            className="text-lg font-semibold tracking-tight text-[var(--color-primary)]"
+
           >
-            BLYLAB.
+            <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400 ">BLYLAB</span>
+            <span className="text-gray-800 dark:text-gray-400 font-bold text-2xl">.</span>
           </Link>
         ) : (
           // D A S H B O A R D — วันที่
@@ -92,13 +93,13 @@ export default function TopNav() {
           <div className="flex items-center gap-4 text-sm">
             <Link
               href="/signin"
-              className="text-[var(--color-primary)] hover:underline"
+              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium hover:underline"
             >
               Sign In
             </Link>
             <Link
               href="/signup"
-              className="bg-[var(--color-primary)] text-white rounded-md px-4 py-1.5 font-medium hover:opacity-90 transition"
+              className="bg-indigo-600 dark:bg-indigo-500 text-white rounded-md px-4 py-1.5 font-medium hover:bg-indigo-700 dark:hover:bg-indigo-400 transition"
             >
               Sign Up
             </Link>

@@ -1,458 +1,308 @@
-/* app/page.tsx */
 "use client";
+
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+
+import { motion, useScroll, useSpring } from "framer-motion";
 import LandingNav from "@/components/layout/TopNav";
+import { Loader2, Cpu, Grid, PlayCircle, Code2, ArrowRight, Zap, Users, Brain, Layers } from "lucide-react";
 
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-lg border border-gray-200 dark:border-slate-700 px-2.5 py-1 text-xs font-medium
-                     bg-white/70 dark:bg-slate-800/70 backdrop-blur">
-      {children}
-    </span>
-  );
-}
+// React Bits Components
+import DecryptedText from "@/components/ui/DecryptedText";
+import RotatingText from "@/components/ui/RotatingText";
+import SpotlightCard from "@/components/ui/SpotlightCard";
+import PixelBackground from "@/components/ui/PixelBackground";
+import PixelBlast from "@/components/ui/LandingPage/PixelBlast";
+import DarkVeil from "@/components/ui/LandingPage/DarkVeil";
+import LogoWall from "@/components/ui/LandingPage/LogoWall";
 
-function NodeChip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex h-7 items-center rounded-md border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 px-2 text-xs font-semibold">
-      {children}
-    </span>
-  );
-}
-
+// --- Logic ---
 function checkKey() {
-    localStorage.getItem("authToken");
-    if (localStorage.getItem("authToken") == null) {
-      window.location.href = "/signin";
-    } else {
-        window.location.href = "/class";
+    if (typeof window !== "undefined") {
+        if (localStorage.getItem("authToken") == null) {
+            window.location.href = "/signin";
+        } else {
+            window.location.href = "/class";
+        }
     }
 }
 
-function NodeCard({
-  className = "",
-  tone = "blue", // "blue" | "amber" | "violet"
-  label,
-  reg,
-  value,
-  prefix,
-}: {
-  className?: string;
-  tone?: "blue" | "amber" | "violet";
-  label: string;
-  reg: string;
-  value: string;
-  prefix?: string;
-}) {
-  const tones: Record<string, { ring: string; fill: string; text: string }> = {
-    blue:   { ring: "ring-blue-200",   fill: "bg-blue-50",   text: "text-blue-700" },
-    amber:  { ring: "ring-amber-200",  fill: "bg-amber-50",  text: "text-amber-700" },
-    violet: { ring: "ring-violet-200", fill: "bg-violet-50", text: "text-violet-700" },
-  };
+// --- Components ---
 
-  const t = tones[tone];
-  return (
-    <div
-      className={`rounded-xl border border-gray-200 dark:border-slate-700 bg-white shadow-sm ring-1 ${t.ring} ${className}`}
-    >
-      <div className={`flex items-center gap-2 px-3 py-2 ${t.fill}`}>
-        <NodeChip>{prefix || ""}</NodeChip>
-        <span className={`text-sm font-extrabold ${t.text}`}>{label}</span>
-        <div className="flex-1" />
-        <NodeChip>{reg}</NodeChip>
-        <NodeChip>{value}</NodeChip>
-      </div>
-      {/* “pins” */}
-      <div className="flex items-center justify-between px-3 pb-2 pt-1">
-        <span className="h-2 w-2 rounded-full bg-gray-300" />
-        <span className="h-2 w-2 rounded-full bg-gray-300" />
-      </div>
-    </div>
-  );
-}
+const Section = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
+    return (
+        <section className={`relative h-screen w-full snap-start overflow-hidden flex flex-col items-center justify-center ${className}`}>
+            {children}
+        </section>
+    );
+};
 
+// --- Main Page ---
 
 export default function Overview() {
-  return (
-    <div className="w-full">
-        <LandingNav />
-        {/* HERO */}
-        <section className="relative">
-        <div className="mx-auto max-w-7xl px-6 py-16 lg:py-24">
-            <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-                {/* LEFT */}
-                    <div>
-                        <h1 className="text-4xl lg:text-5xl font-black leading-tight tracking-tight">
-                            Learn Assembly easier
-                            <br className="hidden sm:block" />
-                            <span className="block mt-1 bg-gradient-to-r from-[#8CA1FF] to-[#6E86F1] bg-clip-text text-transparent">
-                                with Nodes building games
+    const { scrollYProgress } = useScroll();
+    const scaleX = useSpring(scrollYProgress, {
+        stiffness: 100,
+        damping: 30,
+        restDelta: 0.001
+    });
+
+    return (
+        <div className="w-full h-screen overflow-y-scroll snap-y snap-mandatory scroll-smooth bg-slate-50 text-slate-900 selection:bg-indigo-500/30 font-sans">
+            {/* ProgressBar */}
+            <motion.div
+                className="fixed top-0 left-0 right-0 h-1 bg-indigo-600 origin-left z-[60]"
+                style={{ scaleX }}
+            />
+
+            <div className="fixed top-0 left-0 w-full z-50">
+                <LandingNav />
+            </div>
+
+            {/* SECTION 1: HERO (Pixel Blast Background) */}
+            <Section className="bg-slate-50">
+                {/* Pixel Blast Effect */}
+                <div className=" absolute inset-0 z-0">
+                    <DarkVeil />
+                </div>
+
+                {/* Light Gradient Overlay */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(99,102,241,0.1),rgba(255,255,255,0))] pointer-events-none z-0" />
+
+                <div className="relative z-10 max-w-6xl mx-auto px-6 text-center flex flex-col items-center gap-8 pointer-events-none">
+                    {/* Allow pointer events for buttons */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8 }}
+                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-200 bg-white/50 backdrop-blur-sm text-indigo-700 text-xs font-medium uppercase tracking-wider mb-4 shadow-sm pointer-events-auto"
+                    >
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+                        </span>
+                        Assembly Visual v1.0
+                    </motion.div>
+
+                    <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-900 mb-[-0.2em] flex flex-col items-center gap-2">
+                        {/* React Bits: Decrypted Text */}
+                        <div className="pointer-events-auto">
+                            <DecryptedText
+                                text="Assembly Visual"
+                                animateOn="view"
+                                speed={70}
+                                className="bg-clip-text text-transparent bg-gradient-to-br from-slate-900 via-slate-700 to-slate-900 pb-2"
+                            />
+                        </div>
+
+                        {/* React Bits: Rotating Text */}
+                        <div className="pt-3 text-4xl md:text-6xl text-indigo-600 flex items-center gap-3 pointer-events-auto">
+                            <span className="text-slate-400 font-bold opacity-80">with</span>
+                            <RotatingText
+                                texts={["Visual Nodes", "Real-time CPU", "Memory Maps", "Interactive Graphs"]}
+                                rotationInterval={2500}
+                                className="p-2"
+                            />
+                        </div>
+                    </h1>
+
+                    <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1, duration: 0.8 }}
+                        className="mt-8 text-lg text-slate-600 max-w-2xl leading-relaxed font-medium pointer-events-auto"
+                    >
+                        Visualize registers, memory, and valid architecture instruction flow.
+                        The modern way to learn low-level programming.
+                    </motion.p>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.2, duration: 0.8 }}
+                        className="mt-10 flex flex-wrap gap-4 justify-center pointer-events-auto"
+                    >
+                        <button
+                            onClick={checkKey}
+                            className="group relative px-8 py-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 transform skew-y-12" />
+                            <span className="relative flex items-center gap-2">
+                                Start Coding <ArrowRight className="group-hover:translate-x-1 transition-transform" />
                             </span>
-                        </h1>
-
-                        <p className="mt-4 text-gray-600 dark:text-gray-400 max-w-xl">
-                            Have fun learning assembly language with us, learning in a virtual programming style
-                            that simulates writing the language in a node format.
-                        </p>
-
-                        <div className="mt-6 flex flex-wrap gap-2">
-                            <Chip>MOV</Chip>
-                            <Chip>ADD</Chip>
-                            <Chip>SUB</Chip>
-                            <Chip>JMP</Chip>
-                            <Chip>CMP</Chip>
-                        </div>
-
-                        <div className="mt-8 flex gap-3">
-                            <a
-                                onClick={() => checkKey()}
-                                className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-white shadow hover:opacity-90"
-                            >
-                                Start learning
-                            </a>
-                            <a
-                                onClick={() => checkKey()}
-                                className="rounded-lg border px-4 py-2 hover:bg-gray-50 dark:hover:bg-slate-800"
-                            >
-                                Browse examples
-                            </a>
-                        </div>
-                    </div>
-                {/* RIGHT */}
-                <div className="relative h-[420px]">
-                    <Image
-                        src="/images/hero_0.png"
-                        alt="Hero Image"
-                        fill
-                        className="object-contain"
-                        priority
-                    />
-                </div>
-            </div>
-        </div>
-        </section>
-
-
-        {/* ABOUT ASSEMBLY */}
-        <section className="relative h-[500px]">
-
-            <div className="absolute inset-0 flex items-end justify-center pb-[20px] z-0">
-                <Image
-                    src="/images/bg_0.png"
-                    alt="Background Illustration"
-                    fill
-                    className="object-contain opacity-80 pointer-events-none"
-                    priority
-                />
-            </div>
-
-
-        <div className="relative z-10 mx-auto max-w-6xl px-6 py-20">
-            <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-                {/* LEFT */}
-                <div className="relative h-[420px]">
-                    <Image
-                        src="/images/about-assembly.png"
-                        className="object-contain"
-                        fill
-                        priority
-                        alt="About Assembly Illustration"
-                    />
+                        </button>
+                        <button
+                            onClick={checkKey}
+                            className="px-8 py-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-lg transition-all shadow-sm hover:shadow"
+                        >
+                            View Examples
+                        </button>
+                    </motion.div>
                 </div>
 
-                {/* RIGHT */}
-                <div>
-                    <h2 className="text-2xl sm:text-3xl font-semibold">
-                        Title About the Assembly Language
-                    </h2>
-                    <p className="mt-3 text-gray-600 dark:text-gray-400">
-                        Learn registers, flags, flow control and memory addressing from the ground up.
-                        Our bite-sized lessons map 1:1 to the opcodes you’ll use in real code.
-                    </p>
+                {/* Tech Stack Logo Wall */}
+                <div className="absolute bottom-0 w-full z-20 pointer-events-auto">
+                    <LogoWall />
                 </div>
-            </div>
-        </div>
-        </section>
+            </Section>
 
+            {/* SECTION 2: FEATURES (Spotlight Cards) */}
+            <Section className="bg-white relative">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:40px_40px]"></div>
 
-      {/* ABOUT PLATFORM */}
-        <section className="relative bg-grid">
-            <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-                <div className="max-w-3xl mx-auto">
-                    {/* Title */}
-                    <h2 className="text-2xl sm:text-3xl font-semibold">
-                        Title about platform
-                    </h2>
-
-                    {/* Subtext */}
-                    
-                </div>
-
-                {/* Node Graphic */}
-                <div className="relative mt-10 flex justify-center">
-                <Image
-                    src="/images/MOVnode.png"  // ← ใส่ชื่อไฟล์ของคุณที่นี่ เช่น about-platform.png
-                    alt="Platform Node Example"
-                    width={700}
-                    height={300}
-                    priority
-                    className="object-contain w-full max-w-xl drop-shadow-sm"
-                />
-
-                </div>
-                <p className="mt-3 text-gray-600 dark:text-gray-400">
-                    Drag nodes, wire data, and watch instructions execute step-by-step with
-                    register visualizers. Save, share, and remix puzzles with your class.
-                </p>
-
-                {/* Chip examples */}
-                {/* <div className="mt-6 flex justify-center gap-2">
-                <Chip>MOV</Chip>
-                <Chip>ADD</Chip>
-                <Chip>JNZ</Chip>
-                </div> */}
-            </div>
-        </section>
-
-
-        <section className="relative">
-            <div className="mx-auto max-w-7xl px-6 py-24">
-                <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
-                    {/* LEFT – Image cluster */}
-                    <div className="relative w-full max-w-[560px] mx-auto lg:mx-0">
-                        <div className="grid grid-cols-2 gap-6">
-                        {/* TL: small square */}
-                        <Image
-                            src="/images/p1.png"
-                            alt="Student learning"
-                            width={560}
-                            height={560}
-                            className="h-49 w-full object-cover"
-                            priority
-                        />
-
-                        {/* TR: tall portrait */}
-                        <Image
-                            src="/images/p2.png"
-                            alt="Teacher explaining"
-                            width={560}
-                            height={840}
-                            className="h-65 w-full object-cover rounded-[20px] "
-                        />
-
-                        {/* BL: medium landscape */}
-                        <Image
-                            src="/images/p3.png"
-                            alt="Parent teaching child"
-                            width={840}
-                            height={560}
-                            className="h-56 w-full object-cover"
-                        />
-
-                        {/* BR: wide landscape */}
-                        <Image
-                            src="/images/p4.png"
-                            alt="Developers coding"
-                            width={980}
-                            height={560}
-                            className="h-56 w-full object-cover"
-                        />
-                        </div>
-
-                        {/* optional soft shadow under cluster */}
-                        <div className="pointer-events-none absolute inset-x-4 -bottom-3 h-6 rounded-full bg-black/5 blur-md" />
+                <div className="relative z-10 max-w-7xl mx-auto px-6 w-full pointer-events-none">
+                    {/* Spotlight cards need pointer events */}
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl font-bold text-slate-900 mb-4">Why Visual Assembly?</h2>
+                        <p className="text-slate-500 max-w-2xl mx-auto">Because staring at hex dumps isn't fun. We turned the CPU into a playground.</p>
                     </div>
 
-                    {/* RIGHT – Text content */}
-                    <div className="max-w-md mx-auto text-center lg:text-left lg:mx-0">
-                        <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                        Who is this for?
-                        </h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pointer-events-auto">
+                        {/* Card 1 */}
+                        <SpotlightCard className="p-8 h-full" spotlightColor="rgba(99, 102, 241, 0.1)">
+                            <div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-6">
+                                <Cpu size={28} />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-3">CPU Simulation</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed">
+                                Watch AX, BX, and PC registers update instantly as you step through code.
+                            </p>
+                        </SpotlightCard>
 
-                        <p className="mt-4 text-gray-600 dark:text-gray-400 leading-relaxed">
-                            Our platform is designed for anyone who wants to explore how computers really work — from
-                            beginners to educators and tech enthusiasts. Learn the fundamentals of Assembly in a
-                            visual, interactive way.
-                        </p>
+                        {/* Card 2 */}
+                        <SpotlightCard className="p-8 h-full" spotlightColor="rgba(236, 72, 153, 0.1)">
+                            <div className="h-12 w-12 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600 mb-6">
+                                <Brain size={28} />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-3">Memory Visualized</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed">
+                                See stack frames grow and variables change value in real-time memory maps.
+                            </p>
+                        </SpotlightCard>
 
-                        <p className="mt-4 text-gray-600 dark:text-gray-400 leading-relaxed">
-                            Whether you're learning for school, teaching a class, or just curious about low-level
-                            programming, this platform makes it fun and engaging.
-                        </p>
+                        {/* Card 3 */}
+                        <SpotlightCard className="p-8 h-full" spotlightColor="rgba(16, 185, 129, 0.1)">
+                            <div className="h-12 w-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-6">
+                                <Layers size={28} />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-3">Node Graph</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed">
+                                Connect instructions logically. No more syntax errors from typos.
+                            </p>
+                        </SpotlightCard>
 
-                        <ul className="mt-6 space-y-2 text-gray-700 dark:text-gray-300 text-sm">
-                            <li>• <strong>Students</strong> — who want to build strong fundamentals in computer architecture.</li>
-                            <li>• <strong>Teachers</strong> — who need visual tools for explaining low-level concepts.</li>
-                            <li>• <strong>Parents & learners</strong> — who enjoy learning together through hands-on puzzles.</li>
-                            <li>• <strong>Developers</strong> — who love experimenting with logic, memory, and optimization.</li>
-                        </ul>
+                        {/* Card 4 */}
+                        <SpotlightCard className="p-8 h-full" spotlightColor="rgba(245, 158, 11, 0.1)">
+                            <div className="h-12 w-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 mb-6">
+                                <Zap size={28} />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-3">Instant Feedback</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed">
+                                Errors are highlighted immediately on the graph. Debugging made simple.
+                            </p>
+                        </SpotlightCard>
                     </div>
                 </div>
-            </div>
-        </section>
+            </Section>
 
+            {/* SECTION 3: INTERACTIVE DEMO (Screenshot/Animation) */}
+            <Section className="bg-slate-50">
+                <div className="absolute inset-0 bg-white/40" />
 
-
-      {/* GAMEPLAY / TIMELINE */}
-        {/* GAMEPLAY / TIMELINE */}
-        <section className="relative bg-grid py-24">
-        <div className="mx-auto max-w-6xl px-6">
-            {/* Title */}
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-center mb-16">
-            Title show the game play
-            </h2>
-
-            {/* Timeline container */}
-            <div className="relative">
-            {/* vertical line */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-gradient-to-b from-emerald-300/70 to-emerald-100/0 dark:from-emerald-400/50 dark:to-transparent transform -translate-x-1/2"></div>
-
-            <ol className="relative space-y-24">
-                {/* STEP 1 */}
-                <li className="grid gap-8 lg:grid-cols-2 lg:items-center">
-                <div className="hidden lg:block"></div>
-                <div className="relative lg:pl-12 text-gray-700 dark:text-gray-300">
-                    {/* glowing dot */}
-                    <span className="absolute -left-[1.6rem] top-4 w-5 h-5 rounded-full bg-emerald-400/30 blur-md"></span>
-                    <span className="absolute -left-[1.1rem] top-4 w-3 h-3 rounded-full bg-emerald-500"></span>
-
-                    <h3 className="font-bold text-lg mb-3">01</h3>
-                    <p className="mb-3 max-w-md">
-                    Build your first graph by connecting instructions.
-                    See live register values while the program steps.
-                    </p>
-                    {/* Image step 1 */}
-                    <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 overflow-hidden shadow-sm">
-                    <Image
-                        src="/images/gameplay-1.png"
-                        width={600}
-                        height={400}
-                        alt="Gameplay step 1"
-                        className="object-contain w-full h-auto"
-                        priority
-                    />
-                    </div>
-                </div>
-                </li>
-
-                {/* STEP 2 */}
-                <li className="grid gap-8 lg:grid-cols-2 lg:items-center">
-                {/* Left side (image) */}
-                <div className="relative lg:pr-12 text-gray-700 dark:text-gray-300">
-                    <span className="absolute -right-[1.6rem] top-4 w-5 h-5 rounded-full bg-emerald-400/30 blur-md"></span>
-                    <span className="absolute -right-[1.1rem] top-4 w-3 h-3 rounded-full bg-emerald-500"></span>
-
-                    <h3 className="font-bold text-lg mb-3">02</h3>
-                    <p className="mb-3 max-w-md">
-                    Solve puzzle goals (output values, cycles, or memory states). Earn stars for efficient solutions.
-                    </p>
-
-                    {/* Image step 2 */}
-                    <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 overflow-hidden shadow-sm">
-                    <Image
-                        src="/images/gameplay-2.png"
-                        width={600}
-                        height={400}
-                        alt="Gameplay step 2"
-                        className="object-contain w-full h-auto"
-                    />
-                    </div>
-                </div>
-
-                <div className="hidden lg:block"></div>
-                </li>
-
-                {/* STEP 3 */}
-                <li className="grid gap-8 lg:grid-cols-2 lg:items-center">
-                <div className="hidden lg:block"></div>
-                <div className="relative lg:pl-12 text-gray-700 dark:text-gray-300">
-                    <span className="absolute -left-[1.6rem] top-4 w-5 h-5 rounded-full bg-emerald-400/30 blur-md"></span>
-                    <span className="absolute -left-[1.1rem] top-4 w-3 h-3 rounded-full bg-emerald-500"></span>
-
-                    <h3 className="font-bold text-lg mb-3">03</h3>
-                    <p className="mb-3 max-w-md">
-                    Share your solution, compare approaches, and unlock tougher instruction sets.
-                    </p>
-
-                    {/* Image step 3 (terminal) */}
-                    <div className="rounded-xl">
-                    <Image
-                        src="/images/terminal.png"
-                        width={600}
-                        height={400}
-                        alt="Gameplay step 3"
-                        className="object-contain w-full h-auto"
-                    />
-                    </div>
-                </div>
-                </li>
-            </ol>
-            </div>
-        </div>
-        </section>
-
-
-        {/* FOOTER */}
-        <footer className="bg-neutral-900 text-gray-300 py-12 mt-20">
-            <div className="mx-auto max-w-7xl px-6 grid gap-10 md:grid-cols-4">
-                {/* LEFT – Logo and description */}
-                <div className="md:col-span-1">
-                <h3 className="text-xl font-extrabold tracking-tight text-indigo-400">BLYLAB.</h3>
-                <p className="mt-2 text-sm text-gray-400 max-w-xs">
-                    BLYLAB – Assembly visual programming learning platform.
-                </p>
-                </div>
-
-                {/* CENTER LEFT */}
-                <div>
-                <h4 className="text-sm font-semibold mb-3 text-gray-200">Product</h4>
-                <ul className="space-y-2 text-sm">
-                    <li><a href="#" className="hover:text-white">Overview</a></li>
-                    <li><a href="#" className="hover:text-white">Features</a></li>
-                    <li><a href="#" className="hover:text-white">Pricing</a></li>
-                    <li><a href="#" className="hover:text-white">Download</a></li>
-                </ul>
-                </div>
-
-                {/* CENTER RIGHT */}
-                <div>
-                <h4 className="text-sm font-semibold mb-3 text-gray-200">Resources</h4>
-                <ul className="space-y-2 text-sm">
-                    <li><a href="#" className="hover:text-white">Documentation</a></li>
-                    <li><a href="#" className="hover:text-white">Community</a></li>
-                    <li><a href="#" className="hover:text-white">Blog</a></li>
-                    <li><a href="#" className="hover:text-white">FAQ</a></li>
-                </ul>
-                </div>
-
-                {/* RIGHT – Socials */}
-                <div className="flex flex-col items-start md:items-end justify-between">
-                <div className="flex gap-4">
-                    <a
-                    href="https://github.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white"
+                <div className="relative z-10 container mx-auto px-6 text-center">
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
                     >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-6 h-6"
-                    >
-                        <path d="M12 .297a12 12 0 00-3.8 23.4c.6.113.82-.262.82-.582v-2.234c-3.34.724-4.042-1.612-4.042-1.612a3.18 3.18 0 00-1.334-1.756c-1.09-.744.082-.729.082-.729a2.523 2.523 0 011.846 1.237 2.56 2.56 0 003.498 1 2.548 2.548 0 01.762-1.612c-2.665-.305-5.466-1.334-5.466-5.931A4.64 4.64 0 015.6 7.47a4.305 4.305 0 01.116-3.193s1.007-.322 3.3 1.23a11.41 11.41 0 016 0c2.293-1.552 3.3-1.23 3.3-1.23.458 1.125.477 2.43.116 3.193a4.64 4.64 0 011.234 3.218c0 4.61-2.8 5.622-5.47 5.922a2.853 2.853 0 01.812 2.214v3.287c0 .323.216.7.824.58A12 12 0 0012 .297z" />
-                    </svg>
-                    </a>
+                        <h2 className="text-4xl md:text-5xl font-black mb-6 text-slate-900">Experience the Flow</h2>
+                        <p className="text-slate-600 text-xl max-w-2xl mx-auto mb-12">
+                            Connect instructions together. Set your inputs. Watch the logic unfold.
+                        </p>
+                    </motion.div>
+
+                    <div className="relative max-w-5xl mx-auto h-[50vh] min-h-[400px]">
+                        {/* Mock Interface Container - Light Mode */}
+                        <div className="absolute inset-0 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xl flex flex-col ring-1 ring-slate-900/5">
+                            {/* Toolbar Mock */}
+                            <div className="h-12 border-b border-slate-100 bg-slate-50/50 backdrop-blur flex items-center px-4 gap-3 justify-between">
+                                <div className="flex gap-2">
+                                    <div className="h-3 w-3 rounded-full bg-red-400/80" />
+                                    <div className="h-3 w-3 rounded-full bg-amber-400/80" />
+                                    <div className="h-3 w-3 rounded-full bg-green-400/80" />
+                                </div>
+                                <div className="h-6 w-32 bg-slate-200/50 rounded-full" />
+                            </div>
+                            {/* Content Mock */}
+                            <div className="flex-1 relative bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-slate-50 flex items-center justify-center p-8 overflow-hidden">
+                                {/* Grid Background */}
+                                <div className="absolute inset-0 opacity-[0.05] bg-[size:20px_20px] bg-[linear-gradient(to_right,#000_1px,transparent_1px),linear-gradient(to_bottom,#000_1px,transparent_1px)]" />
+
+                                {/* Floating Nodes Animation */}
+                                <motion.div
+                                    drag
+                                    animate={{ x: [-50, 0, -50], y: [-20, 0, -20] }}
+                                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                                    className="absolute left-[20%] top-[30%] cursor-grab active:cursor-grabbing"
+                                >
+                                    <div className="px-5 py-3 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-indigo-100 text-indigo-700 font-mono font-bold flex items-center gap-3">
+                                        <div className="w-2 h-2 bg-indigo-500 rounded-full" />
+                                        MOV AX, 5
+                                    </div>
+                                </motion.div>
+
+                                <svg className="absolute inset-0 pointer-events-none w-full h-full filter drop-shadow-sm">
+                                    <motion.path
+                                        d="M 350 220 C 450 220 450 400 550 400"
+                                        stroke="#cbd5e1"
+                                        strokeWidth="3"
+                                        fill="none"
+                                    />
+                                    <motion.path
+                                        d="M 350 220 C 450 220 450 400 550 400"
+                                        stroke="#6366f1"
+                                        strokeWidth="3"
+                                        fill="none"
+                                        initial={{ pathLength: 0 }}
+                                        whileInView={{ pathLength: 1 }}
+                                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                    />
+                                    <circle cx="550" cy="400" r="4" fill="#6366f1" />
+                                    <circle cx="350" cy="220" r="4" fill="#cbd5e1" />
+                                </svg>
+
+                                <motion.div
+                                    drag
+                                    animate={{ x: [50, 0, 50], y: [20, 0, 20] }}
+                                    transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                                    className="absolute right-[20%] bottom-[30%] cursor-grab active:cursor-grabbing"
+                                >
+                                    <div className="px-5 py-3 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-purple-100 text-purple-700 font-mono font-bold flex items-center gap-3">
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                                        ADD AX, BX
+                                    </div>
+                                </motion.div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </Section>
 
-                <p className="text-xs text-gray-500 mt-4 md:mt-8">
-                    © {new Date().getFullYear()} BLYLAB. All rights reserved.
-                </p>
+            {/* SECTION 4: FOOTER */}
+            <Section className="bg-slate-50 h-[50vh] min-h-[400px]">
+                <div className="w-full max-w-7xl px-6 grid gap-10 md:grid-cols-4 items-start">
+                    <div className="md:col-span-1">
+                        <h3 className="text-2xl font-black text-slate-900">BLYLAB<span className="text-indigo-600">.</span></h3>
+                        <p className="mt-4 text-sm text-slate-500 leading-relaxed">
+                            Empowering the next generation of systems programmers with visual learning tools.
+                        </p>
+                    </div>
                 </div>
-            </div>
-        </footer>
-
-
-    </div>
-  );
+                <div className="mt-20 text-slate-400 text-sm">
+                    © {new Date().getFullYear()} Assembly Visual. All rights reserved.
+                </div>
+            </Section>
+        </div>
+    );
 }

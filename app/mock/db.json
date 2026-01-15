@@ -212,178 +212,30 @@
   ],
   "playgrounds": [
     {
-      "id": 1,
-      "assignment_id": 1,
-      "user_id": 1,
-      "attempt_no": 1,
-      "status": "in_progress",
-      "item": {
-        "items": [
-          {
-            "id": 1,
-            "instruction": "START",
-            "label": "",
-            "operands": [],
-            "next": 2
-          },
-          {
-            "id": 2,
-            "instruction": "MOV",
-            "label": "",
-            "operands": [
-              {
-                "type": "Register",
-                "value": "R1"
-              },
-              {
-                "type": "Immediate",
-                "value": "#250"
-              }
-            ],
-            "next": 3
-          },
-          {
-            "id": 3,
-            "instruction": "LABEL",
-            "label": "loop_1",
-            "operands": []
-          },
-          {
-            "id": 4,
-            "instruction": "ADD",
-            "label": "",
-            "operands": [
-              {
-                "type": "Register",
-                "value": "R1"
-              },
-              {
-                "type": "Immediate",
-                "value": "#1"
-              }
-            ],
-            "next": 5
-          },
-          {
-            "id": 5,
-            "instruction": "CMP",
-            "label": "",
-            "operands": [
-              {
-                "type": "Register",
-                "value": "R1"
-              },
-              {
-                "type": "Immediate",
-                "value": "#253"
-              }
-            ],
-            "next_true": 6,
-            "next_false": 6
-          },
-          {
-            "id": 6,
-            "instruction": "JNZ",
-            "label": "loop_1",
-            "operands": [
-              {
-                "type": "Label",
-                "value": "loop_1"
-              },
-              {
-                "type": "Label",
-                "value": "loop_1"
-              }
-            ]
-          },
-          {
-            "id": 7,
-            "instruction": "HLT",
-            "label": "",
-            "operands": []
-          }
-        ],
-        "meta_data": {
-          "author_id": 1,
-          "program_name": "Test Program",
-          "timestamp": "2025-12-10T12:00:00Z"
-        },
-        "ui": {
-          "pan": {
-            "x": 701,
-            "y": 126
-          },
-          "position": {
-            "1": {
-              "x": 20,
-              "y": 40
-            },
-            "2": {
-              "x": 140,
-              "y": 140
-            },
-            "3": {
-              "x": 320,
-              "y": 280
-            },
-            "4": {
-              "x": 440,
-              "y": 420
-            },
-            "5": {
-              "x": 580,
-              "y": 560
-            },
-            "6": {
-              "x": 660,
-              "y": 660
-            },
-            "7": {
-              "x": 800,
-              "y": 840
-            }
-          },
-          "zoom": 1
-        }
-      }
-    },
-    {
       "assignment_id": 3,
       "item": {
         "items": [
           {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "51a42e6e-4643-4ade-bcbe-926558b0e05f"
+          },
+          {
             "id": 1,
-            "instruction": "OUT",
-            "label": "",
-            "operands": [
-              {
-                "type": "Immediate",
-                "value": "0"
-              },
-              {
-                "type": "Register",
-                "value": "R0"
-              }
-            ],
-            "next": 7
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "aa58a58d-3e00-4e18-84af-c291f063aef9"
           },
           {
             "id": 2,
-            "instruction": "START",
-            "label": "",
-            "operands": [],
-            "next": 3
-          },
-          {
-            "id": 3,
-            "instruction": "LABEL",
-            "label": "loop_1",
-            "operands": []
-          },
-          {
-            "id": 4,
-            "instruction": "IN",
-            "label": "",
+            "instruction": "MOV",
             "operands": [
               {
                 "type": "Register",
@@ -391,122 +243,137 @@
               },
               {
                 "type": "Immediate",
-                "value": "#0"
+                "value": "15"
               }
             ],
-            "next": 5
-          },
-          {
-            "id": 5,
-            "instruction": "CMP",
-            "label": "",
-            "operands": [
-              {
-                "type": "Register",
-                "value": "R0"
-              },
-              {
-                "type": "Immediate",
-                "value": "#0"
-              }
-            ],
-            "next_true": 6,
-            "next_false": 6
-          },
-          {
-            "id": 6,
-            "instruction": "JZ",
-            "label": "loop_1",
-            "operands": [
-              {
-                "type": "Label",
-                "value": "loop_1"
-              }
-            ]
-          },
-          {
-            "id": 7,
-            "instruction": "OUT",
-            "label": "",
-            "operands": [
-              {
-                "type": "Immediate",
-                "value": "1"
-              },
-              {
-                "type": "Register",
-                "value": "R0"
-              }
-            ],
-            "next": 8
-          },
-          {
-            "id": 8,
-            "instruction": "JMP",
-            "label": "if-not-entry",
-            "operands": [
-              {
-                "type": "Label",
-                "value": "if-not-entry"
-              }
-            ]
-          },
-          {
-            "id": 9,
-            "instruction": "HLT",
-            "label": "",
-            "operands": []
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "ddfcfbc6-448d-4aff-a69e-f9753e1d2592"
           }
         ],
-        "meta_data": {
-          "author_id": 1,
-          "program_name": "Sandbox Mode (All Instructions)",
-          "timestamp": "2025-12-17T16:45:41.481Z"
-        },
-        "ui": {
-          "pan": {
-            "x": 205,
-            "y": 863
-          },
-          "position": {
-            "1": {
-              "x": 160,
-              "y": 820
+        "react_flow": {
+          "nodes": [
+            {
+              "id": "51a42e6e-4643-4ade-bcbe-926558b0e05f",
+              "type": "instruction",
+              "position": {
+                "x": 600,
+                "y": -660
+              },
+              "data": {
+                "instructionType": "START",
+                "isProximity": false
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 600,
+                "y": -660
+              },
+              "dragging": false,
+              "style": {}
             },
-            "2": {
-              "x": 240,
-              "y": 20
+            {
+              "id": "aa58a58d-3e00-4e18-84af-c291f063aef9",
+              "type": "instruction",
+              "position": {
+                "x": 600,
+                "y": -220
+              },
+              "data": {
+                "instructionType": "HLT",
+                "isProximity": false,
+                "isActiveExec": true
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 600,
+                "y": -220
+              },
+              "dragging": false,
+              "style": {}
             },
-            "3": {
-              "x": 200,
-              "y": 180
-            },
-            "4": {
-              "x": 160,
-              "y": 340
-            },
-            "5": {
-              "x": 200,
-              "y": 500
-            },
-            "6": {
-              "x": 200,
-              "y": 660
-            },
-            "7": {
-              "x": 160,
-              "y": 1020
-            },
-            "8": {
-              "x": 200,
-              "y": 1180
-            },
-            "9": {
-              "x": 240,
-              "y": 1320
+            {
+              "id": "ddfcfbc6-448d-4aff-a69e-f9753e1d2592",
+              "type": "instruction",
+              "position": {
+                "x": 500,
+                "y": -480
+              },
+              "data": {
+                "instructionType": "MOV",
+                "dest": "R0",
+                "srcMode": "imm",
+                "srcImm": "15",
+                "srcReg": "",
+                "isActiveExec": false
+              },
+              "width": 400,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 500,
+                "y": -480
+              },
+              "dragging": false,
+              "style": {}
             }
+          ],
+          "edges": [
+            {
+              "id": "e51a42e6e-4643-4ade-bcbe-926558b0e05f-ddfcfbc6-448d-4aff-a69e-f9753e1d2592",
+              "source": "51a42e6e-4643-4ade-bcbe-926558b0e05f",
+              "target": "ddfcfbc6-448d-4aff-a69e-f9753e1d2592",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            },
+            {
+              "id": "eddfcfbc6-448d-4aff-a69e-f9753e1d2592-aa58a58d-3e00-4e18-84af-c291f063aef9",
+              "source": "ddfcfbc6-448d-4aff-a69e-f9753e1d2592",
+              "target": "aa58a58d-3e00-4e18-84af-c291f063aef9",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            }
+          ],
+          "viewport": {
+            "x": 319.7039683463927,
+            "y": 582.8341789525235,
+            "zoom": 0.659753955386447
+          }
+        },
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0,
+            "R2": 0,
+            "R3": 0,
+            "R4": 0,
+            "R5": 0,
+            "R6": 0,
+            "R7": 0
           },
-          "zoom": 1
+          "memory": [],
+          "variables": []
+        },
+        "meta_data": {
+          "last_saved": "2026-01-15T07:11:45.859Z",
+          "version": "1.0"
         }
       },
       "status": "in_progress",
@@ -517,15 +384,39 @@
   "users": [
     {
       "id": 1,
-      "username": "student1",
       "email": "student1@example.com",
-      "role": "student"
+      "password_hash": "$2b$10$EpRrTfw...",
+      "name": "Student One",
+      "tel": "0812345678",
+      "picture_path": null,
+      "role": "student",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "deleted_at": null
     },
     {
       "id": 2,
-      "username": "teacher1",
       "email": "teacher1@example.com",
-      "role": "teacher"
+      "password_hash": "$2b$10$EpRrTfw...",
+      "name": "Teacher One",
+      "tel": "0898765432",
+      "picture_path": null,
+      "role": "teacher",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "deleted_at": null
+    },
+    {
+      "id": 3,
+      "email": "user1@g.com",
+      "password_hash": "$2b$10$mockhash09fj78",
+      "name": "Prakan Suma",
+      "tel": "+",
+      "picture_path": null,
+      "role": "student",
+      "created_at": "2026-01-15T07:34:37.019Z",
+      "updated_at": "2026-01-15T07:34:37.019Z",
+      "deleted_at": null
     }
   ],
   "classes": [
@@ -608,17 +499,16 @@
       "test_suite_id": 2,
       "name": "Public Case 1: IO Check",
       "init": {
-        "registers": {},
         "io_input": {
           "0": "Hello\n"
         }
       },
       "assert": {
         "io_output": {
-          "10": "Hello\n"
+          "0": "Hello"
         }
       },
-      "created_at": "2025-01-14T12:00:00Z"
+      "created_at": "2026-01-15T06:35:46.809Z"
     },
     {
       "id": 4,
@@ -628,15 +518,14 @@
         "registers": {
           "R0": 5,
           "R1": 5
-        },
-        "io_input": {}
+        }
       },
       "assert": {
         "flags": {
-          "Z": 1
+          "Z": 45
         }
       },
-      "created_at": "2025-01-14T12:00:00Z"
+      "created_at": "2026-01-15T06:32:31.210Z"
     }
   ]
 }

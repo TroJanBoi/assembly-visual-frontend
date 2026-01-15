@@ -13,6 +13,9 @@ import withReactContent from "sweetalert2-react-content";
 import "sweetalert2/dist/sweetalert2.min.css";
 import LandingNav from "@/components/layout/TopNav";
 
+import { LoadingButton } from "@/components/ui/LoadingButton";
+import { useGlobalLoading } from "@/components/providers/GlobalLoadingProvider";
+
 function authSuccess() {
   window.location.href = "http://localhost:9090/api/v2/oauth/google/login";
 }
@@ -24,6 +27,8 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+
+  const { show: showGlobalLoading } = useGlobalLoading();
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -62,8 +67,11 @@ export default function SignInPage() {
         timerProgressBar: true,
       });
 
-      router.push("/home"); // แก้เส้นทางหลังล็อกอินสำเร็จตามต้องการ
+      // Show global overlay before redirecting to prevent interaction
+      showGlobalLoading();
+      router.push("/home");
     } catch (err: any) {
+      setLoading(false); // Only stop button loading on error
       MySwal.close();
       MySwal.fire({
         icon: "error",
@@ -71,9 +79,9 @@ export default function SignInPage() {
         text: err?.message || "Invalid credentials.",
         confirmButtonText: "Close",
       });
-    } finally {
-      setLoading(false);
     }
+    // Note: If success, we don't setLoading(false) because we want button to stay loading 
+    // or global loader to take over until page change.
   };
 
   return (
@@ -206,14 +214,15 @@ export default function SignInPage() {
               </div>
 
               {/* Submit */}
-              <button
+              {/* Submit */}
+              <LoadingButton
                 type="submit"
-                disabled={loading}
-                className="h-11 w-full rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium
-                           hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                isLoading={loading}
+                loadingText="Signing In..."
+                className="w-full"
               >
-                {loading ? "Processing..." : "Sign In"}
-              </button>
+                Sign In
+              </LoadingButton>
             </form>
 
             {/* OAuth (ถ้ามี route จริงค่อยเชื่อม) */}

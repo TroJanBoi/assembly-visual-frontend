@@ -20,44 +20,119 @@ server.use(jsonServer.bodyParser);
 
 // Mock Authentication - Development Only
 server.post('/api/v2/auth/login', (req, res) => {
-    console.log('[Mock Auth] Login attempt:', req.body.email);
+    const { email, password } = req.body;
+    const db = router.db;
 
-    // Generate a fake JWT token (not cryptographically valid, but works for dev)
+    console.log('[Mock Auth] Login attempt:', email);
+
+    // 1. Find user by email
+    const user = db.get('users').find({ email: email }).value();
+
+    if (!user) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // 2. Validate password (MOCK: check if hash exists, ignore real verify for dev)
+    // In real app: await bcrypt.compare(password, user.password_hash)
+    // Here: just accept if user exists and sends any password
+    // Better: Check if password length > 0
+    if (!password) {
+        return res.status(400).json({ error: 'Password required' });
+    }
+
+    // Generate token
     const fakeToken = 'mock_jwt_' + Buffer.from(JSON.stringify({
-        user_id: 1,
-        email: req.body.email,
-        exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours from now
+        user_id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        exp: Date.now() + (24 * 60 * 60 * 1000)
     })).toString('base64');
 
     res.json({
         token: fakeToken,
         user: {
-            id: '1',
-            email: req.body.email,
-            name: 'Mock User'
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            tel: user.tel,
+            picture_path: user.picture_path
         }
     });
 });
 
 server.post('/api/v2/auth/sign-up', (req, res) => {
-    console.log('[Mock Auth] Signup attempt:', req.body.email);
-    res.json({
-        id: '1',
-        email: req.body.email,
-        name: req.body.name,
-        message: 'Mock signup successful'
+    const { email, password, name, tel } = req.body;
+    const db = router.db;
+
+    console.log('[Mock Auth] Signup attempt:', email);
+
+    // 1. Check existing
+    const existing = db.get('users').find({ email: email }).value();
+    if (existing) {
+        return res.status(409).json({ error: 'Email already exists' });
+    }
+
+    // 2. Create User
+    const newId = (db.get('users').value().length || 0) + 1;
+    // Mock password hashing
+    const mockHash = '$2b$10$mockhash' + Math.random().toString(36).substring(7);
+
+    const newUser = {
+        id: newId,
+        email,
+        password_hash: mockHash,
+        name: name || email.split('@')[0],
+        tel: tel || null,
+        picture_path: null,
+        role: 'student', // Default role
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        deleted_at: null
+    };
+
+    db.get('users').push(newUser).write();
+
+    res.status(201).json({
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        message: 'Signup successful'
     });
 });
 
 
+// Helper to extract user_id from Mock JWT
+const getUserIdFromRequest = (req) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return 1; // Default to user 1 if no header
+
+    try {
+        const token = authHeader.split(' ')[1];
+        if (token && token.startsWith('mock_jwt_')) {
+            const payload = token.replace('mock_jwt_', '');
+            // Simple base64 decode for mock token
+            const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
+            return decoded.user_id || 1;
+        }
+    } catch (e) {
+        console.warn('[Mock API] Failed to parse mock token:', e);
+    }
+    return 1;
+};
+
 // Custom route: POST /api/v2/playgrounds/me (find or create)
 server.post('/api/v2/playgrounds/me', (req, res) => {
     const { assignment_id } = req.body;
+    const user_id = getUserIdFromRequest(req);
     const db = router.db; // Access lowdb instance
+
+    console.log(`[Mock API] Finding playground for Assignment: ${assignment_id}, User: ${user_id}`);
 
     // Find existing playground
     const playground = db.get('playgrounds')
-        .find({ assignment_id: assignment_id })
+        .find({ assignment_id: assignment_id, user_id: user_id })
         .value();
 
     if (playground) {
@@ -65,7 +140,8 @@ server.post('/api/v2/playgrounds/me', (req, res) => {
         res.json(playground);
     } else {
         console.log('[Mock API] Playground not found for assignment_id:', assignment_id);
-        // Return null or 404 to trigger FE to create new one
+        // Note: In a real app, this might create one. 
+        // For now, we return 404 to let FE handle it (or we could auto-create here)
         res.status(404).json({ error: 'Playground not found' });
     }
 });
@@ -73,10 +149,13 @@ server.post('/api/v2/playgrounds/me', (req, res) => {
 // Custom route: PUT /api/v2/playgrounds/me (update)
 server.put('/api/v2/playgrounds/me', (req, res) => {
     const { assignment_id, item, status } = req.body;
+    const user_id = getUserIdFromRequest(req);
     const db = router.db;
 
+    console.log(`[Mock API] Updating playground for Assignment: ${assignment_id}, User: ${user_id}`);
+
     const playground = db.get('playgrounds')
-        .find({ assignment_id: assignment_id })
+        .find({ assignment_id: assignment_id, user_id: user_id })
         .value();
 
     if (playground) {
@@ -85,7 +164,8 @@ server.put('/api/v2/playgrounds/me', (req, res) => {
             .find({ id: playground.id })
             .assign({
                 item: item || playground.item,
-                status: status || playground.status
+                status: status || playground.status,
+                user_id: user_id // Ensure user_id persists
             })
             .write();
 
@@ -93,7 +173,24 @@ server.put('/api/v2/playgrounds/me', (req, res) => {
         console.log('[Mock API] Updated playground:', playground.id);
         res.json({ id: playground.id, ...updated });
     } else {
-        res.status(404).json({ error: 'Playground not found' });
+        // Option: Auto-create if not found on PUT? 
+        // Usually PUT implies existence, but for convenience we could create.
+        // Let's stick to 404 to be strict, or create if we want to be nice.
+        // Let's create proper new entry.
+
+        const newId = (db.get('playgrounds').value().length || 0) + 1;
+        const newPlayground = {
+            id: newId,
+            assignment_id,
+            user_id,
+            item: item || {},
+            status: status || 'in_progress',
+            attempt_no: 1
+        };
+
+        db.get('playgrounds').push(newPlayground).write();
+        console.log('[Mock API] Created new playground via PUT:', newId);
+        res.json(newPlayground);
     }
 });
 
@@ -138,13 +235,23 @@ server.get('/api/v2/classes/public', (req, res) => {
 
 // Custom route: GET /api/v2/profile/
 server.get('/api/v2/profile/', (req, res) => {
-    // Return mock user profile
-    res.json({
-        id: 1,
-        username: "student1",
-        email: "student1@example.com",
-        role: "student"
-    });
+    const user_id = getUserIdFromRequest(req);
+    const db = router.db;
+
+    const user = db.get('users').find({ id: user_id }).value();
+
+    if (user) {
+        res.json({
+            id: user.id,
+            email: user.email,
+            name: user.name, // Now using 'name' not 'username'
+            role: user.role,
+            tel: user.tel,
+            picture_path: user.picture_path
+        });
+    } else {
+        res.status(404).json({ error: 'User not found' });
+    }
 });
 
 // Custom route: GET /api/v2/classes/:id/members

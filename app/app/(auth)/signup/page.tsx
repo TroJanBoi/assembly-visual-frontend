@@ -17,6 +17,8 @@ import withReactContent from "sweetalert2-react-content";
 import "sweetalert2/dist/sweetalert2.min.css";
 
 import LandingNav from "@/components/layout/TopNav";
+import { LoadingButton } from "@/components/ui/LoadingButton";
+import { useGlobalLoading } from "@/components/providers/GlobalLoadingProvider";
 
 const MySwal = withReactContent(Swal);
 
@@ -63,21 +65,23 @@ export default function SignUpPage() {
 
   const pwdMismatch = pwd.length > 0 && pwd2.length > 0 && pwd !== pwd2;
 
+  const { show: showGlobalLoading } = useGlobalLoading();
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const form = new FormData(e.currentTarget);
     const firstName = String(form.get("firstName") || "").trim();
-    const lastName  = String(form.get("lastName")  || "").trim();
-    const email     = String(form.get("email")     || "").trim();
-    const tel       = "+" + String(phone).replace(/\D/g, ""); // E.164
+    const lastName = String(form.get("lastName") || "").trim();
+    const email = String(form.get("email") || "").trim();
+    const tel = "+" + String(phone).replace(/\D/g, ""); // E.164
 
     // validate ด่วนๆ
-    if (!agree)       return MySwal.fire({ icon: "warning", title: "Please accept the terms first." });
+    if (!agree) return MySwal.fire({ icon: "warning", title: "Please accept the terms first." });
     if (!firstName || !lastName) return MySwal.fire({ icon: "warning", title: "Please fill first/last name." });
     if (!/^\S+@\S+\.\S+$/.test(email)) return MySwal.fire({ icon: "warning", title: "Please enter a valid email." });
     if (pwd.length < 8) return MySwal.fire({ icon: "warning", title: "Password must be at least 8 characters." });
-    if (pwdMismatch)    return MySwal.fire({ icon: "error",   title: "Passwords do not match." });
+    if (pwdMismatch) return MySwal.fire({ icon: "error", title: "Passwords do not match." });
 
     try {
       setLoading(true);
@@ -100,8 +104,10 @@ export default function SignUpPage() {
         timerProgressBar: true
       });
 
+      showGlobalLoading(); // Optional: if we want to block while going to signin
       router.push("/signin");
     } catch (err: any) {
+      setLoading(false);
       MySwal.close();
       MySwal.fire({
         icon: "error",
@@ -109,9 +115,8 @@ export default function SignUpPage() {
         text: err?.message || "Something went wrong.",
         confirmButtonText: "Close",
       });
-    } finally {
-      setLoading(false);
     }
+    // No finally { setLoading(false) } on success to keep UI stable during redirect
   };
 
   return (
@@ -217,7 +222,7 @@ export default function SignUpPage() {
                       placeholder="Enter your confirm password"
                       className={`mt-1 h-11 w-full rounded-lg border px-3 pr-12 text-sm outline-none
                         ${pwdMismatch ? "border-red-300 focus:border-red-500 focus:ring-red-200" :
-                        "border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[color:rgba(104,127,229,0.18)]"}`}
+                          "border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[color:rgba(104,127,229,0.18)]"}`}
                     />
                     <button
                       type="button" aria-label={showPwd2 ? "Hide password" : "Show password"}
@@ -262,14 +267,15 @@ export default function SignUpPage() {
                 </label>
 
                 {/* Submit */}
-                <button
+                <LoadingButton
                   type="submit"
-                  disabled={!agree || pwdMismatch || loading}
-                  className="h-11 w-full rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium
-                             hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                  isLoading={loading}
+                  disabled={!agree || pwdMismatch}
+                  loadingText="Creating account..."
+                  className="w-full"
                 >
-                  {loading ? "Processing..." : "Sign Up"}
-                </button>
+                  Sign Up
+                </LoadingButton>
 
                 {/* OAuth (ตัวอย่างปุ่ม) */}
                 <button
@@ -279,10 +285,10 @@ export default function SignUpPage() {
                              inline-flex items-center justify-center gap-2"
                 >
                   <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden className="-ml-1 shrink-0">
-                    <path fill="#4285F4" d="M17.64 9.204c0-.638-.057-1.252-.163-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.797 2.718v2.258h2.908c1.699-1.565 2.685-3.87 2.685-6.617z"/>
-                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.179l-2.908-2.258c-.806.54-1.836.86-3.048.86-2.344 0-4.33-1.58-5.036-3.708H.957v2.332C2.438 15.978 5.481 18 9 18z"/>
-                    <path fill="#FBBC05" d="M3.964 10.715A5.41 5.41 0 013.684 9c0-.6.103-1.181.28-1.715V4.953H.957A9.01 9.01 0 000 9c0 1.477.354 2.872.957 4.047L3.964 10.715z"/>
-                    <path fill="#EA4335" d="M9 3.542c1.322 0 2.512.455 3.447 1.35l2.59-2.59C13.463.86 11.426 0 9 0 5.481 0 2.438 2.022.957 4.953l3.007 2.332C3.67 5.157 5.656 3.542 9 3.542z"/>
+                    <path fill="#4285F4" d="M17.64 9.204c0-.638-.057-1.252-.163-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.797 2.718v2.258h2.908c1.699-1.565 2.685-3.87 2.685-6.617z" />
+                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.179l-2.908-2.258c-.806.54-1.836.86-3.048.86-2.344 0-4.33-1.58-5.036-3.708H.957v2.332C2.438 15.978 5.481 18 9 18z" />
+                    <path fill="#FBBC05" d="M3.964 10.715A5.41 5.41 0 013.684 9c0-.6.103-1.181.28-1.715V4.953H.957A9.01 9.01 0 000 9c0 1.477.354 2.872.957 4.047L3.964 10.715z" />
+                    <path fill="#EA4335" d="M9 3.542c1.322 0 2.512.455 3.447 1.35l2.59-2.59C13.463.86 11.426 0 9 0 5.481 0 2.438 2.022.957 4.953l3.007 2.332C3.67 5.157 5.656 3.542 9 3.542z" />
                   </svg>
                   Sign In with Google
                 </button>

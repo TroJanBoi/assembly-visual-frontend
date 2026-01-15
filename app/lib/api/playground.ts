@@ -47,6 +47,7 @@ export type PlaygroundCreateBody = {
 };
 
 export type PlaygroundUpdateBody = {
+  assignment_id?: number; // Added for identifying which playground to update
   status?: string;
   item: PlaygroundItemPayload;
 };

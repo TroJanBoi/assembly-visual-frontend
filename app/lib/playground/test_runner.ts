@@ -123,23 +123,27 @@ export async function runTestCase(
     // Pre-fill IO state from 'Input' conditions
     testCase.initialState.filter(c => c.type === 'Input').forEach(cond => {
         const port = parseInt(cond.location);
-        const val = parseValue(cond.value);
 
         if (port === 0) {
-            // Port 0: Keyboard Buffer (ASCII characters)
-            // If value is a number (e.g. 65), push it. If string "A", convert.
-            // parseValue handles numbers. For string input, we might need a better parser 
-            // but for now let's assume raw values or char codes.
-            // Actually, if user types "A", parseValue returns NaN (unless 0xA).
-            // Let's handle string inputs more gracefully in the UI or here.
+            // Port 0: Keyboard Buffer (string input)
+            // Process escape sequences: \n, \t, \r, \\, etc.
+            const processedStr = cond.value
+                .replace(/\\n/g, '\n')
+                .replace(/\\t/g, '\t')
+                .replace(/\\r/g, '\r')
+                .replace(/\\\\/g, '\\');
 
-            // If the user inputs a string in the UI like "A", we want ASCII 65.
-            // If checks are number-based, we push the number.
-            // Let's push the parsed value for now.
-            io.state.keyBuffer.push(val);
+            // Convert each character to ASCII code
+            for (const char of processedStr) {
+                io.state.keyBuffer.push(char.charCodeAt(0));
+            }
         } else if (port === 4) {
-            // Port 4: Gamepad state
+            // Port 4: Gamepad state (numeric)
+            const val = parseValue(cond.value);
             io.state.gamepadState = val;
+        } else if (port === 5) {
+            // Port 5: RNG seed (numeric)
+            // Could pre-seed RNG if needed
         }
     });
 
@@ -199,11 +203,23 @@ export async function runTestCase(
                 break;
 
             case 'Output':
+                // Check output for specific port
+                const port = parseInt(cond.location);
+                const expectedVal = cond.value;
 
-                const logs = io.getSnapshot().logs.filter(l => l.type === 'OUTPUT').map(l => l.content);
-                const safeVal = cond.value.trim();
-                passed = logs.includes(safeVal);
-                actual = logs.join(", ");
+                // Get all output logs from the IO handler
+                const allLogs = io.getSnapshot().logs.filter(l => l.type === 'OUTPUT');
+
+                // For port-specific validation, we need to track which port each output came from
+                // For now, we'll check if the output content matches (simplified)
+                // TODO: Track port info in IO logs for precise validation
+                const outputContents = allLogs.map(l => l.content);
+
+                // Try exact match first, then trimmed match
+                passed = outputContents.some(out =>
+                    out === expectedVal || out.trim() === expectedVal.trim()
+                );
+                actual = outputContents.length > 0 ? outputContents.join(', ') : '(no output)';
                 break;
         }
 

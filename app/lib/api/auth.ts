@@ -23,9 +23,12 @@ export interface SigninInput {
 
 export interface SigninResponse {
   user?: {
-    id?: string;
+    id?: string | number;
     email?: string;
     name?: string;
+    role?: string;
+    tel?: string;
+    picture_path?: string | null;
   };
   token?: string;
   message?: string;

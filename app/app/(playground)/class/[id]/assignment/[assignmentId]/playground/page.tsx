@@ -39,6 +39,8 @@ import { executeProgram, executeInstruction, buildInstructionMap } from "@/lib/p
 import { VirtualIO } from "@/lib/playground/io";
 import { CPU, CPUSnapshot } from "@/lib/playground/cpu";
 import { useAutoSave } from "@/hooks/useAutoSave";
+import { usePlaygroundDBSave, loadPlaygroundFromDB } from "@/hooks/usePlaygroundDB";
+import { saveToLocalStorage, loadFromLocalStorage, migrateLegacyStorage } from "@/lib/storage/playground";
 import { ExecutionDeck, ExecutionMode } from "@/components/playground/ExecutionDeck";
 import toast from "react-hot-toast";
 
@@ -279,66 +281,269 @@ export default function AssignmentPlaygroundPage() {
     });
   };
 
-  // ===== PERSISTENCE: Variables & Memory =====
-  // 1. Auto-Load on Mount
-  // 1. Auto-Load on Mount
+  // ===== HYBRID AUTO-SAVE: DB + LocalStorage =====
+  // Priority: Database → LocalStorage → Legacy Migration
+  // ===== HYBRID AUTO-SAVE: DB + LocalStorage =====
+  // Priority: Database → LocalStorage → Legacy Migration
+  const [userId, setUserId] = useState<number>(() => {
+    // Initial fetch from token if available
+    const token = getToken();
+    if (token) {
+      const decoded = decodeToken(token);
+      return decoded?.user_id || 0; // 0 or -1 indicates "no user" / guest
+    }
+    return 0;
+  });
+  const [playgroundLoaded, setPlaygroundLoaded] = useState(false);
+
+  // Effect to update userId if token changes (e.g. login/logout)
   useEffect(() => {
-    try {
-      const savedVarsStr = localStorage.getItem("asm_variables");
-      const savedMemStr = localStorage.getItem("asm_memory");
-
-      let loadedVars: Variable[] = [];
-      if (savedVarsStr) {
-        loadedVars = JSON.parse(savedVarsStr);
-        setVariables(loadedVars);
-      }
-
-      let memList: { address: number; value: number }[] = [];
-      if (savedMemStr) {
-        memList = JSON.parse(savedMemStr);
-      }
-
-      // HYDRATION FIX: Ensure Variables are written to Memory
-      // Even if memory was saved, we enforce consistency with variables on load.
-      if (loadedVars.length > 0) {
-        const memMap = new Map<number, number>();
-        // 1. Load existing memory into Map
-        memList.forEach(m => memMap.set(m.address, m.value));
-
-        // 2. Overwrite/Ensure Variable values
-        loadedVars.forEach(v => {
-          memMap.set(v.address, v.value);
-        });
-
-        // 3. Rebuild List
-        memList = [];
-        memMap.forEach((value, address) => {
-          memList.push({ address, value });
-        });
-        memList.sort((a, b) => a.address - b.address);
-      }
-
-      // Commit to State
-      setCpu((prev) => ({ ...prev, memory: memList }));
-
-      // Rebuild Exec Memory Sparse
-      const sparse: Record<string, number> = {};
-      memList.forEach((m) => {
-        sparse[m.address] = m.value;
-      });
-      setExecMemorySparse(sparse);
-
-    } catch (e) {
-      console.error("Failed to load persistence:", e);
+    const token = getToken();
+    if (token) {
+      const decoded = decodeToken(token);
+      if (decoded?.user_id) setUserId(decoded.user_id);
+    } else {
+      setUserId(0);
     }
   }, []);
 
-  // 2. Auto-Save on Change
+  // 1. Load on Mount (Priority: DB → LocalStorage → Legacy)
   useEffect(() => {
-    const memList = cpu?.memory || [];
-    localStorage.setItem("asm_variables", JSON.stringify(variables));
-    localStorage.setItem("asm_memory", JSON.stringify(memList));
-  }, [variables, cpu?.memory]);
+    const loadPlayground = async () => {
+      if (!assignmentId || playgroundLoaded) return;
+
+      try {
+        const numAssignmentId = parseInt(assignmentId);
+
+        // Step 1: Try loading from Database
+        console.log('[Hybrid Load] Attempting DB load...');
+        const dbData = await loadPlaygroundFromDB(numAssignmentId);
+
+        if (dbData && dbData.react_flow) {
+          console.log('[Hybrid Load] ✓ Loaded from DB');
+          // Restore React Flow state
+          if (dbData.react_flow.nodes) setNodes(dbData.react_flow.nodes);
+          if (dbData.react_flow.edges) setEdges(dbData.react_flow.edges);
+
+          // Restore CPU state
+          if (dbData.cpu_state) {
+            setCpu(prev => ({
+              ...prev,
+              registers: dbData.cpu_state.registers || prev.registers,
+              memory: dbData.cpu_state.memory || prev.memory,
+            }));
+            if (dbData.cpu_state.variables) setVariables(dbData.cpu_state.variables);
+
+            // Rebuild exec memory sparse
+            const sparse: Record<string, number> = {};
+            (dbData.cpu_state.memory || []).forEach((m: any) => {
+              sparse[m.address] = m.value;
+            });
+            setExecMemorySparse(sparse);
+          }
+
+          // Save to LocalStorage for offline fallback
+          saveToLocalStorage(numAssignmentId, userId, dbData);
+          setPlaygroundLoaded(true);
+          return;
+        }
+
+        // Step 2: Fallback to LocalStorage
+        console.log('[Hybrid Load] DB empty, trying LocalStorage...');
+        const localData = loadFromLocalStorage(numAssignmentId, userId);
+
+        if (localData && localData.react_flow) {
+          console.log('[Hybrid Load] ✓ Loaded from LocalStorage');
+          if (localData.react_flow.nodes) setNodes(localData.react_flow.nodes);
+          if (localData.react_flow.edges) setEdges(localData.react_flow.edges);
+
+          if (localData.cpu_state) {
+            setCpu(prev => ({
+              ...prev,
+              memory: localData.cpu_state.memory || prev.memory,
+            }));
+            if (localData.cpu_state.variables) setVariables(localData.cpu_state.variables);
+          }
+          setPlaygroundLoaded(true);
+          return;
+        }
+
+        // Step 3: Migrate Legacy LocalStorage
+        console.log('[Hybrid Load] No modern data, checking legacy...');
+        const migratedData = migrateLegacyStorage(numAssignmentId, userId);
+
+        if (migratedData && migratedData.cpu_state) {
+          console.log('[Hybrid Load] ✓ Migrated legacy data');
+          setCpu(prev => ({
+            ...prev,
+            memory: migratedData.cpu_state.memory || prev.memory,
+          }));
+          if (migratedData.cpu_state.variables) setVariables(migratedData.cpu_state.variables);
+
+          const sparse: Record<string, number> = {};
+          (migratedData.cpu_state.memory || []).forEach((m: any) => {
+            sparse[m.address] = m.value;
+          });
+          setExecMemorySparse(sparse);
+        }
+
+        setPlaygroundLoaded(true);
+        console.log('[Hybrid Load] ✓ Load complete');
+
+      } catch (e) {
+        console.error('[Hybrid Load] Failed:', e);
+        setPlaygroundLoaded(true);
+      }
+    };
+
+    loadPlayground();
+  }, [assignmentId, playgroundLoaded, userId]);
+
+  // 2. Real-time LocalStorage Save (on every change)
+  useEffect(() => {
+    if (!assignmentId || !playgroundLoaded) return;
+
+    const numAssignmentId = parseInt(assignmentId);
+    const playgroundData = {
+      react_flow: {
+        nodes,
+        edges,
+        viewport: reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 },
+      },
+      cpu_state: {
+        registers: cpu.registers,
+        memory: cpu.memory,
+        variables,
+      },
+    };
+
+    saveToLocalStorage(numAssignmentId, userId, playgroundData);
+  }, [nodes, edges, cpu, variables, assignmentId, playgroundLoaded, userId, reactFlowInstance]);
+
+  // 3. Debounced Database Save (3 seconds after last change)
+  const programItems = useMemo<ProgramItem[]>(() => {
+    // 1. Map Node IDs to numeric indices
+    const nodeMap = new Map<string, number>();
+    nodes.forEach((node, index) => {
+      nodeMap.set(node.id, index);
+    });
+
+    // 2. Map Edges
+    const edgesMap = new Map<string, { next?: string, nextTrue?: string, nextFalse?: string }>();
+    edges.forEach(edge => {
+      const source = edge.source;
+      const target = edge.target;
+      const existing = edgesMap.get(source) || {};
+      if (edge.sourceHandle === 'true') existing.nextTrue = target;
+      else if (edge.sourceHandle === 'false') existing.nextFalse = target;
+      else existing.next = target;
+      edgesMap.set(source, existing);
+    });
+
+    // 3. Compile Nodes
+    const items: ProgramItem[] = [];
+    nodes.forEach((node) => {
+      const numericId = nodeMap.get(node.id)!;
+      const links = edgesMap.get(node.id);
+
+      const nextId = links?.next ? nodeMap.get(links.next) ?? -1 : -1;
+      const nextTrueId = links?.nextTrue ? nodeMap.get(links.nextTrue) ?? -1 : -1;
+      const nextFalseId = links?.nextFalse ? nodeMap.get(links.nextFalse) ?? -1 : -1;
+
+      // Extract operands based on instruction type and node data
+      const type = node.data.instructionType;
+      const d = node.data;
+      const operands: any[] = [];
+
+      // 1. Jump/Label Instructions
+      if (['JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN', 'CALL'].includes(type) || type === 'LABEL') {
+        if (d.label) operands.push({ type: 'Label', value: d.label });
+      }
+      // 2. LOAD (Reg, Addr)
+      else if (type === 'LOAD') {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        if (d.memMode === 'reg') {
+          operands.push({ type: 'Register', value: d.memReg || 'R0' });
+        } else {
+          operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
+        }
+      }
+      // 3. STORE (Addr, Reg)
+      else if (type === 'STORE') {
+        if (d.memMode === 'reg') {
+          operands.push({ type: 'Register', value: d.memReg || 'R0' });
+        } else {
+          operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
+        }
+        operands.push({ type: 'Register', value: d.srcReg || 'R0' });
+      }
+      // 4. IN (Reg, Port)
+      else if (type === 'IN') {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
+      }
+      // 5. OUT (Port, Val)
+      else if (type === 'OUT') {
+        operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
+        if (d.srcMode === 'reg') {
+          operands.push({ type: 'Register', value: d.srcReg || 'R0' });
+        } else {
+          operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
+        }
+      }
+      // 6. Standard 2-Operand
+      else if (['MOV', 'ADD', 'SUB', 'MUL', 'DIV', 'AND', 'OR', 'XOR', 'SHL', 'SHR', 'CMP'].includes(type)) {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+        if (d.srcMode === 'reg') {
+          operands.push({ type: 'Register', value: d.srcReg || 'R0' });
+        } else {
+          operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
+        }
+      }
+      // 7. Standard 1-Operand
+      else if (['INC', 'DEC', 'PUSH', 'POP', 'NOT'].includes(type)) {
+        operands.push({ type: 'Register', value: d.dest || 'R0' });
+      }
+
+      items.push({
+        id: numericId,
+        instruction: type,
+        label: d.label,
+        operands: operands,
+        next: nextId,
+        next_true: nextTrueId,
+        next_false: nextFalseId,
+        sourceNodeId: node.id
+      });
+    });
+
+    return items.sort((a, b) => a.id - b.id);
+  }, [nodes, edges]);
+
+  // 3. Debounced Database Save (3 seconds after last change)
+  const playgroundDataForDB = useMemo(() => ({
+    items: programItems,
+    react_flow: {
+      nodes,
+      edges,
+      viewport: reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 },
+    },
+    cpu_state: {
+      registers: cpu.registers,
+      memory: cpu.memory,
+      variables,
+    },
+    meta_data: {
+      last_saved: new Date().toISOString(),
+      version: '1.0',
+    },
+  }), [nodes, edges, cpu, variables, programItems, reactFlowInstance]);
+
+  usePlaygroundDBSave(
+    playgroundDataForDB,
+    assignmentId ? parseInt(assignmentId) : undefined,
+    { delay: 3000, enabled: playgroundLoaded }
+  );
 
   const handleAddVariable = (name: string, value: number) => {
     // Auto-Addressing: First-Fit Strategy (Fill Gaps)
