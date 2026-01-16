@@ -1,265 +1,384 @@
 {
-  "assignments": [
+  "users": [
     {
       "id": 1,
-      "class_id": 101,
-      "title": "Basic Arithmetic Operations",
-      "description": "Learn to use MOV, ADD, SUB instructions",
-      "due_date": "2025-12-31T23:59:59Z",
-      "max_attempt": 3,
-      "grade": 100,
-      "settings": {
-        "grade_policy": {
-          "mode": "auto",
-          "weight": {
-            "test_case": 70,
-            "number_of_node_used": 30
-          }
-        },
-        "test_case_policy": {
-          "visible_to_student": true
-        },
-        "fe_behavior": {
-          "lock_after_submit": false,
-          "allow_resubmit_after_due": true
-        }
-      },
-      "condition": {
-        "allowed_instructions": {
-          "System": {
-            "START": 1,
-            "HLT": 1,
-            "NOP": 1,
-            "LABEL": 1
-          },
-          "Data Movement": {
-            "MOV": 1,
-            "LOAD": 1,
-            "STORE": 1
-          },
-          "Arithmetic": {
-            "ADD": 1,
-            "SUB": 1
-          },
-          "Comparison/Conditional": {
-            "JMP": 1,
-            "JZ": 1,
-            "JNZ": 1,
-            "CMP": 1
-          }
-        },
-        "execution_constraints": {
-          "max_nodes": 10,
-          "register_count": 4
-        },
-        "initial_state": {
-          "registers": {
-            "R0": 0,
-            "R1": 5,
-            "R2": 10
-          },
-          "memory": [
-            {
-              "address": 0,
-              "value": 100
-            },
-            {
-              "address": 1,
-              "value": 200
-            }
-          ]
-        }
-      }
+      "email": "teacher@example.com",
+      "password_hash": "$2a$10$abcdefg...",
+      "name": "Dr. Alan Turing",
+      "tel": "+1234567890",
+      "picture_path": "https://api.dicebear.com/7.x/avataaars/svg?seed=Alan",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "deleted_at": null
     },
     {
       "id": 2,
-      "class_id": 101,
-      "title": "Control Flow & Branching",
-      "description": "Practice using JMP, JZ, JNZ with labels",
-      "due_date": null,
-      "max_attempt": 5,
-      "grade": 100,
-      "settings": {
-        "grade_policy": {
-          "mode": "auto",
-          "weight": {
-            "test_case": 80,
-            "number_of_node_used": 20
-          }
-        },
-        "test_case_policy": {
-          "visible_to_student": true
-        },
-        "fe_behavior": {
-          "lock_after_submit": false,
-          "allow_resubmit_after_due": false
-        }
-      },
-      "condition": {
-        "allowed_instructions": {
-          "Data Transfer": {
-            "MOV": 1
-          },
-          "Comparison": {
-            "CMP": 1
-          },
-          "Branching": {
-            "JMP": 1,
-            "JZ": 1,
-            "JNZ": 1,
-            "LABEL": 1
-          },
-          "Control": {
-            "HLT": 1
-          }
-        },
-        "execution_constraints": {
-          "max_nodes": 15,
-          "register_count": 8
-        },
-        "initial_state": {
-          "registers": {},
-          "memory": []
-        }
-      }
+      "email": "student1@example.com",
+      "password_hash": "$2a$10$abcdefg...",
+      "name": "Grace Hopper",
+      "tel": "+1987654321",
+      "picture_path": "https://api.dicebear.com/7.x/avataaars/svg?seed=Grace",
+      "created_at": "2024-01-02T00:00:00Z",
+      "updated_at": "2024-01-02T00:00:00Z",
+      "deleted_at": null
     },
     {
       "id": 3,
+      "email": "student2@example.com",
+      "password_hash": null,
+      "name": "Ada Lovelace",
+      "tel": "+1122334455",
+      "picture_path": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ada",
+      "created_at": "2024-01-03T00:00:00Z",
+      "updated_at": "2024-01-03T00:00:00Z",
+      "deleted_at": null
+    },
+    {
+      "id": 4,
+      "email": "user1@g.com",
+      "password_hash": "$2b$10$mockhashyl1g8b",
+      "name": "Prakan Suma",
+      "tel": "+",
+      "picture_path": null,
+      "role": "student",
+      "created_at": "2026-01-16T06:21:10.789Z",
+      "updated_at": "2026-01-16T06:21:10.789Z",
+      "deleted_at": null
+    }
+  ],
+  "google_accounts": [
+    {
+      "google_user_id": "100200300",
+      "user_id": 3,
+      "email": "student2@example.com",
+      "access_token": "ya29.a0...",
+      "refresh_token": "1//0g...",
+      "expires_at": "2025-01-01T00:00:00Z",
+      "created_at": "2024-01-03T00:00:00Z"
+    }
+  ],
+  "classes": [
+    {
+      "id": 101,
+      "owner": 1,
+      "topic": "CS101: Introduction to Assembly",
+      "description": "Learn the basics of Low-Level Programming using our Visual Simulator.",
+      "status": 0,
+      "google_course_id": null,
+      "google_course_link": null,
+      "google_synced_at": null,
+      "created_at": "2024-01-10T09:00:00Z",
+      "updated_at": "2024-01-10T09:00:00Z"
+    },
+    {
+      "id": 102,
+      "owner": 1,
+      "topic": "CS202: Advanced Architecture",
+      "description": "Deep dive into registers, memory management, and I/O.",
+      "status": 0,
+      "google_course_id": "gc_12345",
+      "google_course_link": "https://classroom.google.com/c/12345",
+      "google_synced_at": "2024-01-15T10:00:00Z",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-15T10:00:00Z"
+    }
+  ],
+  "member": [
+    {
+      "classroom_id": 101,
+      "user_id": 2,
+      "joined_at": "2024-01-11T10:00:00Z"
+    },
+    {
+      "classroom_id": 101,
+      "user_id": 3,
+      "joined_at": "2024-01-12T11:00:00Z"
+    },
+    {
+      "classroom_id": 102,
+      "user_id": 2,
+      "joined_at": "2024-01-16T10:00:00Z"
+    },
+    {
+      "classroom_id": 101,
+      "user_id": 4,
+      "joined_at": "2026-01-16T06:45:13.481Z"
+    }
+  ],
+  "invitations": [
+    {
+      "id": 1,
       "class_id": 101,
-      "title": "Sandbox Mode (All Instructions)",
-      "description": "Full access to all CPU instructions including I/O and Arithmetic",
-      "due_date": null,
-      "max_attempt": 99,
+      "invited_email": "newstudent@example.com",
+      "invited_user_id": null,
+      "google_invitation_id": null,
+      "status": "pending",
+      "token": "abc-123-inv",
+      "expires_at": "2024-02-01T00:00:00Z",
+      "created_at": "2024-01-20T09:00:00Z"
+    }
+  ],
+  "google_course_sync_log": [
+    {
+      "id": 1,
+      "class_id": 102,
+      "action": "create",
+      "response": {
+        "id": "gc_12345",
+        "name": "CS202"
+      },
+      "status": "success",
+      "create_at": "2024-01-15T10:05:00Z"
+    }
+  ],
+  "assignments": [
+    {
+      "id": 1001,
+      "class_id": 101,
+      "title": "Lab 1: Basic Addition",
+      "description": "Write a program to add two numbers stored in registers.",
+      "due_date": "2027-02-28T23:59:59Z",
+      "max_attempts": 0,
       "grade": 100,
-      "settings": {
+      "setting": {
         "grade_policy": {
-          "mode": "auto",
           "weight": {
-            "test_case": 0,
-            "number_of_node_used": 0
+            "test_case": 80,
+            "node_count": 20
           }
         },
-        "test_case_policy": {
-          "visible_to_student": true
-        },
         "fe_behavior": {
-          "lock_after_submit": false,
-          "allow_resubmit_after_due": true
+          "show_register_view": true,
+          "show_memory_view": false
         }
       },
       "condition": {
         "allowed_instructions": {
-          "System": {
-            "START": 1,
-            "HLT": 1,
-            "NOP": 1,
-            "LABEL": 1
-          },
-          "I/O": {
-            "IN": 1,
-            "OUT": 1
-          },
-          "Data": {
-            "MOV": 1,
-            "LOAD": 1,
-            "STORE": 1,
-            "PUSH": 1,
-            "POP": 1
-          },
-          "Math": {
-            "ADD": 1,
-            "SUB": 1,
-            "MUL": 1,
-            "DIV": 1,
-            "INC": 1,
-            "DEC": 1
-          },
-          "Logic": {
-            "CMP": 1,
-            "JMP": 1,
-            "JZ": 1,
-            "JNZ": 1,
-            "JC": 1,
-            "JNC": 1,
-            "JN": 1,
-            "CALL": 1,
-            "RET": 1
-          },
-          "Bitwise": {
-            "AND": 1,
-            "OR": 1,
-            "XOR": 1,
-            "NOT": 1,
-            "SHL": 1,
-            "SHR": 1
-          }
+          "MOV": 1,
+          "ADD": 1,
+          "START": 1,
+          "HLT": 1
         },
         "execution_constraints": {
-          "max_nodes": 50,
-          "register_count": 8
+          "max_nodes": 10,
+          "max_steps": 50
         },
         "initial_state": {
           "registers": {
             "R0": 0,
-            "R1": 0,
-            "R2": 0,
-            "R3": 0
-          },
-          "memory": []
+            "R1": 0
+          }
         }
-      }
+      },
+      "created_at": "2024-01-20T10:00:00Z",
+      "updated_at": "2024-01-20T10:00:00Z",
+      "deleted_at": null
+    },
+    {
+      "id": 1002,
+      "class_id": 101,
+      "title": "Lab 2: Conditional Logic",
+      "description": "Use CMP and JMP to implement a simple if-else logic.",
+      "due_date": "2027-03-05T23:59:59Z",
+      "max_attempts": 3,
+      "grade": 100,
+      "setting": {
+        "grade_policy": {
+          "weight": {
+            "test_case": 100
+          }
+        }
+      },
+      "condition": {
+        "allowed_instructions": {
+          "MOV": 1,
+          "CMP": 1,
+          "JMP": 1,
+          "JZ": 1,
+          "START": 1,
+          "HLT": 1
+        },
+        "execution_constraints": {
+          "max_nodes": 20
+        }
+      },
+      "created_at": "2024-01-25T10:00:00Z",
+      "updated_at": "2024-01-25T10:00:00Z",
+      "deleted_at": null
+    }
+  ],
+  "test_suites": [
+    {
+      "id": 501,
+      "assignment_id": 1001,
+      "name": "Standard Addition Tests",
+      "created_at": "2024-01-20T10:00:00Z"
+    }
+  ],
+  "test_case": [
+    {
+      "id": 1,
+      "test_suite_id": 501,
+      "name": "5 + 10",
+      "init": {
+        "registers": {
+          "R1": 10,
+          "R0": 5
+        }
+      },
+      "assert": {
+        "registers": {
+          "R0": 15
+        }
+      },
+      "created_at": "2026-01-16T07:41:53.911Z"
+    },
+    {
+      "id": 2,
+      "test_suite_id": 501,
+      "name": "Zero Addition",
+      "init": {
+        "registers": {
+          "R0": 0,
+          "R1": 0
+        }
+      },
+      "assert": {
+        "registers": {
+          "R2": 0
+        },
+        "halted": true
+      },
+      "created_at": "2024-01-20T10:00:00Z"
     }
   ],
   "playgrounds": [
     {
-      "assignment_id": 3,
+      "id": 901,
+      "assignment_id": 1001,
+      "user_id": 2,
+      "item": {
+        "nodes": [
+          {
+            "id": "1",
+            "data": {
+              "instructionType": "START"
+            },
+            "position": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": "2",
+            "data": {
+              "instructionType": "MOV",
+              "dest": "R2",
+              "srcMode": "reg",
+              "srcReg": "R0"
+            },
+            "position": {
+              "x": 0,
+              "y": 100
+            }
+          },
+          {
+            "id": "3",
+            "data": {
+              "instructionType": "ADD",
+              "dest": "R2",
+              "srcMode": "reg",
+              "srcReg": "R1"
+            },
+            "position": {
+              "x": 0,
+              "y": 200
+            }
+          },
+          {
+            "id": "4",
+            "data": {
+              "instructionType": "HLT"
+            },
+            "position": {
+              "x": 0,
+              "y": 300
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "e1-2",
+            "source": "1",
+            "target": "2"
+          },
+          {
+            "id": "e2-3",
+            "source": "2",
+            "target": "3"
+          },
+          {
+            "id": "e3-4",
+            "source": "3",
+            "target": "4"
+          }
+        ]
+      },
+      "status": "submitted",
+      "created_at": "2024-01-22T14:00:00Z",
+      "updated_at": "2024-01-22T15:00:00Z"
+    },
+    {
+      "id": 2,
+      "assignment_id": 1001,
+      "user_id": 4,
       "item": {
         "items": [
           {
             "id": 0,
             "instruction": "START",
             "operands": [],
-            "next": 2,
+            "next": 1,
             "next_true": -1,
             "next_false": -1,
-            "sourceNodeId": "51a42e6e-4643-4ade-bcbe-926558b0e05f"
+            "sourceNodeId": "ffdd4e91-c362-4161-8f64-64605c82e724"
           },
           {
             "id": 1,
-            "instruction": "HLT",
-            "operands": [],
-            "next": -1,
-            "next_true": -1,
-            "next_false": -1,
-            "sourceNodeId": "aa58a58d-3e00-4e18-84af-c291f063aef9"
-          },
-          {
-            "id": 2,
-            "instruction": "MOV",
+            "instruction": "ADD",
             "operands": [
               {
                 "type": "Register",
                 "value": "R0"
               },
               {
-                "type": "Immediate",
-                "value": "15"
+                "type": "Register",
+                "value": "R1"
               }
             ],
-            "next": 1,
+            "next": 2,
             "next_true": -1,
             "next_false": -1,
-            "sourceNodeId": "ddfcfbc6-448d-4aff-a69e-f9753e1d2592"
+            "sourceNodeId": "9a5b96ea-b6ad-41ab-ad18-679e9c623124"
+          },
+          {
+            "id": 2,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "2cd372a8-d749-438b-a84e-94f395c78d8c"
           }
         ],
         "react_flow": {
           "nodes": [
             {
-              "id": "51a42e6e-4643-4ade-bcbe-926558b0e05f",
+              "id": "ffdd4e91-c362-4161-8f64-64605c82e724",
               "type": "instruction",
               "position": {
-                "x": 600,
-                "y": -660
+                "x": 400,
+                "y": 300
               },
               "data": {
                 "instructionType": "START",
@@ -269,55 +388,54 @@
               "height": 56,
               "selected": false,
               "positionAbsolute": {
-                "x": 600,
-                "y": -660
+                "x": 400,
+                "y": 300
               },
               "dragging": false,
               "style": {}
             },
             {
-              "id": "aa58a58d-3e00-4e18-84af-c291f063aef9",
+              "id": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
               "type": "instruction",
               "position": {
-                "x": 600,
-                "y": -220
+                "x": 300,
+                "y": 440
               },
               "data": {
-                "instructionType": "HLT",
+                "instructionType": "ADD",
                 "isProximity": false,
-                "isActiveExec": true
-              },
-              "width": 200,
-              "height": 56,
-              "selected": false,
-              "positionAbsolute": {
-                "x": 600,
-                "y": -220
-              },
-              "dragging": false,
-              "style": {}
-            },
-            {
-              "id": "ddfcfbc6-448d-4aff-a69e-f9753e1d2592",
-              "type": "instruction",
-              "position": {
-                "x": 500,
-                "y": -480
-              },
-              "data": {
-                "instructionType": "MOV",
                 "dest": "R0",
-                "srcMode": "imm",
-                "srcImm": "15",
-                "srcReg": "",
+                "srcMode": "reg",
+                "srcReg": "R1",
                 "isActiveExec": false
               },
               "width": 400,
               "height": 56,
               "selected": false,
               "positionAbsolute": {
-                "x": 500,
-                "y": -480
+                "x": 300,
+                "y": 440
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 600
+              },
+              "data": {
+                "instructionType": "HLT",
+                "isActiveExec": true
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 600
               },
               "dragging": false,
               "style": {}
@@ -325,9 +443,9 @@
           ],
           "edges": [
             {
-              "id": "e51a42e6e-4643-4ade-bcbe-926558b0e05f-ddfcfbc6-448d-4aff-a69e-f9753e1d2592",
-              "source": "51a42e6e-4643-4ade-bcbe-926558b0e05f",
-              "target": "ddfcfbc6-448d-4aff-a69e-f9753e1d2592",
+              "id": "e9a5b96ea-b6ad-41ab-ad18-679e9c623124-2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "source": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "target": "2cd372a8-d749-438b-a84e-94f395c78d8c",
               "sourceHandle": "source-bottom",
               "targetHandle": "in",
               "type": "default",
@@ -338,9 +456,9 @@
               }
             },
             {
-              "id": "eddfcfbc6-448d-4aff-a69e-f9753e1d2592-aa58a58d-3e00-4e18-84af-c291f063aef9",
-              "source": "ddfcfbc6-448d-4aff-a69e-f9753e1d2592",
-              "target": "aa58a58d-3e00-4e18-84af-c291f063aef9",
+              "id": "effdd4e91-c362-4161-8f64-64605c82e724-9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "source": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "target": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
               "sourceHandle": "source-bottom",
               "targetHandle": "in",
               "type": "default",
@@ -352,9 +470,40 @@
             }
           ],
           "viewport": {
-            "x": 319.7039683463927,
-            "y": 582.8341789525235,
-            "zoom": 0.659753955386447
+            "x": -226.7834525025536,
+            "y": -410.76098059244123,
+            "zoom": 1.4555669050051072
+          }
+        },
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0
+          },
+          "memory": [],
+          "variables": []
+        },
+        "meta_data": {
+          "last_saved": "2026-01-16T08:29:24.523Z",
+          "version": "1.0"
+        }
+      },
+      "status": "in_progress",
+      "attempt_no": 1
+    },
+    {
+      "id": 3,
+      "assignment_id": 1002,
+      "user_id": 4,
+      "item": {
+        "items": [],
+        "react_flow": {
+          "nodes": [],
+          "edges": [],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "zoom": 1
           }
         },
         "cpu_state": {
@@ -372,160 +521,1107 @@
           "variables": []
         },
         "meta_data": {
-          "last_saved": "2026-01-15T07:11:45.859Z",
+          "last_saved": "2026-01-16T07:21:09.945Z",
           "version": "1.0"
         }
       },
       "status": "in_progress",
-      "attempt_no": 1,
-      "id": 2
+      "attempt_no": 1
     }
   ],
-  "users": [
+  "submissions": [
     {
       "id": 1,
-      "email": "student1@example.com",
-      "password_hash": "$2b$10$EpRrTfw...",
-      "name": "Student One",
-      "tel": "0812345678",
-      "picture_path": null,
-      "role": "student",
-      "created_at": "2025-01-01T00:00:00Z",
-      "updated_at": "2025-01-01T00:00:00Z",
-      "deleted_at": null
+      "submission_uuid": "sub-uuid-001",
+      "user_id": 2,
+      "assignment_id": 1001,
+      "playground_id": 901,
+      "attempt_number": 1,
+      "item_snapshot": {
+        "nodes": [
+          {
+            "id": "1",
+            "data": {
+              "instructionType": "START"
+            },
+            "position": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": "2",
+            "data": {
+              "instructionType": "MOV",
+              "dest": "R2",
+              "srcMode": "reg",
+              "srcReg": "R0"
+            },
+            "position": {
+              "x": 0,
+              "y": 100
+            }
+          },
+          {
+            "id": "3",
+            "data": {
+              "instructionType": "ADD",
+              "dest": "R2",
+              "srcMode": "reg",
+              "srcReg": "R1"
+            },
+            "position": {
+              "x": 0,
+              "y": 200
+            }
+          },
+          {
+            "id": "4",
+            "data": {
+              "instructionType": "HLT"
+            },
+            "position": {
+              "x": 0,
+              "y": 300
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "e1-2",
+            "source": "1",
+            "target": "2"
+          },
+          {
+            "id": "e2-3",
+            "source": "2",
+            "target": "3"
+          },
+          {
+            "id": "e3-4",
+            "source": "3",
+            "target": "4"
+          }
+        ]
+      },
+      "client_result": {
+        "is_pass": true,
+        "user_claimed_score": 100,
+        "test_results": [
+          {
+            "test_id": 1,
+            "passed": true
+          },
+          {
+            "test_id": 2,
+            "passed": true
+          }
+        ]
+      },
+      "server_result": {
+        "is_pass": true,
+        "verified_score": 100,
+        "score_breakdown": {
+          "correctness": 80,
+          "efficiency": 20
+        }
+      },
+      "score": 100,
+      "status": "verified",
+      "is_verified": true,
+      "duration_ms": 120,
+      "created_at": "2024-01-22T15:00:00Z"
     },
     {
       "id": 2,
-      "email": "teacher1@example.com",
-      "password_hash": "$2b$10$EpRrTfw...",
-      "name": "Teacher One",
-      "tel": "0898765432",
-      "picture_path": null,
-      "role": "teacher",
-      "created_at": "2025-01-01T00:00:00Z",
-      "updated_at": "2025-01-01T00:00:00Z",
-      "deleted_at": null
+      "submission_uuid": "sub-1768552162072-xkv9s0kbj",
+      "user_id": 4,
+      "assignment_id": 1001,
+      "playground_id": 2,
+      "attempt_number": 1,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "ffdd4e91-c362-4161-8f64-64605c82e724"
+          },
+          {
+            "id": 1,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Register",
+                "value": "R1"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9a5b96ea-b6ad-41ab-ad18-679e9c623124"
+          },
+          {
+            "id": 2,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "2cd372a8-d749-438b-a84e-94f395c78d8c"
+          }
+        ],
+        "react_flow": {
+          "nodes": [
+            {
+              "id": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 300
+              },
+              "data": {
+                "instructionType": "START",
+                "isProximity": false
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 300
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "type": "instruction",
+              "position": {
+                "x": 300,
+                "y": 440
+              },
+              "data": {
+                "instructionType": "ADD",
+                "isProximity": false,
+                "dest": "R0",
+                "srcMode": "reg",
+                "srcReg": "R1",
+                "isActiveExec": false
+              },
+              "width": 400,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 300,
+                "y": 440
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 600
+              },
+              "data": {
+                "instructionType": "HLT",
+                "isActiveExec": true
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 600
+              },
+              "dragging": false,
+              "style": {}
+            }
+          ],
+          "edges": [
+            {
+              "id": "e9a5b96ea-b6ad-41ab-ad18-679e9c623124-2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "source": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "target": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            },
+            {
+              "id": "effdd4e91-c362-4161-8f64-64605c82e724-9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "source": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "target": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            }
+          ],
+          "viewport": {
+            "x": -226.7834525025536,
+            "y": -410.76098059244123,
+            "zoom": 1.4555669050051072
+          }
+        },
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0
+          },
+          "memory": [],
+          "variables": []
+        },
+        "meta_data": {
+          "last_saved": "2026-01-16T08:29:17.334Z",
+          "version": "1.0"
+        }
+      },
+      "client_result": {
+        "test_results": {
+          "suiteId": "all",
+          "results": [
+            {
+              "caseId": "1",
+              "passed": true,
+              "actualState": {
+                "registers": {
+                  "R0": 15,
+                  "R1": 10
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": []
+            },
+            {
+              "caseId": "2",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 0,
+                  "R1": 0
+                },
+                "flags": {
+                  "Z": 1,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [
+                {
+                  "condition": {
+                    "id": "70e7b2a0-f9c5-45fa-9c48-5de935d0d13c",
+                    "type": "Register",
+                    "location": "R2",
+                    "value": "0"
+                  },
+                  "actualValue": "Undefined"
+                }
+              ]
+            }
+          ],
+          "timestamp": 1768552162055
+        },
+        "passed_count": 1,
+        "total_count": 2
+      },
+      "server_result": {
+        "is_pass": false,
+        "verified_score": 56,
+        "score_breakdown": {
+          "test_case_score": 40,
+          "node_count_score": 16,
+          "total_score": 56
+        }
+      },
+      "score": 56,
+      "status": "verified",
+      "is_verified": true,
+      "duration_ms": 0,
+      "created_at": "2026-01-16T08:29:22.072Z"
     },
     {
       "id": 3,
-      "email": "user1@g.com",
-      "password_hash": "$2b$10$mockhash09fj78",
-      "name": "Prakan Suma",
-      "tel": "+",
-      "picture_path": null,
-      "role": "student",
-      "created_at": "2026-01-15T07:34:37.019Z",
-      "updated_at": "2026-01-15T07:34:37.019Z",
-      "deleted_at": null
-    }
-  ],
-  "classes": [
-    {
-      "id": 101,
-      "name": "Computer Architecture 101",
-      "description": "Introduction to Assembly Programming",
-      "teacher_id": 2
-    }
-  ],
-  "test_suites": [
-    {
-      "id": 1,
-      "assignment_id": 3,
-      "name": "Grading Suite (Hidden)",
-      "created_at": "2025-01-14T12:00:00Z"
-    },
-    {
-      "id": 2,
-      "assignment_id": 3,
-      "name": "Practice Suite (Public)",
-      "created_at": "2025-01-14T12:00:00Z"
-    }
-  ],
-  "test_cases": [
-    {
-      "id": 1,
-      "test_suite_id": 1,
-      "name": "Hidden Grade Case 1",
-      "init": {
-        "_meta": {
-          "is_hidden": true
+      "submission_uuid": "sub-1768552181568-r2jpyzooq",
+      "user_id": 4,
+      "assignment_id": 1001,
+      "playground_id": 2,
+      "attempt_number": 2,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "ffdd4e91-c362-4161-8f64-64605c82e724"
+          },
+          {
+            "id": 1,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Register",
+                "value": "R1"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9a5b96ea-b6ad-41ab-ad18-679e9c623124"
+          },
+          {
+            "id": 2,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "2cd372a8-d749-438b-a84e-94f395c78d8c"
+          }
+        ],
+        "react_flow": {
+          "nodes": [
+            {
+              "id": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 300
+              },
+              "data": {
+                "instructionType": "START",
+                "isProximity": false
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 300
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "type": "instruction",
+              "position": {
+                "x": 300,
+                "y": 440
+              },
+              "data": {
+                "instructionType": "ADD",
+                "isProximity": false,
+                "dest": "R0",
+                "srcMode": "reg",
+                "srcReg": "R1",
+                "isActiveExec": false
+              },
+              "width": 400,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 300,
+                "y": 440
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 600
+              },
+              "data": {
+                "instructionType": "HLT",
+                "isActiveExec": true
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 600
+              },
+              "dragging": false,
+              "style": {}
+            }
+          ],
+          "edges": [
+            {
+              "id": "e9a5b96ea-b6ad-41ab-ad18-679e9c623124-2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "source": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "target": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            },
+            {
+              "id": "effdd4e91-c362-4161-8f64-64605c82e724-9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "source": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "target": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            }
+          ],
+          "viewport": {
+            "x": -226.7834525025536,
+            "y": -410.76098059244123,
+            "zoom": 1.4555669050051072
+          }
         },
-        "registers": {
-          "R0": 10
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0
+          },
+          "memory": [],
+          "variables": []
         },
-        "memory": {},
-        "flags": {
-          "Z": 0,
-          "C": 0
-        },
-        "io_input": {
-          "0": "100\n"
+        "meta_data": {
+          "last_saved": "2026-01-16T08:29:24.523Z",
+          "version": "1.0"
         }
       },
-      "assert": {
-        "registers": {
-          "R0": 110
+      "client_result": {
+        "test_results": {
+          "suiteId": "all",
+          "results": [
+            {
+              "caseId": "1",
+              "passed": true,
+              "actualState": {
+                "registers": {
+                  "R0": 15,
+                  "R1": 10
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": []
+            },
+            {
+              "caseId": "2",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 0,
+                  "R1": 0
+                },
+                "flags": {
+                  "Z": 1,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [
+                {
+                  "condition": {
+                    "id": "3aebac20-cea3-4aac-9118-b03cb9a0ae9a",
+                    "type": "Register",
+                    "location": "R2",
+                    "value": "0"
+                  },
+                  "actualValue": "Undefined"
+                }
+              ]
+            }
+          ],
+          "timestamp": 1768552181561
         },
-        "halted": true
+        "passed_count": 1,
+        "total_count": 2
       },
-      "created_at": "2025-01-14T12:00:00Z"
-    },
-    {
-      "id": 2,
-      "test_suite_id": 1,
-      "name": "Hidden Grade Case 2",
-      "init": {
-        "_meta": {
-          "is_hidden": true
-        },
-        "registers": {
-          "R0": 0
-        },
-        "memory": {
-          "10": 55
-        },
-        "io_input": {}
-      },
-      "assert": {
-        "memory": {
-          "10": 56
-        },
-        "halted": true
-      },
-      "created_at": "2025-01-14T12:00:00Z"
-    },
-    {
-      "id": 3,
-      "test_suite_id": 2,
-      "name": "Public Case 1: IO Check",
-      "init": {
-        "io_input": {
-          "0": "Hello\n"
+      "server_result": {
+        "is_pass": false,
+        "verified_score": 56,
+        "score_breakdown": {
+          "test_case_score": 40,
+          "node_count_score": 16,
+          "total_score": 56
         }
       },
-      "assert": {
-        "io_output": {
-          "0": "Hello"
-        }
-      },
-      "created_at": "2026-01-15T06:35:46.809Z"
+      "score": 56,
+      "status": "verified",
+      "is_verified": true,
+      "duration_ms": 0,
+      "created_at": "2026-01-16T08:29:41.568Z"
     },
     {
       "id": 4,
-      "test_suite_id": 2,
-      "name": "Public Case 2: Zero Flag",
-      "init": {
-        "registers": {
-          "R0": 5,
-          "R1": 5
+      "submission_uuid": "sub-1768552186088-zhtulpxhc",
+      "user_id": 4,
+      "assignment_id": 1001,
+      "playground_id": 2,
+      "attempt_number": 3,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "ffdd4e91-c362-4161-8f64-64605c82e724"
+          },
+          {
+            "id": 1,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Register",
+                "value": "R1"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9a5b96ea-b6ad-41ab-ad18-679e9c623124"
+          },
+          {
+            "id": 2,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "2cd372a8-d749-438b-a84e-94f395c78d8c"
+          }
+        ],
+        "react_flow": {
+          "nodes": [
+            {
+              "id": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 300
+              },
+              "data": {
+                "instructionType": "START",
+                "isProximity": false
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 300
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "type": "instruction",
+              "position": {
+                "x": 300,
+                "y": 440
+              },
+              "data": {
+                "instructionType": "ADD",
+                "isProximity": false,
+                "dest": "R0",
+                "srcMode": "reg",
+                "srcReg": "R1",
+                "isActiveExec": false
+              },
+              "width": 400,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 300,
+                "y": 440
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 600
+              },
+              "data": {
+                "instructionType": "HLT",
+                "isActiveExec": true
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 600
+              },
+              "dragging": false,
+              "style": {}
+            }
+          ],
+          "edges": [
+            {
+              "id": "e9a5b96ea-b6ad-41ab-ad18-679e9c623124-2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "source": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "target": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            },
+            {
+              "id": "effdd4e91-c362-4161-8f64-64605c82e724-9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "source": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "target": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            }
+          ],
+          "viewport": {
+            "x": -226.7834525025536,
+            "y": -410.76098059244123,
+            "zoom": 1.4555669050051072
+          }
+        },
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0
+          },
+          "memory": [],
+          "variables": []
+        },
+        "meta_data": {
+          "last_saved": "2026-01-16T08:29:24.523Z",
+          "version": "1.0"
         }
       },
-      "assert": {
-        "flags": {
-          "Z": 45
+      "client_result": {
+        "test_results": {
+          "suiteId": "all",
+          "results": [
+            {
+              "caseId": "1",
+              "passed": true,
+              "actualState": {
+                "registers": {
+                  "R0": 15,
+                  "R1": 10
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": []
+            },
+            {
+              "caseId": "2",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 0,
+                  "R1": 0
+                },
+                "flags": {
+                  "Z": 1,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [
+                {
+                  "condition": {
+                    "id": "dabae38c-c63c-4d87-841f-13546c1e524b",
+                    "type": "Register",
+                    "location": "R2",
+                    "value": "0"
+                  },
+                  "actualValue": "Undefined"
+                }
+              ]
+            }
+          ],
+          "timestamp": 1768552186084
+        },
+        "passed_count": 1,
+        "total_count": 2
+      },
+      "server_result": {
+        "is_pass": false,
+        "verified_score": 56,
+        "score_breakdown": {
+          "test_case_score": 40,
+          "node_count_score": 16,
+          "total_score": 56
         }
       },
-      "created_at": "2026-01-15T06:32:31.210Z"
+      "score": 56,
+      "status": "verified",
+      "is_verified": true,
+      "duration_ms": 0,
+      "created_at": "2026-01-16T08:29:46.088Z"
+    },
+    {
+      "id": 5,
+      "submission_uuid": "sub-1768552188680-5j8m1zntw",
+      "user_id": 4,
+      "assignment_id": 1001,
+      "playground_id": 2,
+      "attempt_number": 4,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "ffdd4e91-c362-4161-8f64-64605c82e724"
+          },
+          {
+            "id": 1,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Register",
+                "value": "R1"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9a5b96ea-b6ad-41ab-ad18-679e9c623124"
+          },
+          {
+            "id": 2,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "2cd372a8-d749-438b-a84e-94f395c78d8c"
+          }
+        ],
+        "react_flow": {
+          "nodes": [
+            {
+              "id": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 300
+              },
+              "data": {
+                "instructionType": "START",
+                "isProximity": false
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 300
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "type": "instruction",
+              "position": {
+                "x": 300,
+                "y": 440
+              },
+              "data": {
+                "instructionType": "ADD",
+                "isProximity": false,
+                "dest": "R0",
+                "srcMode": "reg",
+                "srcReg": "R1",
+                "isActiveExec": false
+              },
+              "width": 400,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 300,
+                "y": 440
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "type": "instruction",
+              "position": {
+                "x": 400,
+                "y": 600
+              },
+              "data": {
+                "instructionType": "HLT",
+                "isActiveExec": true
+              },
+              "width": 200,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 400,
+                "y": 600
+              },
+              "dragging": false,
+              "style": {}
+            }
+          ],
+          "edges": [
+            {
+              "id": "e9a5b96ea-b6ad-41ab-ad18-679e9c623124-2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "source": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "target": "2cd372a8-d749-438b-a84e-94f395c78d8c",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            },
+            {
+              "id": "effdd4e91-c362-4161-8f64-64605c82e724-9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "source": "ffdd4e91-c362-4161-8f64-64605c82e724",
+              "target": "9a5b96ea-b6ad-41ab-ad18-679e9c623124",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            }
+          ],
+          "viewport": {
+            "x": -226.7834525025536,
+            "y": -410.76098059244123,
+            "zoom": 1.4555669050051072
+          }
+        },
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0
+          },
+          "memory": [],
+          "variables": []
+        },
+        "meta_data": {
+          "last_saved": "2026-01-16T08:29:24.523Z",
+          "version": "1.0"
+        }
+      },
+      "client_result": {
+        "test_results": {
+          "suiteId": "all",
+          "results": [
+            {
+              "caseId": "1",
+              "passed": true,
+              "actualState": {
+                "registers": {
+                  "R0": 15,
+                  "R1": 10
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": []
+            },
+            {
+              "caseId": "2",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 0,
+                  "R1": 0
+                },
+                "flags": {
+                  "Z": 1,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [
+                {
+                  "condition": {
+                    "id": "c545ef77-8b0f-4af0-9bff-5548e993a738",
+                    "type": "Register",
+                    "location": "R2",
+                    "value": "0"
+                  },
+                  "actualValue": "Undefined"
+                }
+              ]
+            }
+          ],
+          "timestamp": 1768552188674
+        },
+        "passed_count": 1,
+        "total_count": 2
+      },
+      "server_result": {
+        "is_pass": false,
+        "verified_score": 56,
+        "score_breakdown": {
+          "test_case_score": 40,
+          "node_count_score": 16,
+          "total_score": 56
+        }
+      },
+      "score": 56,
+      "status": "verified",
+      "is_verified": true,
+      "duration_ms": 0,
+      "created_at": "2026-01-16T08:29:48.680Z"
+    }
+  ],
+  "bookmark": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "class_id": 101
+    }
+  ],
+  "recent_view_class": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "class_id": 101,
+      "last_viewed_at": "2024-02-01T12:00:00Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "type": "submission_graded",
+      "title": "Assignment Graded",
+      "message": "Your submission for 'Lab 1: Basic Addition' has been graded.",
+      "data": {
+        "submission_uuid": "sub-uuid-001",
+        "assignment_id": 1001,
+        "score": 100
+      },
+      "is_read": false,
+      "created_at": "2024-01-22T15:05:00Z"
     }
   ]
 }

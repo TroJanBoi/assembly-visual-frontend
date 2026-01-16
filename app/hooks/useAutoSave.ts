@@ -7,7 +7,8 @@ export function useAutoSave(
   nodes: Node[],
   edges: Edge[],
   memory: Record<string, number>,
-  onLoad: (nodes: Node[], edges: Edge[], memory: Record<string, number>) => void
+  onLoad: (nodes: Node[], edges: Edge[], memory: Record<string, number>) => void,
+  storageKey: string = 'cpu-sim-playground-v1'
 ) {
   const [loaded, setLoaded] = useState(false);
 

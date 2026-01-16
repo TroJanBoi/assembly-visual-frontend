@@ -46,6 +46,9 @@ import toast from "react-hot-toast";
 
 import TestManagerModal from "@/components/playground/test_cases/TestManagerModal";
 import { TestCase, TestSuite, runTestCase, runTestSuite, TestResult, TestSuiteResult } from '@/lib/playground/test_runner';
+import { getTestSuitesForAssignment } from "@/lib/api/test_cases";
+import { calculateGrade } from "@/lib/playground/grading";
+import { submitAssignment, SubmissionPayload } from "@/lib/api/submission";
 
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
 const getId = () => crypto.randomUUID();
@@ -73,11 +76,16 @@ function toLowerSetFromAllowed(
 ): Set<string> {
   const set = new Set<string>();
   if (!allowed) return set;
-  for (const cat of Object.keys(allowed)) {
-    const group = allowed[cat];
-    if (!group) continue;
-    for (const name of Object.keys(group)) {
-      set.add(name.toLowerCase());
+  for (const key of Object.keys(allowed)) {
+    const value = allowed[key];
+    if (typeof value === "object" && value !== null) {
+      // Nested structure: { "Arithmetic": { "ADD": 1 } }
+      for (const name of Object.keys(value)) {
+        set.add(name.toLowerCase());
+      }
+    } else {
+      // Flat structure: { "ADD": 1 }
+      set.add(key.toLowerCase());
     }
   }
   return set;
@@ -93,14 +101,13 @@ function buildInitialCPUState(assignment: Assignment | null): CPUState {
   if (!assignment) return defaults;
 
   const cond: any = assignment.condition || {};
-  const exec = cond.execution_constraints || {};
-  const regCount: number = Math.max(0, Number(exec.register_count ?? 0));
-
-  const registers: Record<string, number> = {};
-  for (let i = 0; i < regCount; i++) registers[`R${i}`] = 0;
-
-  // latest schema: initial_state at condition.initial_state
   const initState = cond.initial_state || {};
+
+  // Read registers from initial_state.registers (with their initial values)
+  const initRegisters = initState.registers || {};
+  const registers: Record<string, number> = { ...initRegisters };
+
+  // Read memory from initial_state.memory
   const initMem = initState.memory;
   const memory: { address: number; value: number }[] = Array.isArray(initMem)
     ? initMem
@@ -181,20 +188,33 @@ export default function AssignmentPlaygroundPage() {
     | undefined
   >(undefined);
 
-  // ===== Auto Save =====
-  const onAutoSaveLoad = useCallback((savedNodes: Node[], savedEdges: Edge[], savedMemory: Record<string, number>) => {
-    setNodes(savedNodes);
-    setEdges(savedEdges);
-    setExecMemorySparse(savedMemory);
-  }, []);
+  const [userId, setUserId] = useState<number>(() => {
+    // Initial fetch from token if available
+    const token = getToken();
+    if (token) {
+      const decoded = decodeToken(token);
+      return decoded?.user_id || 0; // 0 or -1 indicates "no user" / guest
+    }
+    return 0;
+  });
 
-  const { resetSave } = useAutoSave(nodes, edges, execMemorySparse, onAutoSaveLoad);
+  const [playgroundLoaded, setPlaygroundLoaded] = useState(false);
+
+  // Effect to update userId if token changes (e.g. login/logout)
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      const decoded = decodeToken(token);
+      if (decoded?.user_id) setUserId(decoded.user_id);
+    } else {
+      setUserId(0);
+    }
+  }, []);
 
   // Assignment-driven controls
   const [cpu, setCpu] = useState<CPUState>(() => buildInitialCPUState(null));
   const [allowed, setAllowed] = useState<Set<string>>(new Set());
   const [maxNodes, setMaxNodes] = useState<number | null>(null);
-  // const [proximityNode, setProximityNode] = useState<Node | null>(null); // Removed as part of strict logic
   const [highlightedTargetId, setHighlightedTargetId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -211,8 +231,6 @@ export default function AssignmentPlaygroundPage() {
   const [logs, setLogs] = useState<string[]>([]);
   const appendLog = (msg: string) => setLogs((prev) => [...prev, msg]);
 
-
-
   // IO State
   const [gamepadState, setGamepadState] = useState<number>(0);
 
@@ -222,11 +240,10 @@ export default function AssignmentPlaygroundPage() {
   const playgroundIdRef = useRef<number | null>(null);
 
   // ===== Interactive Execution State =====
-  // ===== Interactive Execution State =====
   const simulationRef = useRef<{
     interval: NodeJS.Timeout | null;
     cpu: CPU | null;
-    cachedItems: ProgramItem[] | null; // BUG FIX #7: Cache parsed items
+    cachedItems: ProgramItem[] | null;
   }>({
     interval: null,
     cpu: null,
@@ -249,15 +266,12 @@ export default function AssignmentPlaygroundPage() {
   const [variables, setVariables] = useState<Variable[]>([]);
 
   // Helper to sync variable changes to memory
-  // Helper to sync variable changes to memory
   const syncVariableToMemory = (address: number, value: number | null) => {
-    // 1. Update Initial CPU State (so Reset restores it)
     setCpu((prev) => {
       const mem = [...prev.memory];
       const idx = mem.findIndex((m) => m.address === address);
 
       if (value === null) {
-        // Deletion: Remove entry
         if (idx !== -1) mem.splice(idx, 1);
       } else {
         if (idx !== -1) {
@@ -270,7 +284,6 @@ export default function AssignmentPlaygroundPage() {
       return { ...prev, memory: mem };
     });
 
-    // 2. Update Exec State (Immediate visibility + Persistence via AutoSave)
     setExecMemorySparse((prev) => {
       if (value === null) {
         const next = { ...prev };
@@ -281,31 +294,19 @@ export default function AssignmentPlaygroundPage() {
     });
   };
 
-  // ===== HYBRID AUTO-SAVE: DB + LocalStorage =====
-  // Priority: Database → LocalStorage → Legacy Migration
-  // ===== HYBRID AUTO-SAVE: DB + LocalStorage =====
-  // Priority: Database → LocalStorage → Legacy Migration
-  const [userId, setUserId] = useState<number>(() => {
-    // Initial fetch from token if available
-    const token = getToken();
-    if (token) {
-      const decoded = decodeToken(token);
-      return decoded?.user_id || 0; // 0 or -1 indicates "no user" / guest
-    }
-    return 0;
-  });
-  const [playgroundLoaded, setPlaygroundLoaded] = useState(false);
 
-  // Effect to update userId if token changes (e.g. login/logout)
-  useEffect(() => {
-    const token = getToken();
-    if (token) {
-      const decoded = decodeToken(token);
-      if (decoded?.user_id) setUserId(decoded.user_id);
-    } else {
-      setUserId(0);
-    }
+  // ===== Auto Save =====
+  const onAutoSaveLoad = useCallback((savedNodes: Node[], savedEdges: Edge[], savedMemory: Record<string, number>) => {
+    setNodes(savedNodes);
+    setEdges(savedEdges);
+    setExecMemorySparse(savedMemory);
   }, []);
+
+  // Create unique storage key for this assignment + user
+  const storageKey = useMemo(() => `playground-${assignmentId}-${userId}`, [assignmentId, userId]);
+
+  const { resetSave } = useAutoSave(nodes, edges, execMemorySparse, onAutoSaveLoad, storageKey);
+
 
   // 1. Load on Mount (Priority: DB → LocalStorage → Legacy)
   useEffect(() => {
@@ -317,33 +318,51 @@ export default function AssignmentPlaygroundPage() {
 
         // Step 1: Try loading from Database
         console.log('[Hybrid Load] Attempting DB load...');
-        const dbData = await loadPlaygroundFromDB(numAssignmentId);
+        const playground = await loadPlaygroundFromDB(numAssignmentId);
 
-        if (dbData && dbData.react_flow) {
+        if (playground && playground.item) {
+          const content = playground.item;
           console.log('[Hybrid Load] ✓ Loaded from DB');
+
+          // Set Playground ID Ref
+          const pid = playground.id || (playground.Data as any)?.id;
+          if (pid) {
+            playgroundIdRef.current = pid;
+            console.log('[Hybrid Load] ✓ Set Playground ID:', pid);
+          }
+
           // Restore React Flow state
-          if (dbData.react_flow.nodes) setNodes(dbData.react_flow.nodes);
-          if (dbData.react_flow.edges) setEdges(dbData.react_flow.edges);
+          if (content.react_flow?.nodes) setNodes(content.react_flow.nodes);
+          if (content.react_flow?.edges) setEdges(content.react_flow.edges);
+
+          // Restore Viewport
+          if (content.react_flow?.viewport && reactFlowInstance) {
+            const { x, y, zoom } = content.react_flow.viewport;
+            reactFlowInstance.setViewport({ x, y, zoom }, { duration: 400 });
+            console.log('[Hybrid Load] ✓ Viewport restored');
+          } else if (reactFlowInstance) {
+            setTimeout(() => reactFlowInstance.fitView(), 100);
+          }
 
           // Restore CPU state
-          if (dbData.cpu_state) {
+          if (content.cpu_state) {
             setCpu(prev => ({
               ...prev,
-              registers: dbData.cpu_state.registers || prev.registers,
-              memory: dbData.cpu_state.memory || prev.memory,
+              registers: content.cpu_state.registers || prev.registers,
+              memory: content.cpu_state.memory || prev.memory,
             }));
-            if (dbData.cpu_state.variables) setVariables(dbData.cpu_state.variables);
+            if (content.cpu_state.variables) setVariables(content.cpu_state.variables);
 
             // Rebuild exec memory sparse
             const sparse: Record<string, number> = {};
-            (dbData.cpu_state.memory || []).forEach((m: any) => {
+            (content.cpu_state.memory || []).forEach((m: any) => {
               sparse[m.address] = m.value;
             });
             setExecMemorySparse(sparse);
           }
 
           // Save to LocalStorage for offline fallback
-          saveToLocalStorage(numAssignmentId, userId, dbData);
+          saveToLocalStorage(numAssignmentId, userId, content);
           setPlaygroundLoaded(true);
           return;
         }
@@ -360,7 +379,7 @@ export default function AssignmentPlaygroundPage() {
           if (localData.cpu_state) {
             setCpu(prev => ({
               ...prev,
-              memory: localData.cpu_state.memory || prev.memory,
+              memory: localData.cpu_state?.memory || prev.memory,
             }));
             if (localData.cpu_state.variables) setVariables(localData.cpu_state.variables);
           }
@@ -376,7 +395,7 @@ export default function AssignmentPlaygroundPage() {
           console.log('[Hybrid Load] ✓ Migrated legacy data');
           setCpu(prev => ({
             ...prev,
-            memory: migratedData.cpu_state.memory || prev.memory,
+            memory: migratedData.cpu_state?.memory || prev.memory,
           }));
           if (migratedData.cpu_state.variables) setVariables(migratedData.cpu_state.variables);
 
@@ -539,11 +558,41 @@ export default function AssignmentPlaygroundPage() {
     },
   }), [nodes, edges, cpu, variables, programItems, reactFlowInstance]);
 
-  usePlaygroundDBSave(
+  const { saveImmediately } = usePlaygroundDBSave(
     playgroundDataForDB,
     assignmentId ? parseInt(assignmentId) : undefined,
-    { delay: 3000, enabled: playgroundLoaded }
+    {
+      delay: 3000,
+      enabled: playgroundLoaded,
+      onSave: (result) => {
+        const pid = result?.id || result?.Data?.id;
+        if (pid && !playgroundIdRef.current) {
+          playgroundIdRef.current = pid;
+          console.log('[DB Save] ✓ Captured Playground ID:', pid);
+        }
+      }
+    }
   );
+
+  // Save immediately on unmount (navigation away)
+  useEffect(() => {
+    return () => {
+      console.log('[Unmount] Triggering immediate save...');
+      saveImmediately?.();
+    };
+  }, [saveImmediately]);
+
+  // Save before browser close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      console.log('[BeforeUnload] Triggering immediate save...');
+      saveImmediately?.();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveImmediately]);
+
 
   const handleAddVariable = (name: string, value: number) => {
     // Auto-Addressing: First-Fit Strategy (Fill Gaps)
@@ -1588,230 +1637,19 @@ export default function AssignmentPlaygroundPage() {
     return errs;
   }
 
-  /* start handleRun seccton */
-  /* start handleRun seccton */
 
-  /* start handleRun section (Actually handleSubmit logic) */
-  const handleSubmit = useCallback(async () => {
-    if (!assignmentId) return;
-
-    // 1) เตรียม nodes และ id mapping - รวม START ด้วย!
-    const nodesToProcess = nodes; // ไม่กรอง START ออก
-    const nodeMap = new Map(nodesToProcess.map((n, i) => [n.id, i + 1]));
-
-    // 2) แปลงเป็น items
-    const items: ProgramItem[] = nodesToProcess.map((node) => {
-      const instruction = getInstr(node);
-      const outEdges = edges.filter((e) => e.source === node.id);
-      // Accept edges with no sourceHandle OR sourceHandle = "out" / "source-bottom" as next edge
-      const nextEdge = outEdges.find((e) => !e.sourceHandle || e.sourceHandle === "out" || e.sourceHandle === "source-bottom");
-      const nextTrueEdge = outEdges.find((e) => e.sourceHandle === "true");
-      const nextFalseEdge = outEdges.find((e) => e.sourceHandle === "false");
-
-      const item: any = {
-        id: nodeMap.get(node.id)!,
-        instruction,
-        label: node.data?.label || "",
-        operands: [],
-      };
-
-      // Set next field based on instruction type and edges
-      if (instruction === "CMP") {
-        // CMP uses next_true and next_false for conditional branching
-        // Fall back to nextEdge (out) for both if no specific edges exist
-        item.next_true = nextTrueEdge
-          ? (nodeMap.get(nextTrueEdge.target) ?? null)
-          : (nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null);
-        item.next_false = nextFalseEdge
-          ? (nodeMap.get(nextFalseEdge.target) ?? null)
-          : (nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null);
-      } else if (instruction === "HLT") {
-        // HLT doesn't need next (terminates execution)
-      } else if (instruction === "NOP") {
-        // NOP falls through to next instruction
-        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
-      } else if (instruction === "LABEL") {
-        // LABEL is just a marker and falls through to next instruction
-        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
-      } else {
-        // All other instructions (START, MOV, ADD, JMP, JZ, etc.) use next field
-        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
-      }
-
-      // operands (ทนต่อหลายชื่อฟิลด์จาก UI)
-      const operands: Operand[] = [];
-
-      // LOAD/STORE: Check for memory address operands
-      if (instruction === "LOAD" || instruction === "STORE") {
-        const memMode = node.data?.memMode ?? "imm"; // "imm" or "reg"
-        const memImm = node.data?.memImm; // number (0-255)
-        const memReg = node.data?.memReg; // string (R0-R7)
-
-        if (instruction === "LOAD") {
-          // LOAD: Register first, then address
-          const dest = node.data?.dest ?? node.data?.dst ?? node.data?.register ?? node.data?.reg;
-          if (dest) {
-            operands.push({ type: "Register", value: String(dest) });
-          }
-
-          // Memory address operand
-          if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
-            operands.push({ type: "Immediate", value: String(memImm) });
-          } else if (memMode === "reg" && memReg) {
-            operands.push({ type: "Register", value: String(memReg) });
-          }
-        } else if (instruction === "STORE") {
-          // STORE: Address first, then register
-          if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
-            operands.push({ type: "Immediate", value: String(memImm) });
-          } else if (memMode === "reg" && memReg) {
-            operands.push({ type: "Register", value: String(memReg) });
-          }
-
-          // Source register
-          // Source register
-          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
-          if (srcReg) {
-            operands.push({ type: "Register", value: String(srcReg) });
-          }
-        }
-      } else if (instruction === "OUT") {
-        // OUT: Port (memImm), Value (srcReg/srcImm)
-        const port = node.data?.memImm;
-        if (port !== undefined && port !== null && port !== "") {
-          operands.push({ type: "Immediate", value: String(port) });
-        }
-
-        // Src Value
-        let pushedSrc = false;
-        const immRaw = node.data?.srcImm ?? node.data?.imm ?? node.data?.value ?? node.data?.val;
-        if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
-          operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
-          pushedSrc = true;
-        }
-        if (!pushedSrc) {
-          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
-          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
-        }
-      } else {
-        // Regular operand parsing for other instructions
-        const destReg =
-          node.data?.dest ??
-          node.data?.dst ??
-          node.data?.register ??
-          node.data?.reg;
-        if (destReg) operands.push({ type: "Register", value: String(destReg) });
-
-        let pushedSrc = false;
-        const immRaw =
-          node.data?.srcImm ??
-          node.data?.imm ??
-          node.data?.value ??
-          node.data?.val;
-        if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
-          operands.push({ type: "Immediate", value: `#${String(immRaw)}` });
-          pushedSrc = true;
-        }
-        if (!pushedSrc) {
-          const srcReg =
-            node.data?.srcReg ??
-            node.data?.src ??
-            node.data?.reg2 ??
-            node.data?.rSrc;
-          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
-        }
-      }
-
-      if (
-        (instruction === "JMP" ||
-          instruction === "JZ" ||
-          instruction === "JNZ") &&
-        node.data?.label
-      ) {
-        operands.push({ type: "Label", value: String(node.data.label) });
-      }
+  /* start handleRun section */
 
 
-      item.operands = operands;
-      return item as ProgramItem;
-    });
 
-    // 3) validate ทั้งก้อน
-    const valErrors = validateProgramItems(items);
-    if (valErrors.length) {
-      alert("Invalid program:\n" + valErrors.join("\n"));
-      return;
-    }
 
-    // 4) UI positions + viewport (pan/zoom)
-    const uiPosition: UIPosition = nodesToProcess.reduce((acc, node) => {
-      acc[nodeMap.get(node.id)!] = { x: node.position.x, y: node.position.y };
-      return acc;
-    }, {} as UIPosition);
 
-    const uiPositionFixed = normalizePositions(uiPosition);
 
-    const vp = getViewportSafe(reactFlowInstance); // { pan:{x,y}, zoom }
 
-    try {
-      // 5) เช็คว่ามี playground แล้วหรือยัง (ครั้งเดียว)
-      const existingPlayground = await checkPlayground(Number(assignmentId));
 
-      // 6) meta_data: ใช้ของเดิมถ้ามี; ไม่งั้นสร้างใหม่ + author_id จาก JWT
-      const authorId = getCurrentUserId();
-      const metaDataFinal = existingPlayground?.item?.meta_data ?? {
-        ...(authorId ? { author_id: authorId } : {}),
-        program_name: assignment?.title || "Untitled Program",
-        timestamp: new Date().toISOString(),
-      };
 
-      // 7) clean items แล้วประกอบ payloadตามสเปก BE
-      const cleanedItems = cleanItems(items as any[]);
-      const attemptNo = (existingPlayground as any)?.attempt_no ?? 1;
 
-      const payload: any = {
-        assignment_id: Number(assignmentId),
-        item: {
-          items: cleanedItems,
-          meta_data: metaDataFinal,
-          ui: {
-            pan: vp.pan,
-            position: uiPositionFixed,
-            zoom: Math.round(vp.zoom),
-          },
-        },
-        status: "in_progress",
-        attempt_no: attemptNo,
-      };
 
-      // 8) create/update
-      let result: any;
-      if (existingPlayground) {
-        result = await updatePlayground(payload);
-        appendLog("playground updated");
-      } else {
-        result = await createPlayground(payload);
-        appendLog("playground created");
-      }
-
-      // 9) set playground id for execute
-      const pid = pickPlaygroundId(
-        result?.Data?.id,
-        result?.id,
-        result?.playground_id,
-        result?.item?.id,
-        existingPlayground?.Data?.id,
-        existingPlayground?.id,
-      );
-
-      if (pid) {
-        // Optionally update ref
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast.error("Save failed: " + e.message);
-    }
-  }, [nodes, edges, assignment, appendLog]);
 
   // 1. Instant Run
   const runInstant = useCallback(async () => {
@@ -2278,13 +2116,109 @@ export default function AssignmentPlaygroundPage() {
 
   // 3. Test Suite (Mock)
   const runTests = useCallback(async () => {
+    if (!assignment) return;
     setTestStatus("running");
 
-    // Simulate Delay
-    await new Promise(r => setTimeout(r, 1500));
+    try {
+      const allSuites = await getTestSuitesForAssignment(parseInt(assignmentId));
+      let allResults: TestResult[] = [];
 
-    toast.success("All Tests Passed!");
-  }, []);
+      const initialState = buildInitialCPUState(assignment);
+
+      for (const suite of allSuites) {
+        const result = await runTestSuite(suite, programItems, initialState);
+        allResults = allResults.concat(result.results);
+      }
+
+      const passedCount = allResults.filter(r => r.passed).length;
+      const totalCount = allResults.length;
+
+      if (passedCount === totalCount) {
+        toast.success(`Passed ${passedCount}/${totalCount} tests!`);
+      } else {
+        toast.error(`Passed ${passedCount}/${totalCount} tests.`);
+      }
+    } catch (e) {
+      console.error('[RunTests] Error:', e);
+      toast.error('Failed to run tests');
+    } finally {
+      setTestStatus(null);
+    }
+  }, [assignment, assignmentId, programItems]);
+
+  const handleSubmit = async () => {
+    if (!assignment || !userId) {
+      toast.error("Sign in and select an assignment to submit.");
+      return;
+    }
+
+    const toastId = toast.loading("Executing tests & grading...");
+
+    try {
+      console.log('[Submit] Starting submission...');
+
+      // 1. Run all test cases for grading
+      const allSuites = await getTestSuitesForAssignment(parseInt(assignmentId));
+      let allResults: TestResult[] = [];
+
+      const initialState = buildInitialCPUState(assignment);
+
+      for (const suite of allSuites) {
+        const result = await runTestSuite(suite, programItems, initialState);
+        allResults = allResults.concat(result.results);
+      }
+
+      const passedCount = allResults.filter(r => r.passed).length;
+      const totalCount = allResults.length;
+
+      // 2. Calculate grade
+      // We wrap the results in a dummy suite result for the grader
+      const dummyResult: TestSuiteResult = {
+        suiteId: 'all',
+        results: allResults,
+        timestamp: Date.now()
+      };
+
+      const gradeInfo = calculateGrade(
+        dummyResult,
+        nodes.length,
+        assignment
+      );
+
+      console.log('[Submit] Grade calculated:', gradeInfo);
+
+      // 3. Create submission payload
+      const payload: SubmissionPayload = {
+        user_id: userId,
+        assignment_id: parseInt(assignmentId),
+        playground_id: playgroundIdRef.current || undefined,
+        item_snapshot: playgroundDataForDB,
+        client_result: {
+          test_results: dummyResult,
+          passed_count: passedCount,
+          total_count: totalCount
+        },
+        server_result: {
+          is_pass: passedCount === totalCount,
+          verified_score: gradeInfo.total_score,
+          score_breakdown: gradeInfo
+        },
+        score: gradeInfo.total_score,
+        status: 'verified',
+        is_verified: true,
+        duration_ms: 0 // Could track performance in future
+      };
+
+      const submission = await submitAssignment(payload);
+
+      console.log('[Submit] ✓ Submitted successfully:', submission);
+      toast.success(`Assignment Submitted! Score: ${submission.score}/100`, { id: toastId });
+
+    } catch (e) {
+      console.error('[Submit] Critical Error:', e);
+      toast.error('Submission failed. Check your connection.', { id: toastId });
+    }
+  };
 
   const handleReset = useCallback(() => {
     setIsRunning(false);
@@ -2470,7 +2404,7 @@ export default function AssignmentPlaygroundPage() {
         onBack={() => router.back()}
         mode={executionMode}
         onRun={setExecutionMode}
-        onSubmit={() => { }}
+        onSubmit={handleSubmit}
         onOpenTestManager={() => setIsTestManagerOpen(true)}
       />
 

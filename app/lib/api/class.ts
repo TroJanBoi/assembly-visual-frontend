@@ -21,6 +21,9 @@ export interface Class {
   google_synced_at: string;
   fav_score: number;
   owner: number;
+  owner_name?: string;
+  member_count?: number;
+  is_bookmarked?: boolean;
   status: number;
 }
 
@@ -78,5 +81,15 @@ export async function joinClass(
     {
       method: "POST",
     },
+  );
+}
+
+export async function toggleBookmark(
+  classId: string | number
+): Promise<{ bookmarked: boolean; message: string }> {
+  const pathId = typeof classId === "number" ? classId.toString() : classId;
+  return apiFetch<{ bookmarked: boolean; message: string }>(
+    `/api/v2/classes/${pathId}/bookmark`,
+    { method: "POST" }
   );
 }

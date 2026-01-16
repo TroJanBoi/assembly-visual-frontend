@@ -9,6 +9,7 @@ import {
   getClassById,
   getClassMembers,
   joinClass,
+  toggleBookmark,
 } from "@/lib/api/class";
 import { Assignment, getAssignmentsForClass } from "@/lib/api/assignment";
 import { useToast } from "@/components/ui/ToastAlert/ToastAlert";
@@ -19,6 +20,7 @@ import AssignmentList from "@/components/assignment/AssignmentList";
 import {
   HiChevronLeft,
   HiOutlineHeart,
+  HiHeart,
   HiOutlineDotsHorizontal,
   HiOutlineGlobeAlt,
   HiOutlineLockClosed,
@@ -103,6 +105,17 @@ export default function ViewClassPage() {
     }
   };
 
+  const handleToggleBookmark = async () => {
+    if (!classData) return;
+    try {
+      const result = await toggleBookmark(id);
+      setClassData({ ...classData, is_bookmarked: result.bookmarked });
+      addToast(result.message, "success");
+    } catch (err: any) {
+      addToast(err.message || "Failed to update bookmark.", "error");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -137,8 +150,18 @@ export default function ViewClassPage() {
         <Button variant="outline" size="icon" onClick={() => router.back()}>
           <HiChevronLeft className="h-5 w-5" />
         </Button>
-        <Button variant="outline" size="icon" aria-label="Favorite class">
-          <HiOutlineHeart className="h-5 w-5" />
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Favorite class"
+          onClick={handleToggleBookmark}
+          className={classData.is_bookmarked ? "text-red-500 border-red-200 bg-red-50" : ""}
+        >
+          {classData.is_bookmarked ? (
+            <HiHeart className="h-5 w-5 fill-current" />
+          ) : (
+            <HiOutlineHeart className="h-5 w-5" />
+          )}
         </Button>
         <div className="flex-grow" />
 
@@ -215,11 +238,10 @@ export default function ViewClassPage() {
                 </h1>
 
                 <span
-                  className={`inline-flex items-center gap-2 px-2 py-1 rounded-md text-sm font-medium ${
-                    classData.status === 0 // 0 = public
-                      ? "bg-white/10 text-blue-200"
-                      : "bg-white/8 text-amber-200"
-                  }`}
+                  className={`inline-flex items-center gap-2 px-2 py-1 rounded-md text-sm font-medium ${classData.status === 0 // 0 = public
+                    ? "bg-white/10 text-blue-200"
+                    : "bg-white/8 text-amber-200"
+                    }`}
                 >
                   {classData.status === 0 ? (
                     <>
@@ -255,20 +277,14 @@ export default function ViewClassPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-white/80">
-                <div className="inline-flex items-center gap-2 bg-white/6 px-2 py-1 rounded-md">
-                  <span>
-                    <FaHeart className="w-4 h-4 fill-red-500" />
-                  </span>
 
-                  <span>{classData.fav_score} favorites</span>
-                </div>
 
                 <div className="inline-flex items-center gap-2 bg-white/6 px-2 py-1 rounded-md">
                   <span>
                     <FaUsers className="w-4 h-4 fill-blue-500" />
                   </span>
 
-                  <span>{/* You can display membersResult.length here */}</span>
+                  <span>{classData.member_count || 0} members</span>
                 </div>
               </div>
             </div>
@@ -280,8 +296,8 @@ export default function ViewClassPage() {
                 </div>
 
                 <div className="hidden md:block text-right">
-                  <div className="text-sm font-medium text-white">
-                    {classData.owner}
+                  <div className="text-sm font-medium text-white max-w-[150px] truncate">
+                    {classData.owner_name}
                   </div>
 
                   <div className="text-xs text-white/80">Owner</div>
