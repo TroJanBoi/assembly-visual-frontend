@@ -126,7 +126,6 @@ export async function runTestCase(
 
         if (port === 0) {
             // Port 0: Keyboard Buffer (string input)
-            // Process escape sequences: \n, \t, \r, \\, etc.
             const processedStr = cond.value
                 .replace(/\\n/g, '\n')
                 .replace(/\\t/g, '\t')
@@ -143,7 +142,6 @@ export async function runTestCase(
             io.state.gamepadState = val;
         } else if (port === 5) {
             // Port 5: RNG seed (numeric)
-            // Could pre-seed RNG if needed
         }
     });
 

@@ -2,6 +2,10 @@
 
 import { ProgramItem } from '@/lib/api/playground';
 import { INSTRUCTION_SETS } from '@/lib/constants/playground';
+import { validateHeaderValue } from 'http';
+import { lightningCssTransform } from 'next/dist/build/swc/generated-native';
+import { send } from 'process';
+import { LoopRepeat } from 'three';
 
 /**
  * Validates an array of program items for correctness
