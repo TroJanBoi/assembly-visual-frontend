@@ -22,7 +22,7 @@ export function usePlaygroundDBSave(
 
     // Immediate save function
     const saveImmediately = useCallback(async () => {
-        if (!assignmentId || !data || isSavingRef.current) return;
+        if (!enabled || !assignmentId || !data || isSavingRef.current) return;
 
         // Clear pending debounced save
         if (timeoutRef.current) {

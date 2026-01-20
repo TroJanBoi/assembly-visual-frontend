@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClass } from "@/lib/api/class";
 import { AssignmentFormData } from "@/types/assignment";
+import { decodeToken, getToken } from "@/lib/auth/token";
 
 // SweetAlert2
 import Swal from "sweetalert2";
@@ -72,10 +73,15 @@ export default function CreateClassPage() {
     try {
       setSubmitting(true);
 
+      const token = getToken();
+      const decoded = token ? decodeToken(token) : null;
+      const userId = decoded?.user_id;
+
       const classData = {
+        owner: userId,
         topic: name.trim(),
         description: desc.trim(),
-        status: privacy === "public" ? 1 : 0,
+        status: privacy === "public" ? 0 : 1,
         google_course_id:
           syncGC && inviteCode.trim() ? inviteCode.trim() : undefined,
         google_course_link:
@@ -134,7 +140,7 @@ export default function CreateClassPage() {
                 value="public"
                 checked={privacy === "public"}
                 onChange={() => setPrivacy("public")}
-                className="accent-[var(--color-primary)]"
+                className="accent-indigo-600"
               />
               <span className="font-medium">Public</span>
             </label>
@@ -145,7 +151,7 @@ export default function CreateClassPage() {
                 value="private"
                 checked={privacy === "private"}
                 onChange={() => setPrivacy("private")}
-                className="accent-[var(--color-primary)]"
+                className="accent-indigo-600"
               />
               <span className="font-medium">Private</span>
             </label>
@@ -185,7 +191,7 @@ export default function CreateClassPage() {
             </div>
           ) : (
             <div className="text-center text-gray-500 pointer-events-none">
-              <div className="mx-auto w-14 h-14 rounded-xl grid place-items-center text-[var(--color-primary)] bg-indigo-50 mb-3">
+              <div className="mx-auto w-14 h-14 rounded-xl grid place-items-center text-indigo-600 bg-indigo-50 mb-3">
                 <svg
                   width="24"
                   height="24"
@@ -199,7 +205,7 @@ export default function CreateClassPage() {
               </div>
               <div className="font-medium">
                 Upload your banner class,{" "}
-                <span className="text-[var(--color-primary)] underline underline-offset-4">
+                <span className="text-indigo-600 underline underline-offset-4">
                   Browse
                 </span>
               </div>
@@ -226,7 +232,7 @@ export default function CreateClassPage() {
             placeholder="Enter your class name"
             required
             className="mt-1 h-11 w-full rounded-lg border border-gray-200 dark:border-slate-700 px-3 text-sm
-                       outline-none focus:border-[var(--color-primary)] focus:ring-4
+                       outline-none focus:border-indigo-600 focus:ring-4
                        focus:ring-[color:rgba(104,127,229,0.18)]"
           />
         </div>
@@ -243,7 +249,7 @@ export default function CreateClassPage() {
             onChange={(e) => setDesc(e.target.value)}
             placeholder="Enter your description..."
             className="mt-1 w-full rounded-lg border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm
-                       outline-none focus:border-[var(--color-primary)] focus:ring-4
+                       outline-none focus:border-indigo-600 focus:ring-4
                        focus:ring-[color:rgba(104,127,229,0.18)]"
           />
         </div>
@@ -253,7 +259,7 @@ export default function CreateClassPage() {
           <label className="inline-flex items-start gap-3 select-none">
             <input
               type="checkbox"
-              className="mt-1 h-4 w-4 rounded accent-[var(--color-primary)]"
+              className="mt-1 h-4 w-4 rounded accent-indigo-600"
               checked={syncGC}
               onChange={(e) => setSyncGC(e.target.checked)}
             />
@@ -273,7 +279,7 @@ export default function CreateClassPage() {
             placeholder="Enter your class invitation code"
             className="mt-2 h-11 w-full rounded-lg border border-gray-200 dark:border-slate-700 px-3 text-sm
                        disabled:opacity-60 disabled:cursor-not-allowed
-                       outline-none focus:border-[var(--color-primary)] focus:ring-4
+                       outline-none focus:border-indigo-600 focus:ring-4
                        focus:ring-[color:rgba(104,127,229,0.18)]"
           />
         </div>
@@ -292,7 +298,7 @@ export default function CreateClassPage() {
             formAction=""
             onClick={onSubmit as any}
             disabled={submitting}
-            className="h-10 px-5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-60"
+            className="h-10 px-5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:opacity-90 disabled:opacity-60"
           >
             {submitting ? "Creating..." : "Create class"}
           </button>

@@ -82,7 +82,7 @@ export async function getAssignmentsForClass(
 ): Promise<Assignment[]> {
   const pathClassId =
     typeof classId === "number" ? classId.toString() : classId;
-  return apiFetch<Assignment[]>(`/api/v2/classes/${pathClassId}/assignments`);
+  return apiFetch<Assignment[]>(`/api/v2/class/${pathClassId}/assignment`);
 }
 
 export async function getAssignmentById(
@@ -94,7 +94,7 @@ export async function getAssignmentById(
   const pathAssignmentId =
     typeof assignmentId === "number" ? assignmentId.toString() : assignmentId;
   return apiFetch<Assignment>(
-    `/api/v2/classes/${pathClassId}/assignments/${pathAssignmentId}`,
+    `/api/v2/class/${pathClassId}/assignment/${pathAssignmentId}`,
   );
 }
 
@@ -108,7 +108,7 @@ export async function createAssignment(
   const pathClassId =
     typeof classId === "number" ? classId.toString() : classId;
   return apiFetch<{ id: number }>(
-    `/api/v2/classes/${pathClassId}/assignments`,
+    `/api/v2/class/${pathClassId}/assignment`,
     {
       method: "POST",
       body: JSON.stringify(data),
@@ -130,7 +130,7 @@ export async function addTestSuite(
   const pathClassId =
     typeof classId === "number" ? classId.toString() : classId;
   return apiFetch<{ id: number }>(
-    `/api/v2/classes/${pathClassId}/assignments/${assignmentId}/test-suites`,
+    `/api/v2/class/${pathClassId}/assignment/${assignmentId}/test-suite`,
     {
       method: "POST",
       body: JSON.stringify(data),
@@ -150,7 +150,7 @@ export async function addTestCase(
   const pathClassId =
     typeof classId === "number" ? classId.toString() : classId;
   return apiFetch<any>(
-    `/api/v2/classes/${pathClassId}/assignments/${assignmentId}/test-suites/${suiteId}/test-cases`,
+    `/api/v2/class/${pathClassId}/assignment/${assignmentId}/test-suite/${suiteId}/test-case`,
     {
       method: "POST",
       body: JSON.stringify(data),

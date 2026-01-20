@@ -1,7 +1,7 @@
 // app/types/assignment.ts
 export interface TestCondition {
   id: string;
-  type: "Register" | "Memory" | "Flag";
+  type: "Register" | "Memory" | "Flag" | "Output" | "Input";
   location: string;
   value: string;
 }
@@ -10,15 +10,14 @@ export interface TestCase {
   id: string;
   name: string;
   isEnabled: boolean;
-  initialState: TestCondition[]; // แก้ไข: any[] -> TestCondition[]
-  expectedState: TestCondition[]; // แก้ไข: any[] -> TestCondition[]
+  hidden: boolean; // true = graded test (hidden from students), false = visible test
+  initialState: TestCondition[];
+  expectedState: TestCondition[];
 }
 
 export interface TestSuite {
   id: string;
   name: string;
-  isGrading: boolean;
-  isHidden: boolean;
   testCases: TestCase[];
 }
 

@@ -20,17 +20,17 @@ export interface SubmissionPayload {
     status: string;
     is_verified: boolean;
     duration_ms: number;
+    feedback?: string | null;
 }
 
 export interface Submission extends SubmissionPayload {
     id: number;
-    submission_uuid: string;
     attempt_number: number;
     created_at: string;
 }
 
 export async function submitAssignment(payload: SubmissionPayload): Promise<Submission> {
-    return post<Submission>('/api/v2/submissions', payload);
+    return post<Submission>('/api/v2/submission', payload);
 }
 
 export async function getSubmissions(
@@ -38,10 +38,10 @@ export async function getSubmissions(
     userId: number
 ): Promise<Submission[]> {
     return apiFetch<Submission[]>(
-        `/api/v2/submissions?assignment_id=${assignmentId}&user_id=${userId}`
+        `/api/v2/submission?assignment_id=${assignmentId}&user_id=${userId}`
     );
 }
 
-export async function getSubmissionByUuid(uuid: string): Promise<Submission> {
-    return apiFetch<Submission>(`/api/v2/submissions/${uuid}`);
+export async function getSubmissionById(id: number | string): Promise<Submission> {
+    return apiFetch<Submission>(`/api/v2/submission/${id}`);
 }

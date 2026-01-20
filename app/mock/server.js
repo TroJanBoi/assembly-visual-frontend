@@ -26,7 +26,7 @@ server.post('/api/v2/auth/login', (req, res) => {
     console.log('[Mock Auth] Login attempt:', email);
 
     // 1. Find user by email
-    const user = db.get('users').find({ email: email }).value();
+    const user = db.get('user').find({ email: email }).value();
 
     if (!user) {
         return res.status(401).json({ error: 'Invalid email or password' });
@@ -69,13 +69,13 @@ server.post('/api/v2/auth/sign-up', (req, res) => {
     console.log('[Mock Auth] Signup attempt:', email);
 
     // 1. Check existing
-    const existing = db.get('users').find({ email: email }).value();
+    const existing = db.get('user').find({ email: email }).value();
     if (existing) {
         return res.status(409).json({ error: 'Email already exists' });
     }
 
     // 2. Create User
-    const newId = (db.get('users').value().length || 0) + 1;
+    const newId = (db.get('user').value().length || 0) + 1;
     // Mock password hashing
     const mockHash = '$2b$10$mockhash' + Math.random().toString(36).substring(7);
 
@@ -92,7 +92,7 @@ server.post('/api/v2/auth/sign-up', (req, res) => {
         deleted_at: null
     };
 
-    db.get('users').push(newUser).write();
+    db.get('user').push(newUser).write();
 
     res.status(201).json({
         id: newUser.id,
@@ -122,8 +122,8 @@ const getUserIdFromRequest = (req) => {
     return 1;
 };
 
-// Custom route: POST /api/v2/playgrounds/me (find or create)
-server.post('/api/v2/playgrounds/me', (req, res) => {
+// Custom route: POST /api/v2/playground/me (find or create)
+server.post('/api/v2/playground/me', (req, res) => {
     const { assignment_id } = req.body;
     const user_id = getUserIdFromRequest(req);
     const db = router.db; // Access lowdb instance
@@ -131,7 +131,7 @@ server.post('/api/v2/playgrounds/me', (req, res) => {
     console.log(`[Mock API] Finding playground for Assignment: ${assignment_id}, User: ${user_id}`);
 
     // Find existing playground
-    const playground = db.get('playgrounds')
+    const playground = db.get('playground')
         .find({ assignment_id: assignment_id, user_id: user_id })
         .value();
 
@@ -140,45 +140,74 @@ server.post('/api/v2/playgrounds/me', (req, res) => {
         res.json(playground);
     } else {
         console.log('[Mock API] Playground not found for assignment_id:', assignment_id);
-        // Note: In a real app, this might create one. 
-        // For now, we return 404 to let FE handle it (or we could auto-create here)
-        res.status(404).json({ error: 'Playground not found' });
+
+        // Fetch assignment to get constraints
+        const assignment = db.get('assignment').find({ id: assignment_id }).value();
+
+        let initialRegisters = {};
+        // Default to 8 registers if not specified
+        const regCount = assignment?.condition?.execution_constraints?.register_count || 8;
+        for (let i = 0; i < regCount; i++) {
+            initialRegisters[`R${i}`] = 0;
+        }
+
+        const newId = (db.get('playground').value().length || 0) + 1;
+        const newPlayground = {
+            id: newId,
+            assignment_id,
+            user_id,
+            item: {
+                items: [],
+                react_flow: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } },
+                cpu_state: {
+                    registers: initialRegisters,
+                    memory: assignment?.condition?.initial_state?.memory || [],
+                    variables: []
+                },
+                meta_data: {
+                    last_saved: new Date().toISOString(),
+                    version: "1.0"
+                }
+            },
+            status: 'in_progress',
+            attempt_no: 1
+        };
+
+        db.get('playground').push(newPlayground).write();
+        console.log('[Mock API] Created new playground:', newId);
+        res.status(201).json(newPlayground);
     }
 });
 
-// Custom route: PUT /api/v2/playgrounds/me (update)
-server.put('/api/v2/playgrounds/me', (req, res) => {
+// Custom route: PUT /api/v2/playground/me (update)
+server.put('/api/v2/playground/me', (req, res) => {
     const { assignment_id, item, status } = req.body;
     const user_id = getUserIdFromRequest(req);
     const db = router.db;
 
     console.log(`[Mock API] Updating playground for Assignment: ${assignment_id}, User: ${user_id}`);
 
-    const playground = db.get('playgrounds')
+    const playground = db.get('playground')
         .find({ assignment_id: assignment_id, user_id: user_id })
         .value();
 
     if (playground) {
         // Update existing
-        db.get('playgrounds')
+        db.get('playground')
             .find({ id: playground.id })
             .assign({
                 item: item || playground.item,
                 status: status || playground.status,
-                user_id: user_id // Ensure user_id persists
+                user_id: user_id
             })
             .write();
 
-        const updated = db.get('playgrounds').find({ id: playground.id }).value();
+        const updated = db.get('playground').find({ id: playground.id }).value();
         console.log('[Mock API] Updated playground:', playground.id);
         res.json({ id: playground.id, ...updated });
     } else {
-        // Option: Auto-create if not found on PUT? 
-        // Usually PUT implies existence, but for convenience we could create.
-        // Let's stick to 404 to be strict, or create if we want to be nice.
-        // Let's create proper new entry.
 
-        const newId = (db.get('playgrounds').value().length || 0) + 1;
+        const newId = (db.get('playground').value().length || 0) + 1;
         const newPlayground = {
             id: newId,
             assignment_id,
@@ -188,18 +217,17 @@ server.put('/api/v2/playgrounds/me', (req, res) => {
             attempt_no: 1
         };
 
-        db.get('playgrounds').push(newPlayground).write();
+        db.get('playground').push(newPlayground).write();
         console.log('[Mock API] Created new playground via PUT:', newId);
         res.json(newPlayground);
     }
 });
 
-// Custom route: POST /api/v2/playgrounds/:id/execute
-server.post('/api/v2/playgrounds/:id/execute', (req, res) => {
+// Custom route: POST /api/v2/playground/:id/execute
+server.post('/api/v2/playground/:id/execute', (req, res) => {
     const playgroundId = parseInt(req.params.id);
     console.log('[Mock API] Executing playground:', playgroundId);
 
-    // Return mock execution result
     res.json({
         execution_state: {
             registers: {
@@ -225,11 +253,11 @@ server.post('/api/v2/playgrounds/:id/execute', (req, res) => {
     });
 });
 
-// Custom route: GET /api/v2/classes/public
-server.get('/api/v2/classes/public', (req, res) => {
+// Custom route: GET /api/v2/class/public
+server.get('/api/v2/class/public', (req, res) => {
     const db = router.db;
-    const classes = db.get('classes').value();
-    const users = db.get('users').value();
+    const classes = db.get('class').value();
+    const users = db.get('user').value();
     const members = db.get('member').value();
 
     const publicClasses = classes
@@ -253,13 +281,13 @@ server.get('/api/v2/profile/', (req, res) => {
     const user_id = getUserIdFromRequest(req);
     const db = router.db;
 
-    const user = db.get('users').find({ id: user_id }).value();
+    const user = db.get('user').find({ id: user_id }).value();
 
     if (user) {
         res.json({
             id: user.id,
             email: user.email,
-            name: user.name, // Now using 'name' not 'username'
+            name: user.name,
             role: user.role,
             tel: user.tel,
             picture_path: user.picture_path
@@ -269,9 +297,8 @@ server.get('/api/v2/profile/', (req, res) => {
     }
 });
 
-// Custom route: GET /api/v2/classes/:id/members
-// Custom route: GET /api/v2/classes/:id/members
-server.get('/api/v2/classes/:id/members', (req, res) => {
+// Custom route: GET /api/v2/class/:id/members
+server.get('/api/v2/class/:id/members', (req, res) => {
     const classId = parseInt(req.params.id);
     const db = router.db;
 
@@ -285,7 +312,7 @@ server.get('/api/v2/classes/:id/members', (req, res) => {
     }
 
     // Get user details for each member
-    const users = db.get('users').value();
+    const users = db.get('user').value();
     const classMembers = memberships.map(m => {
         const user = users.find(u => u.id === m.user_id);
         if (user) {
@@ -304,20 +331,86 @@ server.get('/api/v2/classes/:id/members', (req, res) => {
     res.json(classMembers);
 });
 
-// Custom route: GET /api/v2/classes (to fix 304/404 issues if any)
-server.get('/api/v2/classes', (req, res) => {
+// Custom route: GET /api/v2/class (to fix 304/404 issues if any)
+server.get('/api/v2/class', (req, res) => {
     const db = router.db;
-    const classes = db.get('classes').value();
+    const classes = db.get('class').value();
     res.json(classes);
 });
 
-// Custom route: GET /api/v2/classes/:classId/assignments/:assignmentId
-server.get('/api/v2/classes/:classId/assignments/:assignmentId', (req, res) => {
+// Custom route: GET /api/v2/class/my - Get classes owned by current user
+server.get('/api/v2/class/my', (req, res) => {
+    const user_id = getUserIdFromRequest(req);
+    const db = router.db;
+    const users = db.get('user').value();
+    const members = db.get('member').value();
+
+    const myClasses = db.get('class')
+        .filter({ owner: user_id })
+        .value()
+        .map(c => {
+            const owner = users.find(u => u.id === c.owner);
+            const memberCount = members.filter(m => m.classroom_id === c.id).length;
+            return {
+                ...c,
+                owner_name: owner ? owner.name : "Unknown Instructor",
+                member_count: memberCount
+            };
+        })
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by newest first
+
+    res.json(myClasses);
+});
+
+// Custom route: GET /api/v2/class/joined - Get classes user has joined (but doesn't own)
+server.get('/api/v2/class/joined', (req, res) => {
+    const user_id = getUserIdFromRequest(req);
+    const db = router.db;
+    const users = db.get('user').value();
+    const members = db.get('member').value();
+
+    // Find all memberships for this user (with joined_at info)
+    const userMemberships = members.filter(m => m.user_id === user_id);
+
+    // Get classes where user is a member but not the owner
+    const joinedClasses = db.get('class')
+        .value()
+        .filter(c => userMemberships.some(m => m.classroom_id === c.id) && c.owner !== user_id)
+        .map(c => {
+            const owner = users.find(u => u.id === c.owner);
+            const memberCount = members.filter(m => m.classroom_id === c.id).length;
+            const membership = userMemberships.find(m => m.classroom_id === c.id);
+            return {
+                ...c,
+                owner_name: owner ? owner.name : "Unknown Instructor",
+                member_count: memberCount,
+                joined_at: membership?.joined_at // Include joined_at for sorting
+            };
+        })
+        .sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at)); // Sort by most recently joined
+
+    res.json(joinedClasses);
+});
+
+// Custom route: GET /api/v2/class/:classId/assignment
+server.get('/api/v2/class/:classId/assignment', (req, res) => {
+    const classId = parseInt(req.params.classId);
+    const db = router.db;
+
+    const assignments = db.get('assignment')
+        .filter({ class_id: classId })
+        .value();
+
+    res.json(assignments || []);
+});
+
+// Custom route: GET /api/v2/class/:classId/assignment/:assignmentId
+server.get('/api/v2/class/:classId/assignment/:assignmentId', (req, res) => {
     const classId = parseInt(req.params.classId);
     const assignmentId = parseInt(req.params.assignmentId);
     const db = router.db;
 
-    const assignment = db.get('assignments')
+    const assignment = db.get('assignment')
         .find({ id: assignmentId, class_id: classId })
         .value();
 
@@ -328,14 +421,41 @@ server.get('/api/v2/classes/:classId/assignments/:assignmentId', (req, res) => {
     }
 });
 
-// Custom route: POST /api/v2/classes/:id/join
-server.post('/api/v2/classes/:id/join', (req, res) => {
+// Custom route: POST /api/v2/class/:classId/assignment
+server.post('/api/v2/class/:classId/assignment', (req, res) => {
+    const classId = parseInt(req.params.classId);
+    const db = router.db;
+    const assignments = db.get('assignment').value() || [];
+
+    const newId = assignments.length > 0 ? Math.max(...assignments.map(a => a.id)) + 1 : 1001;
+
+    const newAssignment = {
+        id: newId,
+        class_id: classId,
+        title: req.body.title || "Untitled Assignment",
+        description: req.body.description || "",
+        due_date: req.body.due_date || null,
+        max_attempts: req.body.max_attempts || 0,
+        grade: req.body.grade || 100,
+        settings: req.body.settings || {},
+        condition: req.body.condition || {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        deleted_at: null
+    };
+
+    db.get('assignment').push(newAssignment).write();
+    res.status(201).json({ id: newId });
+});
+
+// Custom route: POST /api/v2/class/:id/join
+server.post('/api/v2/class/:id/join', (req, res) => {
     const classId = parseInt(req.params.id);
     const user_id = getUserIdFromRequest(req);
     const db = router.db;
 
     // Check if class exists
-    const classItem = db.get('classes').find({ id: classId }).value();
+    const classItem = db.get('class').find({ id: classId }).value();
     if (!classItem) {
         return res.status(404).json({ error: "Class not found" });
     }
@@ -361,8 +481,56 @@ server.post('/api/v2/classes/:id/join', (req, res) => {
     res.json({ message: "Successfully joined the class!" });
 });
 
-// Custom route: POST /api/v2/classes/:id/bookmark
-server.post('/api/v2/classes/:id/bookmark', (req, res) => {
+// Custom route: POST /api/v2/class/:classId/assignment/:assignmentId/test-suite
+server.post('/api/v2/class/:classId/assignment/:assignmentId/test-suite', (req, res) => {
+    const assignmentId = parseInt(req.params.assignmentId);
+    const db = router.db;
+
+    const testSuites = db.get('test_suite').value() || [];
+    const newSuiteId = testSuites.length > 0 ? Math.max(...testSuites.map(ts => ts.id)) + 1 : 1;
+
+    const newSuite = {
+        id: newSuiteId,
+        assignment_id: assignmentId,
+        name: req.body.name || "Untitled Suite",
+        description: req.body.description || "",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+
+    db.get('test_suite').push(newSuite).write();
+    res.status(201).json({ id: newSuiteId });
+});
+
+// Custom route: POST /api/v2/class/:classId/assignment/:assignmentId/test-suite/:testSuiteId/test-case
+server.post('/api/v2/class/:classId/assignment/:assignmentId/test-suite/:testSuiteId/test-case', (req, res) => {
+    const testSuiteId = parseInt(req.params.testSuiteId);
+    const db = router.db;
+
+    const testCases = db.get('test_case').value() || [];
+    const newTestCaseId = testCases.length > 0 ? Math.max(...testCases.map(tc => tc.id)) + 1 : 1;
+
+    const newTestCase = {
+        id: newTestCaseId,
+        test_suite_id: testSuiteId,
+        name: req.body.name || "Untitled Case",
+        args: req.body.args || [],
+        stdin: req.body.stdin || "",
+        init: req.body.init || [],
+        assert: req.body.assert || [],
+        _meta: {
+            hidden: req.body.hidden || false
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+
+    db.get('test_case').push(newTestCase).write();
+    res.status(201).json({ id: newTestCaseId });
+});
+
+// Custom route: POST /api/v2/class/:id/bookmark
+server.post('/api/v2/class/:id/bookmark', (req, res) => {
     const classId = parseInt(req.params.id);
     const user_id = getUserIdFromRequest(req); // Helper to get user ID
     const db = router.db;
@@ -387,20 +555,20 @@ server.post('/api/v2/classes/:id/bookmark', (req, res) => {
     }
 });
 
-// Custom route: GET /api/v2/classes/:id (Enriched Data)
-server.get('/api/v2/classes/:id', (req, res) => {
+// Custom route: GET /api/v2/class/:id (Enriched Data)
+server.get('/api/v2/class/:id', (req, res) => {
     const classId = parseInt(req.params.id);
     const user_id = getUserIdFromRequest(req);
     const db = router.db;
 
-    const classItem = db.get('classes').find({ id: classId }).value();
+    const classItem = db.get('class').find({ id: classId }).value();
 
     if (!classItem) {
         // Fallback to router handler if not found (though this intercepts it)
         return res.status(404).json({});
     }
 
-    const users = db.get('users').value();
+    const users = db.get('user').value();
     const members = db.get('member').value();
     const bookmarks = db.get('bookmark').value();
 
@@ -412,18 +580,50 @@ server.get('/api/v2/classes/:id', (req, res) => {
         ...classItem,
         owner_name: owner ? owner.name : "Unknown Instructor",
         member_count: memberCount,
-        is_bookmarked: isBookmarked
     });
+});
+
+// Custom route: POST /api/v2/class
+server.post('/api/v2/class', (req, res) => {
+    const db = router.db;
+    const classes = db.get('class').value() || [];
+
+    const newId = classes.length > 0 ? Math.max(...classes.map(c => c.id)) + 1 : 101;
+
+    // Generate random 6-char code
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    // Simple collision check loop could be added, but for mock random is fine
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    const newClass = {
+        id: newId,
+        owner: req.body.owner,
+        code: code,
+        topic: req.body.topic,
+        description: req.body.description,
+        status: req.body.status || 0,
+        google_course_id: null,
+        google_course_link: null,
+        google_synced_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+
+    db.get('class').push(newClass).write();
+    return res.status(201).json(newClass);
 });
 
 // ==================== TEST SUITES & TEST CASES API ====================
 
-// GET /api/v2/test_suites?assignment_id=X
-server.get('/api/v2/test_suites', (req, res) => {
+// GET /api/v2/test_suite?assignment_id=X
+server.get('/api/v2/test_suite', (req, res) => {
     const db = router.db;
     const { assignment_id } = req.query;
 
-    let suites = db.get('test_suites').value() || [];
+    let suites = db.get('test_suite').value() || [];
 
     if (assignment_id) {
         suites = suites.filter(s => s.assignment_id === parseInt(assignment_id));
@@ -432,12 +632,12 @@ server.get('/api/v2/test_suites', (req, res) => {
     return res.json(suites);
 });
 
-// GET /api/v2/test_suites/:id
-server.get('/api/v2/test_suites/:id', (req, res) => {
+// GET /api/v2/test_suite/:id
+server.get('/api/v2/test_suite/:id', (req, res) => {
     const db = router.db;
     const id = parseInt(req.params.id);
 
-    const suite = db.get('test_suites').find({ id }).value();
+    const suite = db.get('test_suite').find({ id }).value();
 
     if (!suite) {
         return res.status(404).json({ error: 'Test suite not found' });
@@ -446,10 +646,10 @@ server.get('/api/v2/test_suites/:id', (req, res) => {
     return res.json(suite);
 });
 
-// POST /api/v2/test_suites
-server.post('/api/v2/test_suites', (req, res) => {
+// POST /api/v2/test_suite
+server.post('/api/v2/test_suite', (req, res) => {
     const db = router.db;
-    const suites = db.get('test_suites').value() || [];
+    const suites = db.get('test_suite').value() || [];
 
     // Generate new ID
     const newId = suites.length > 0 ? Math.max(...suites.map(s => s.id)) + 1 : 1;
@@ -461,17 +661,17 @@ server.post('/api/v2/test_suites', (req, res) => {
         created_at: req.body.created_at || new Date().toISOString()
     };
 
-    db.get('test_suites').push(newSuite).write();
+    db.get('test_suite').push(newSuite).write();
 
     return res.status(201).json(newSuite);
 });
 
-// PUT /api/v2/test_suites/:id
-server.put('/api/v2/test_suites/:id', (req, res) => {
+// PUT /api/v2/test_suite/:id
+server.put('/api/v2/test_suite/:id', (req, res) => {
     const db = router.db;
     const id = parseInt(req.params.id);
 
-    const updated = db.get('test_suites')
+    const updated = db.get('test_suite')
         .find({ id })
         .assign(req.body)
         .write();
@@ -483,12 +683,12 @@ server.put('/api/v2/test_suites/:id', (req, res) => {
     return res.json(updated);
 });
 
-// DELETE /api/v2/test_suites/:id
-server.delete('/api/v2/test_suites/:id', (req, res) => {
+// DELETE /api/v2/test_suite/:id
+server.delete('/api/v2/test_suite/:id', (req, res) => {
     const db = router.db;
     const id = parseInt(req.params.id);
 
-    const removed = db.get('test_suites').remove({ id }).write();
+    const removed = db.get('test_suite').remove({ id }).write();
 
     if (removed.length === 0) {
         return res.status(404).json({ error: 'Test suite not found' });
@@ -497,8 +697,8 @@ server.delete('/api/v2/test_suites/:id', (req, res) => {
     return res.status(204).send();
 });
 
-// GET /api/v2/test_cases?test_suite_id=X
-server.get('/api/v2/test_cases', (req, res) => {
+// GET /api/v2/test_case?test_suite_id=X
+server.get('/api/v2/test_case', (req, res) => {
     const db = router.db;
     const { test_suite_id } = req.query;
 
@@ -511,8 +711,8 @@ server.get('/api/v2/test_cases', (req, res) => {
     return res.json(cases);
 });
 
-// GET /api/v2/test_cases/:id
-server.get('/api/v2/test_cases/:id', (req, res) => {
+// GET /api/v2/test_case/:id
+server.get('/api/v2/test_case/:id', (req, res) => {
     const db = router.db;
     const id = parseInt(req.params.id);
 
@@ -525,8 +725,8 @@ server.get('/api/v2/test_cases/:id', (req, res) => {
     return res.json(testCase);
 });
 
-// POST /api/v2/test_cases
-server.post('/api/v2/test_cases', (req, res) => {
+// POST /api/v2/test_case
+server.post('/api/v2/test_case', (req, res) => {
     const db = router.db;
     const cases = db.get('test_case').value() || [];
 
@@ -547,8 +747,8 @@ server.post('/api/v2/test_cases', (req, res) => {
     return res.status(201).json(newCase);
 });
 
-// PUT /api/v2/test_cases/:id
-server.put('/api/v2/test_cases/:id', (req, res) => {
+// PUT /api/v2/test_case/:id
+server.put('/api/v2/test_case/:id', (req, res) => {
     const db = router.db;
     const id = parseInt(req.params.id);
 
@@ -564,8 +764,8 @@ server.put('/api/v2/test_cases/:id', (req, res) => {
     return res.json(updated);
 });
 
-// DELETE /api/v2/test_cases/:id
-server.delete('/api/v2/test_cases/:id', (req, res) => {
+// DELETE /api/v2/test_case/:id
+server.delete('/api/v2/test_case/:id', (req, res) => {
     const db = router.db;
     const id = parseInt(req.params.id);
 
@@ -578,17 +778,14 @@ server.delete('/api/v2/test_cases/:id', (req, res) => {
     return res.status(204).send();
 });
 
-// ==================== SUBMISSIONS API ====================
+// ==================== SUBMISSION API ====================
 
-// POST /api/v2/submissions - Submit assignment
-server.post('/api/v2/submissions', (req, res) => {
+// POST /api/v2/submission - Submit assignment
+server.post('/api/v2/submission', (req, res) => {
     const db = router.db;
-    const submissions = db.get('submissions').value() || [];
+    const submissions = db.get('submission').value() || [];
 
     const newId = submissions.length > 0 ? Math.max(...submissions.map(s => s.id)) + 1 : 1;
-
-    // Generate UUID (simplified, real implementation should use crypto.randomUUID())
-    const uuid = 'sub-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
     // Count attempts for this user+assignment
     const userAttempts = submissions.filter(
@@ -598,7 +795,6 @@ server.post('/api/v2/submissions', (req, res) => {
 
     const newSubmission = {
         id: newId,
-        submission_uuid: uuid,
         user_id: req.body.user_id,
         assignment_id: req.body.assignment_id,
         playground_id: req.body.playground_id || null,
@@ -610,22 +806,23 @@ server.post('/api/v2/submissions', (req, res) => {
         status: req.body.status || 'submitted',
         is_verified: req.body.is_verified || false,
         duration_ms: req.body.duration_ms || 0,
+        feedback: req.body.feedback || null,
         created_at: new Date().toISOString()
     };
 
-    db.get('submissions').push(newSubmission).write();
+    db.get('submission').push(newSubmission).write();
 
-    console.log(`[API] ✓ Created submission ${uuid} (Attempt #${attemptNumber}, Score: ${newSubmission.score})`);
+    console.log(`[API] ✓ Created submission ${newId} (Attempt #${attemptNumber}, Score: ${newSubmission.score})`);
 
     return res.status(201).json(newSubmission);
 });
 
-// GET /api/v2/submissions?assignment_id=X&user_id=Y
-server.get('/api/v2/submissions', (req, res) => {
+// GET /api/v2/submission?assignment_id=X&user_id=Y
+server.get('/api/v2/submission', (req, res) => {
     const db = router.db;
     const { assignment_id, user_id } = req.query;
 
-    let submissions = db.get('submissions').value() || [];
+    let submissions = db.get('submission').value() || [];
 
     if (assignment_id) {
         submissions = submissions.filter(s => s.assignment_id === parseInt(assignment_id));
@@ -640,18 +837,36 @@ server.get('/api/v2/submissions', (req, res) => {
     return res.json(submissions);
 });
 
-// GET /api/v2/submissions/:uuid
-server.get('/api/v2/submissions/:uuid', (req, res) => {
+// GET /api/v2/submission/:id
+server.get('/api/v2/submission/:id', (req, res) => {
     const db = router.db;
-    const uuid = req.params.uuid;
+    const id = parseInt(req.params.id);
 
-    const submission = db.get('submissions').find({ submission_uuid: uuid }).value();
+    const submission = db.get('submission').find({ id }).value();
 
     if (!submission) {
         return res.status(404).json({ error: 'Submission not found' });
     }
 
     return res.json(submission);
+});
+
+// PUT /api/v2/submission/:id (Allow specific fields update like feedback)
+server.put('/api/v2/submission/:id', (req, res) => {
+    const db = router.db;
+    const id = parseInt(req.params.id);
+
+    const submission = db.get('submission').find({ id }).value();
+    if (!submission) {
+        return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    const updated = db.get('submission')
+        .find({ id })
+        .assign(req.body)
+        .write();
+
+    return res.json(updated);
 });
 
 // Mount json-server router with /api/v2 prefix

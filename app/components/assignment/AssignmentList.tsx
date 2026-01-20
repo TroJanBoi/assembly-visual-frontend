@@ -93,9 +93,21 @@ const AssignmentListItem = ({
         </span>
       </div>
 
-      <div className="flex items-center gap-2 flex-shrink-0 w-28 justify-end">
+      <div className="flex items-center gap-2 flex-shrink-0 w-auto min-w-[7rem] justify-end">
         {isOwner ? (
           <>
+            <button
+              aria-label="Play assignment"
+              onClick={() =>
+                router.push(
+                  `/class/${assignment.class_id}/assignment/${assignment.id}/playground`,
+                )
+              }
+              className="p-2 text-gray-500 hover:text-green-600 hover:bg-gray-100 rounded-md"
+              title="Play / Test"
+            >
+              <HiOutlinePlay className="w-5 h-5" />
+            </button>
             <button
               aria-label="Edit assignment"
               onClick={handleEdit}
@@ -143,7 +155,7 @@ export default function AssignmentList({
 }: {
   assignments: Assignment[];
   isOwner: boolean;
-  isMember: boolean; // Add isMember to props
+  isMember: boolean;
 }) {
   if (!assignments || assignments.length === 0) {
     return (
@@ -169,7 +181,7 @@ export default function AssignmentList({
             key={assignment.id}
             assignment={assignment}
             isOwner={isOwner}
-            isMember={isMember} // Pass isMember down
+            isMember={isMember}
           />
         ))}
       </ul>

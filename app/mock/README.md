@@ -33,21 +33,21 @@ NEXT_PUBLIC_API_URL=http://localhost:3001 npm run dev
 
 ```
 mock/
-├── db.json       - ข้อมูลจำลอง (assignments, playgrounds, users, classes)
+├── db.json       - ข้อมูลจำลอง (assignment, playground, user, class)
 └── server.js     - Custom server logic
 ```
 
 ## API Endpoints ที่รองรับ
 
 ### Standard REST
-- `GET /api/v2/classes/:classId/assignments` - ดึงรายการ assignments
-- `GET /api/v2/classes/:classId/assignments/:id` - ดึง assignment ตาม ID
-- `POST /api/v2/classes/:classId/assignments` - สร้าง assignment ใหม่
+- `GET /api/v2/class/:classId/assignment` - ดึงรายการ assignment
+- `GET /api/v2/class/:classId/assignment/:id` - ดึง assignment ตาม ID
+- `POST /api/v2/class/:classId/assignment` - สร้าง assignment ใหม่
 
 ### Custom Endpoints
-- `POST /api/v2/playgrounds/me` - ค้นหา playground ตาม assignment_id
-- `PUT /api/v2/playgrounds/me` - อัปเดต playground
-- `POST /api/v2/playgrounds/:id/execute` - รัน execution (คืนข้อมูล mock)
+- `POST /api/v2/playground/me` - ค้นหา playground ตาม assignment_id
+- `PUT /api/v2/playground/me` - อัปเดต playground
+- `POST /api/v2/playground/:id/execute` - รัน execution (คืนข้อมูล mock)
 
 ## แก้ไขข้อมูล
 
@@ -66,7 +66,7 @@ mock/
 
 ```json
 {
-  "assignments": [
+  "assignment": [
     ...existing assignments,
     {
       "id": 3,

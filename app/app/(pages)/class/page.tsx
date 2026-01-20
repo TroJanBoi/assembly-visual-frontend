@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { HiPlus, HiOutlineArrowRight, HiChevronRight } from "react-icons/hi";
 
 import { Modal } from "@/components/ui/Modal";
-import { getClasses, Class, joinClass } from "@/lib/api/class";
+import { getMyClasses, getJoinedClasses, Class, joinClass } from "@/lib/api/class";
 import "sweetalert2/dist/sweetalert2.min.css";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -17,15 +17,20 @@ export default function ClassPage() {
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [classes, setClasses] = useState<Class[]>([]);
+  const [myClasses, setMyClasses] = useState<Class[]>([]);
+  const [joinedClasses, setJoinedClasses] = useState<Class[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchClasses = useCallback(async () => {
     try {
       setError(null);
-      const fetchedClasses = await getClasses();
-      setClasses(fetchedClasses);
+      const [owned, joined] = await Promise.all([
+        getMyClasses(),
+        getJoinedClasses()
+      ]);
+      setMyClasses(owned);
+      setJoinedClasses(joined);
     } catch (err: any) {
       setError(err.message || "Failed to fetch classes.");
       MySwal.fire({
@@ -42,6 +47,7 @@ export default function ClassPage() {
     setPageLoading(true);
     fetchClasses();
   }, [fetchClasses]);
+
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,9 +95,6 @@ export default function ClassPage() {
       </div>
     );
   }
-
-  const myClasses = classes;
-  const joinedClasses: Class[] = [];
 
   return (
     <div className=" min-h-screen p-4 sm:p-6 lg:p-8">

@@ -21,7 +21,18 @@ export type ItemNode = {
 export type UIPosition = Record<number, { x: number; y: number }>;
 
 export type PlaygroundItem = {
-  items: ProgramItem[];
+  items: ProgramItem[]; // Legacy or specific logic array
+  // Correct properties matching db.json and page.tsx usage:
+  react_flow?: {
+    nodes: any[];
+    edges: any[];
+    viewport: { x: number; y: number; zoom: number };
+  };
+  cpu_state?: {
+    registers: Record<string, number>;
+    memory: any[];
+    variables?: any[];
+  };
   meta_data?: Record<string, any>;
   ui?: {
     pan?: { x: number; y: number };
@@ -94,14 +105,14 @@ export type ExecuteResp = { execution_state: ExecutionState };
 export async function executePlayground(
   playgroundId: number | string,
 ): Promise<ExecuteResp> {
-  return apiFetch<ExecuteResp>(`/api/v2/playgrounds/${playgroundId}/execute`, {
+  return apiFetch<ExecuteResp>(`/api/v2/playground/${playgroundId}/execute`, {
     method: "POST",
   });
 }
 
 export async function getMyPlayground(assignment_id: number) {
   try {
-    return await apiFetch<any>("/api/v2/playgrounds/me", {
+    return await apiFetch<any>("/api/v2/playground/me", {
       method: "POST",
       body: JSON.stringify({ assignment_id }),
     });
@@ -111,7 +122,7 @@ export async function getMyPlayground(assignment_id: number) {
 }
 
 export async function updateMyPlayground(body: PlaygroundUpdateBody) {
-  return apiFetch<any>("/api/v2/playgrounds/me", {
+  return apiFetch<any>("/api/v2/playground/me", {
     method: "PUT",
     body: JSON.stringify(body),
   });
@@ -120,7 +131,7 @@ export async function updateMyPlayground(body: PlaygroundUpdateBody) {
 export async function checkPlayground(
   assignmentId: number,
 ): Promise<Playground | null> {
-  return apiFetch<Playground>("/api/v2/playgrounds/me", {
+  return apiFetch<Playground>("/api/v2/playground/me", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ assignment_id: assignmentId }),
@@ -131,17 +142,17 @@ export async function checkPlayground(
   });
 }
 
-// POST /api/v2/playgrounds  (สร้างครั้งแรก)
+// POST /api/v2/playground  (สร้างครั้งแรก)
 export async function createPlayground(payload: any) {
-  return apiFetch("/api/v2/playgrounds/", {
+  return apiFetch("/api/v2/playground/", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),
   });
 }
-// PUT  /api/v2/playgrounds/me (อัปเดต)
+// PUT  /api/v2/playground/me (อัปเดต)
 export async function updatePlayground(payload: any) {
-  return apiFetch("/api/v2/playgrounds/me", {
+  return apiFetch("/api/v2/playground/me", {
     method: "PUT",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),

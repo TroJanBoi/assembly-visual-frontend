@@ -216,21 +216,22 @@ function SuiteItem({
             {/* Test Cases List */}
             {isOpen && (
                 <div className="px-2 pb-2 space-y-1">
-                    {suite.cases.map(t => (
-                        <CaseItem
-                            key={t.id}
-                            testCase={t}
-                            suiteId={suite.id}
-                            isSelected={selectedCaseId === t.id}
-                            isChecked={selectedTestIds?.has(t.id) || false}
-                            isLocked={!!suite.locked}
-                            onSelect={() => onSelectCase(suite.id, t.id)}
-                            onToggleSelect={(cid) => onToggleSelect?.(cid, 'case', suite.id)}
-                            onDelete={() => onDeleteCase(suite.id, t.id)}
-                            onRename={(name) => onRenameCase(suite.id, t.id, name)}
-                            isOwner={isOwner}
-                        />
-                    ))}
+                    {suite.cases
+                        .map(t => (
+                            <CaseItem
+                                key={t.id}
+                                testCase={t}
+                                suiteId={suite.id}
+                                isSelected={selectedCaseId === t.id}
+                                isChecked={selectedTestIds?.has(t.id) || false}
+                                isLocked={!!suite.locked}
+                                onSelect={() => onSelectCase(suite.id, t.id)}
+                                onToggleSelect={(cid) => onToggleSelect?.(cid, 'case', suite.id)}
+                                onDelete={() => onDeleteCase(suite.id, t.id)}
+                                onRename={(name) => onRenameCase(suite.id, t.id, name)}
+                                isOwner={isOwner}
+                            />
+                        ))}
 
                     {!suite.locked && (
                         <button
@@ -328,8 +329,12 @@ function CaseItem({
             ) : (
                 <span className={cn(
                     "truncate flex-1",
-                    testCase.isHidden && !isOwner && "text-gray-400 italic"
-                )}>{testCase.name}{testCase.isHidden && !isOwner && " (Hidden)"}</span>
+                    testCase.isHidden && !isOwner && "text-gray-400 italic",
+                    testCase.isHidden && isOwner && "text-amber-600"
+                )}>
+                    {testCase.name}
+                    {testCase.isHidden && " (Hidden)"}
+                </span>
             )}
 
             {!isLocked && !isEditing && isOwner && !testCase.isHidden && (

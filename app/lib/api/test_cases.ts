@@ -16,25 +16,22 @@ export interface APITestCase {
     init: any;   // JSONB in DB
     assert: any; // JSONB in DB
     created_at?: string;
+    _meta?: {
+        hidden?: boolean;
+    };
 }
 
 // Fetch all suites for an assignment (and their cases)
 export async function getTestSuitesForAssignment(assignmentId: number): Promise<TestSuite[]> {
     try {
         // 1. Fetch Suites
-        const suites = await apiFetch<APITestSuite[]>(`/api/v2/test_suites?assignment_id=${assignmentId}`);
+        const suites = await apiFetch<APITestSuite[]>(`/api/v2/test_suite?assignment_id=${assignmentId}`);
 
-        // 2. Fetch Cases (We could filter on client or server. JSON-server supports filtering)
-        // Ideally we fetch cases for each suite or all cases for assignment if possible.
-        // JSON-server doesn't support complex joins easily, so let's fetch all cases for these suites.
-        // Or better: Fetch all cases for the assignment if we could filter by assignment_id on cases, 
-        // but cases don't have assignment_id, only test_suite_id.
-        // So we iterate and fetch cases for each suite (N+1 problem, but fine for smallmock).
 
         const fullSuites: TestSuite[] = [];
 
         for (const s of suites) {
-            const cases = await apiFetch<APITestCase[]>(`/api/v2/test_cases?test_suite_id=${s.id}`);
+            const cases = await apiFetch<APITestCase[]>(`/api/v2/test_case?test_suite_id=${s.id}`);
 
             fullSuites.push({
                 id: s.id.toString(), // Convert to string for Frontend
@@ -44,7 +41,7 @@ export async function getTestSuitesForAssignment(assignmentId: number): Promise<
                     name: c.name,
                     initialState: parseInitToFrontend(c.init),
                     expectedState: parseAssertToFrontend(c.assert),
-                    isHidden: c.init?._meta?.is_hidden === true
+                    isHidden: c._meta?.hidden === true // Map from top-level _meta
                 })),
                 locked: false // TODO: Add logic for locked suites if needed (e.g. from a separate list or property)
             });
@@ -223,7 +220,7 @@ export async function createTestSuite(assignmentId: number, name: string): Promi
         name,
         created_at: new Date().toISOString()
     };
-    const res = await post<APITestSuite>(`/api/v2/test_suites`, body);
+    const res = await post<APITestSuite>(`/api/v2/test_suite`, body);
     return res.id;
 }
 
@@ -238,17 +235,17 @@ export async function updateTestSuite(id: number, name: string) {
     // Workaround: We only have name to update usually.
     // Let's rely on the fact that we might need to fetch old one or just sending ID + changed fields (if API supports partial update via PUT - unlikely for standard REST, but Json Server might behave).
     // Actually json-server PUT replaces. So we MUST fetch.
-    const old = await apiFetch<APITestSuite>(`/api/v2/test_suites/${id}`);
-    await put<APITestSuite>(`/api/v2/test_suites/${id}`, { ...old, name });
+    const old = await apiFetch<APITestSuite>(`/api/v2/test_suite/${id}`);
+    await put<APITestSuite>(`/api/v2/test_suite/${id}`, { ...old, name });
 }
 
 export async function deleteTestSuite(id: number) {
     // Cascade delete cases? JSON-server doesn't do cascade. We must manual delete cases.
-    const cases = await apiFetch<APITestCase[]>(`/api/v2/test_cases?test_suite_id=${id}`);
+    const cases = await apiFetch<APITestCase[]>(`/api/v2/test_case?test_suite_id=${id}`);
     for (const c of cases) {
-        await del(`/api/v2/test_cases/${c.id}`);
+        await del(`/api/v2/test_case/${c.id}`);
     }
-    await del(`/api/v2/test_suites/${id}`);
+    await del(`/api/v2/test_suite/${id}`);
 }
 
 export async function createTestCase(suiteId: number, testCase: TestCase): Promise<number> {
@@ -257,9 +254,10 @@ export async function createTestCase(suiteId: number, testCase: TestCase): Promi
         name: testCase.name,
         init: toBackendInit(testCase.initialState),
         assert: toBackendAssert(testCase.expectedState),
+        _meta: testCase.isHidden ? { hidden: true } : {},
         created_at: new Date().toISOString()
     };
-    const res = await post<APITestCase>(`/api/v2/test_cases`, body);
+    const res = await post<APITestCase>(`/api/v2/test_case`, body);
     return res.id;
 }
 
@@ -270,11 +268,12 @@ export async function updateTestCase(id: number, testCase: TestCase, suiteId: nu
         name: testCase.name,
         init: toBackendInit(testCase.initialState),
         assert: toBackendAssert(testCase.expectedState),
+        _meta: testCase.isHidden ? { hidden: true } : {},
         created_at: new Date().toISOString() // Or keep old?
     };
-    await put<APITestCase>(`/api/v2/test_cases/${id}`, body);
+    await put<APITestCase>(`/api/v2/test_case/${id}`, body);
 }
 
 export async function deleteTestCase(id: number) {
-    await del(`/api/v2/test_cases/${id}`);
+    await del(`/api/v2/test_case/${id}`);
 }

@@ -35,16 +35,17 @@ import Step3Grading from "@/components/assignment/steps/Step3Grading";
 interface TestCaseStatePayload {
   flags?: { [key: string]: number };
   memory?: { address: number; value: number }[];
-  register?: { [key: string]: number };
+  registers?: { [key: string]: number };
 }
 
 // List of all instructions grouped by category for conversion
 const allInstructionsByCategory = {
-  system: ["LABEL", "NOP"],
-  data_movement: ["MOV", "LOAD", "STORE"],
+  system: ["START", "HLT", "LABEL", "NOP"],
+  io: ["IN", "OUT"],
+  data_movement: ["MOV", "LOAD", "STORE", "PUSH", "POP"],
   arithmetic: ["ADD", "SUB", "MUL", "DIV", "INC", "DEC"],
-  comparison_and_conditional: ["CMP", "JMP", "JZ", "JNZ", "JC", "JNC", "JN"],
-  stack: ["PUSH", "POP"],
+  control_flow: ["CMP", "JMP", "JZ", "JNZ", "JC", "JNC", "JN", "CALL", "RET"],
+  bitwise: ["AND", "OR", "XOR", "NOT", "SHL", "SHR"],
 };
 
 export default function CreateAssignmentPage() {
@@ -112,13 +113,13 @@ export default function CreateAssignmentPage() {
   const transformConditionsToState = (
     conditions: TestCondition[],
   ): TestCaseStatePayload => {
-    const state: TestCaseStatePayload = { flags: {}, memory: [], register: {} };
+    const state: TestCaseStatePayload = { flags: {}, memory: [], registers: {} };
     conditions.forEach((cond) => {
       const value = parseInt(cond.value, 10);
       if (isNaN(value)) return;
       switch (cond.type) {
         case "Register":
-          if (state.register) state.register[cond.location] = value;
+          if (state.registers) state.registers[cond.location] = value;
           break;
         case "Memory":
           const addr = parseInt(cond.location, 10);
@@ -133,7 +134,7 @@ export default function CreateAssignmentPage() {
     });
     if (Object.keys(state.flags || {}).length === 0) delete state.flags;
     if ((state.memory || []).length === 0) delete state.memory;
-    if (Object.keys(state.register || {}).length === 0) delete state.register;
+    if (Object.keys(state.registers || {}).length === 0) delete state.registers;
     return state;
   };
 
@@ -150,49 +151,50 @@ export default function CreateAssignmentPage() {
           throw new Error("Max Nodes must be a positive number.");
       }
 
-      const allowedInstructionsMap: { [key: string]: { [key: string]: 1 } } =
-        {};
-      Object.entries(allInstructionsByCategory).forEach(
-        ([category, instructions]) => {
-          const allowedInCategory: { [key: string]: 1 } = {};
-          instructions.forEach((inst) => {
-            if (!formData.disallowedInstructions.includes(inst)) {
-              allowedInCategory[inst.toLowerCase()] = 1;
-            }
-          });
-          if (Object.keys(allowedInCategory).length > 0) {
-            allowedInstructionsMap[category] = allowedInCategory;
+      // Build flat allowed_instructions (not grouped by category)
+      const allowedInstructionsFlat: { [key: string]: 1 } = {};
+      Object.values(allInstructionsByCategory).forEach((instructions) => {
+        instructions.forEach((inst) => {
+          if (!formData.disallowedInstructions.includes(inst)) {
+            allowedInstructionsFlat[inst] = 1; // Keep uppercase
           }
-        },
-      );
+        });
+      });
 
       const conditionData = {
-        allowed_instructions: allowedInstructionsMap,
+        allowed_instructions: allowedInstructionsFlat,
         execution_constraints: {
           register_count: formData.registerCount,
           max_nodes:
             formData.gradingMode === "auto" && formData.efficiencyEnabled
               ? Number(formData.maxNodes) || null
               : null,
+          max_steps: null, // Add if needed
         },
-        initial_state: { memory: formData.initialMemory },
+        initial_state: {
+          registers: {}, // Can be populated from formData if needed
+          memory: formData.initialMemory,
+        },
       };
 
       const settingsData = {
         fe_behavior: {
           allow_resubmit_after_due: formData.allowLateSubmissions,
           lock_after_submit: formData.lockAfterFinal,
+          show_register_view: true, // Add missing fields
+          show_memory_view: true,
         },
         grade_policy: {
           mode: formData.gradingMode,
           weight: {
+            // Use 0-100 scale, not 0-1
             test_case:
               formData.gradingMode === "auto"
-                ? (100 - (Number(formData.efficiencyWeight) || 0)) / 100
-                : 0,
+                ? 100 - (Number(formData.efficiencyWeight) || 0)
+                : 100,
             number_of_node_used:
               formData.gradingMode === "auto" && formData.efficiencyEnabled
-                ? (Number(formData.efficiencyWeight) || 0) / 100
+                ? Number(formData.efficiencyWeight) || 0
                 : 0,
           },
         },
@@ -241,6 +243,7 @@ export default function CreateAssignmentPage() {
             for (const testCase of suite.testCases) {
               const testCasePayload = {
                 name: testCase.name || "Untitled Case",
+                hidden: testCase.hidden || false, // Add hidden field
                 init: transformConditionsToState(testCase.initialState || []),
                 assert: transformConditionsToState(testCase.expectedState || []),
               };

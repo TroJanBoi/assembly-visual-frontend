@@ -14,6 +14,7 @@ export interface CreateClassResponse {
 
 export interface Class {
   id: number;
+  code: string;
   topic: string;
   description: string;
   google_course_id: string;
@@ -38,26 +39,40 @@ export interface Member {
 export async function createClass(
   data: CreateClassInput,
 ): Promise<CreateClassResponse> {
-  return apiFetch<CreateClassResponse>("/api/v2/classes/", {
+  return apiFetch<CreateClassResponse>("/api/v2/class/", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
 export async function getClasses(): Promise<Class[]> {
-  return apiFetch<Class[]>("/api/v2/classes/");
+  return apiFetch<Class[]>("/api/v2/class/");
+}
+
+/**
+ * Fetches classes owned by the current user.
+ */
+export async function getMyClasses(): Promise<Class[]> {
+  return apiFetch<Class[]>("/api/v2/class/my");
+}
+
+/**
+ * Fetches classes joined by the current user (excluding owned classes).
+ */
+export async function getJoinedClasses(): Promise<Class[]> {
+  return apiFetch<Class[]>("/api/v2/class/joined");
 }
 
 export async function getClassById(id: string | number): Promise<Class> {
   const pathId = typeof id === "number" ? id.toString() : id;
-  return apiFetch<Class>(`/api/v2/classes/${pathId}`);
+  return apiFetch<Class>(`/api/v2/class/${pathId}`);
 }
 
 /**
  * Fetches all public classes.
  */
 export async function getPublicClasses(): Promise<Class[]> {
-  return apiFetch<Class[]>("/api/v2/classes/public");
+  return apiFetch<Class[]>("/api/v2/class/public");
 }
 
 /**
@@ -67,7 +82,7 @@ export async function getClassMembers(
   classId: string | number,
 ): Promise<Member[]> {
   const pathId = typeof classId === "number" ? classId.toString() : classId;
-  return apiFetch<Member[]>(`/api/v2/classes/${pathId}/members`);
+  return apiFetch<Member[]>(`/api/v2/class/${pathId}/members`);
 }
 
 /**
@@ -77,7 +92,7 @@ export async function joinClass(
   classIdOrCode: string,
 ): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(
-    `/api/v2/classes/${classIdOrCode}/join`,
+    `/api/v2/class/${classIdOrCode}/join`,
     {
       method: "POST",
     },
@@ -89,7 +104,7 @@ export async function toggleBookmark(
 ): Promise<{ bookmarked: boolean; message: string }> {
   const pathId = typeof classId === "number" ? classId.toString() : classId;
   return apiFetch<{ bookmarked: boolean; message: string }>(
-    `/api/v2/classes/${pathId}/bookmark`,
+    `/api/v2/class/${pathId}/bookmark`,
     { method: "POST" }
   );
 }

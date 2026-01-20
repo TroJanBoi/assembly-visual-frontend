@@ -45,10 +45,11 @@ import { ExecutionDeck, ExecutionMode } from "@/components/playground/ExecutionD
 import toast from "react-hot-toast";
 
 import TestManagerModal from "@/components/playground/test_cases/TestManagerModal";
+import SubmissionModal from "@/components/playground/SubmissionModal";
 import { TestCase, TestSuite, runTestCase, runTestSuite, TestResult, TestSuiteResult } from '@/lib/playground/test_runner';
 import { getTestSuitesForAssignment } from "@/lib/api/test_cases";
 import { calculateGrade } from "@/lib/playground/grading";
-import { submitAssignment, SubmissionPayload } from "@/lib/api/submission";
+import { submitAssignment, SubmissionPayload, getSubmissions, Submission } from "@/lib/api/submission";
 
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
 const getId = () => crypto.randomUUID();
@@ -145,6 +146,10 @@ export default function AssignmentPlaygroundPage() {
   const router = useRouter();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
+  // Modal states
+  const [testManagerOpen, setTestManagerOpen] = useState(false);
+  const [submissionModalOpen, setSubmissionModalOpen] = useState(false);
+
   const { id: classId, assignmentId } = params as {
     id: string;
     assignmentId: string;
@@ -199,6 +204,24 @@ export default function AssignmentPlaygroundPage() {
   });
 
   const [playgroundLoaded, setPlaygroundLoaded] = useState(false);
+
+  // Test Suites & Submissions (must be after userId is declared)
+  const [testSuites, setTestSuites] = useState<TestSuite[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+
+  const fetchSubmissions = useCallback(() => {
+    if (assignmentId && userId && userId > 0) {
+      getSubmissions(Number(assignmentId), Number(userId)).then(setSubmissions).catch(console.error);
+    }
+  }, [assignmentId, userId]);
+
+  // Load Test Suites & Submissions
+  useEffect(() => {
+    if (assignmentId) {
+      getTestSuitesForAssignment(Number(assignmentId)).then(setTestSuites).catch(console.error);
+      fetchSubmissions();
+    }
+  }, [assignmentId, fetchSubmissions]);
 
   // Effect to update userId if token changes (e.g. login/logout)
   useEffect(() => {
@@ -311,7 +334,8 @@ export default function AssignmentPlaygroundPage() {
   // 1. Load on Mount (Priority: DB → LocalStorage → Legacy)
   useEffect(() => {
     const loadPlayground = async () => {
-      if (!assignmentId || playgroundLoaded) return;
+      // WAIT for assignment to be loaded first (to establish defaults), then overlay saved data
+      if (!assignmentId || playgroundLoaded || !assignment) return;
 
       try {
         const numAssignmentId = parseInt(assignmentId);
@@ -416,7 +440,7 @@ export default function AssignmentPlaygroundPage() {
     };
 
     loadPlayground();
-  }, [assignmentId, playgroundLoaded, userId]);
+  }, [assignmentId, playgroundLoaded, userId, assignment, reactFlowInstance]);
 
   // 2. Real-time LocalStorage Save (on every change)
   useEffect(() => {
@@ -574,24 +598,36 @@ export default function AssignmentPlaygroundPage() {
     }
   );
 
+  // Create a stable ref for saveImmediately to avoid effect re-runs
+  const saveImmediatelyRef = useRef(saveImmediately);
+  useEffect(() => {
+    saveImmediatelyRef.current = saveImmediately;
+  }, [saveImmediately]);
+
   // Save immediately on unmount (navigation away)
+  // Dependency is [] so this effect ONLY cleans up on strict unmount
   useEffect(() => {
     return () => {
       console.log('[Unmount] Triggering immediate save...');
-      saveImmediately?.();
+      // Only trigger if data is actually loaded and populated to avoid saving empty state over DB
+      if (playgroundLoaded) {
+        saveImmediatelyRef.current?.();
+      }
     };
-  }, [saveImmediately]);
+  }, [playgroundLoaded]); // Re-bind unmount handler only when loaded status changes (usually once)
 
   // Save before browser close/refresh
   useEffect(() => {
     const handleBeforeUnload = () => {
       console.log('[BeforeUnload] Triggering immediate save...');
-      saveImmediately?.();
+      if (playgroundLoaded) {
+        saveImmediatelyRef.current?.();
+      }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [saveImmediately]);
+  }, [playgroundLoaded]);
 
 
   const handleAddVariable = (name: string, value: number) => {
@@ -2146,79 +2182,13 @@ export default function AssignmentPlaygroundPage() {
     }
   }, [assignment, assignmentId, programItems]);
 
-  const handleSubmit = async () => {
-    if (!assignment || !userId) {
+  const handleSubmit = useCallback(async () => {
+    if (!assignment) {
       toast.error("Sign in and select an assignment to submit.");
       return;
     }
-
-    const toastId = toast.loading("Executing tests & grading...");
-
-    try {
-      console.log('[Submit] Starting submission...');
-
-      // 1. Run all test cases for grading
-      const allSuites = await getTestSuitesForAssignment(parseInt(assignmentId));
-      let allResults: TestResult[] = [];
-
-      const initialState = buildInitialCPUState(assignment);
-
-      for (const suite of allSuites) {
-        const result = await runTestSuite(suite, programItems, initialState);
-        allResults = allResults.concat(result.results);
-      }
-
-      const passedCount = allResults.filter(r => r.passed).length;
-      const totalCount = allResults.length;
-
-      // 2. Calculate grade
-      // We wrap the results in a dummy suite result for the grader
-      const dummyResult: TestSuiteResult = {
-        suiteId: 'all',
-        results: allResults,
-        timestamp: Date.now()
-      };
-
-      const gradeInfo = calculateGrade(
-        dummyResult,
-        nodes.length,
-        assignment
-      );
-
-      console.log('[Submit] Grade calculated:', gradeInfo);
-
-      // 3. Create submission payload
-      const payload: SubmissionPayload = {
-        user_id: userId,
-        assignment_id: parseInt(assignmentId),
-        playground_id: playgroundIdRef.current || undefined,
-        item_snapshot: playgroundDataForDB,
-        client_result: {
-          test_results: dummyResult,
-          passed_count: passedCount,
-          total_count: totalCount
-        },
-        server_result: {
-          is_pass: passedCount === totalCount,
-          verified_score: gradeInfo.total_score,
-          score_breakdown: gradeInfo
-        },
-        score: gradeInfo.total_score,
-        status: 'verified',
-        is_verified: true,
-        duration_ms: 0 // Could track performance in future
-      };
-
-      const submission = await submitAssignment(payload);
-
-      console.log('[Submit] ✓ Submitted successfully:', submission);
-      toast.success(`Assignment Submitted! Score: ${submission.score}/100`, { id: toastId });
-
-    } catch (e) {
-      console.error('[Submit] Critical Error:', e);
-      toast.error('Submission failed. Check your connection.', { id: toastId });
-    }
-  };
+    setSubmissionModalOpen(true);
+  }, [assignment]);
 
   const handleReset = useCallback(() => {
     setIsRunning(false);
@@ -2519,6 +2489,33 @@ export default function AssignmentPlaygroundPage() {
           onDeleteVariable={handleDeleteVariable}
         />
       </div>
+
+      {/* Modals */}
+      <TestManagerModal
+        isOpen={testManagerOpen}
+        onClose={() => setTestManagerOpen(false)}
+        assignmentId={assignment?.id || 0}
+        availableRegisters={registerNames}
+        onRunTestCase={(tc) => runTestCase(tc, programItems, cpu)}
+        onRunTestSuite={(ts) => runTestSuite(ts, programItems, cpu)}
+      />
+
+      {assignment && userId > 0 && (
+        <SubmissionModal
+          isOpen={submissionModalOpen}
+          onClose={() => setSubmissionModalOpen(false)}
+          assignment={assignment}
+          testSuites={testSuites}
+          program={programItems}
+          defaultCpuState={buildInitialCPUState(assignment)}
+          userId={userId}
+          playgroundId={playgroundIdRef.current || undefined}
+          onSubmissionComplete={() => {
+            fetchSubmissions();
+            toast.success("Assignment submitted successfully!");
+          }}
+        />
+      )}
     </div>
   );
 }

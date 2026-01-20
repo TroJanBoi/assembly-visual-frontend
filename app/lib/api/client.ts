@@ -115,5 +115,5 @@ export function del<T>(path: string): Promise<T> {
 export const updatePlayground = async (
   playground: Playground,
 ): Promise<Playground> => {
-  return await put<Playground>("/api/v2/playgrounds/me", playground);
+  return await put<Playground>("/api/v2/playground/me", playground);
 };

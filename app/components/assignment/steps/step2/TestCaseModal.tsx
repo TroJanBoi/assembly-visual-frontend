@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { HiPlus, HiTrash } from "react-icons/hi";
+import { Trash2 } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { HiPlus, HiTrash } from "react-icons/hi";
-import { Modal } from "@/components/ui/Modal";
+import ModernDropdown from "@/components/ui/ModernDropdown";
 
 import {
   AssignmentFormData,
@@ -47,111 +49,15 @@ export default function TestCaseModal({
   const flagOptions = ["Z", "C", "N", "V"];
 
   const sanitizeNumber = (raw: string) => {
-    let v = String(raw).replace(/\D+/g, "");
+    let v = String(raw).replace(/\\D+/g, "");
     if (v === "") return "";
 
-    v = v.replace(/^0+(?=\d)/, "");
+    v = v.replace(/^0+(?=\\d)/, "");
     if (v.length > 3) v = v.slice(0, 3);
     const n = parseInt(v, 10);
     if (!isNaN(n) && n > 255) return "255";
     return v;
   };
-
-  const { usedRegisters, usedMemory } = useMemo(() => {
-    const r = new Set<string>();
-    const m = new Set<string>();
-    [...localTestCase.initialState, ...localTestCase.expectedState].forEach(
-      (c) => {
-        if (c.type === "Register" && String(c.location).trim() !== "") {
-          r.add(String(c.location));
-        }
-        if (c.type === "Memory" && String(c.location).trim() !== "") {
-          const addr = String(parseInt(String(c.location), 10));
-          if (!isNaN(parseInt(addr, 10))) m.add(addr);
-        }
-      },
-    );
-    return { usedRegisters: r, usedMemory: m };
-  }, [localTestCase]);
-
-  const validateCondition = (cond: TestCondition) => {
-    if (cond.type === "Register") {
-      if (String(cond.location).trim() === "") {
-        return "Select a register.";
-      }
-      if (!availableRegisterOptions.includes(cond.location)) {
-        return `Invalid register "${cond.location}".`;
-      }
-      const otherUses = [
-        ...localTestCase.initialState,
-        ...localTestCase.expectedState,
-      ].filter(
-        (c) =>
-          c.id !== cond.id &&
-          c.type === "Register" &&
-          c.location === cond.location,
-      );
-      if (otherUses.length > 0)
-        return `Register ${cond.location} already used.`;
-    } else if (cond.type === "Flag") {
-      if (String(cond.location).trim() === "") {
-        return "Select a flag.";
-      }
-      if (!flagOptions.includes(cond.location)) {
-        return `Invalid flag "${cond.location}".`;
-      }
-    } else if (cond.type === "Memory") {
-      if (String(cond.location).trim() === "") {
-        return "Enter a memory address (0–255).";
-      }
-      const addr = parseInt(cond.location, 10);
-      if (isNaN(addr) || addr < 0 || addr > 255) {
-        return "Memory address must be an integer 0–255.";
-      }
-      const otherUses = [
-        ...localTestCase.initialState,
-        ...localTestCase.expectedState,
-      ].filter(
-        (c) =>
-          c.id !== cond.id &&
-          c.type === "Memory" &&
-          String(parseInt(c.location as string, 10)) === String(addr),
-      );
-      if (otherUses.length > 0) return `Memory address ${addr} already used.`;
-    }
-
-    const valStr = String(cond.value).trim();
-    if (valStr === "" || cond.value === null || cond.value === undefined) {
-      return `Value is required (${cond.type === "Flag" ? "0 or 1" : "0–255"}).`;
-    }
-    const v = parseInt(valStr, 10);
-    if (cond.type === "Flag") {
-      if (isNaN(v) || (v !== 0 && v !== 1)) {
-        return "Flag value must be 0 or 1.";
-      }
-    } else {
-      if (isNaN(v) || v < 0 || v > 255) {
-        return "Value must be an integer 0–255.";
-      }
-    }
-    return null;
-  };
-
-  const errors = useMemo(() => {
-    const map: Record<string, string | null> = {};
-    [...localTestCase.initialState, ...localTestCase.expectedState].forEach(
-      (cond) => {
-        map[cond.id] = validateCondition(cond);
-      },
-    );
-    return map;
-  }, [localTestCase, availableRegisterOptions.join(",")]);
-
-  const hasErrors = useMemo(
-    () =>
-      Object.values(errors).some((err) => err !== null && err !== undefined),
-    [errors],
-  );
 
   const addCondition = (target: "initialState" | "expectedState") => {
     const newCond: TestCondition = {
@@ -229,12 +135,6 @@ export default function TestCaseModal({
   };
 
   const handleSave = () => {
-    const invalids = Object.entries(errors).filter(([_, err]) => err);
-    if (invalids.length > 0) {
-      alert(`Cannot save: ${invalids[0][1]}`);
-      return;
-    }
-
     const final = JSON.parse(JSON.stringify(localTestCase));
 
     const normalizeCond = (cond: TestCondition) => ({
@@ -254,11 +154,11 @@ export default function TestCaseModal({
       testSuites: (prev.testSuites || []).map((s) =>
         s.id === suiteId
           ? {
-              ...s,
-              testCases: s.testCases.map((tc) =>
-                tc.id === final.id ? final : tc,
-              ),
-            }
+            ...s,
+            testCases: s.testCases.map((tc) =>
+              tc.id === final.id ? final : tc,
+            ),
+          }
           : s,
       ),
     }));
@@ -272,36 +172,6 @@ export default function TestCaseModal({
 
   if (!isOpen) return null;
 
-  const selectStyleBase =
-    "h-10 rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 bg-white";
-  const inputErrorClass = "border-red-400 ring-red-200";
-
-  const ErrorIcon = () => (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 9v4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 17h.01"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-        stroke="currentColor"
-        strokeWidth="1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-
   return (
     <Modal
       open={isOpen}
@@ -309,404 +179,121 @@ export default function TestCaseModal({
       title={`Edit Test Case: ${localTestCase.name}`}
     >
       <div className="space-y-6">
-        {/* name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Test case name
-          </label>
-          <Input
-            value={localTestCase.name}
-            onChange={(e) =>
-              setLocalTestCase((p) => ({ ...p, name: e.target.value }))
-            }
-            className="w-full"
-          />
+        {/* name and type toggle */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Test case name
+            </label>
+            <Input
+              value={localTestCase.name}
+              onChange={(e) =>
+                setLocalTestCase((p) => ({ ...p, name: e.target.value }))
+              }
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Type
+            </label>
+            <button
+              type="button"
+              onClick={() => setLocalTestCase(p => ({ ...p, hidden: !p.hidden }))}
+              className={`w-full h-10 px-3 py-2 rounded-md text-sm font-semibold transition-all ${localTestCase.hidden
+                ? 'bg-amber-100 text-amber-700 border-2 border-amber-300 hover:bg-amber-200'
+                : 'bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200'
+                }`}
+            >
+              {localTestCase.hidden ? '🔒 Graded' : '👁 Visible'}
+            </button>
+          </div>
         </div>
 
         {/* initial */}
         <div>
-          <h3 className="text-lg font-semibold mb-2">Initial State</h3>
-          <div className="space-y-2">
-            {localTestCase.initialState.map((cond, idx) => {
-              const err = errors[cond.id];
-
-              const regOptions = availableRegisterOptions.filter(
-                (r) => !usedRegisters.has(r) || r === cond.location,
-              );
-
-              const datalistId = `mem-${localTestCase.id}-init-${cond.id}`;
-
-              return (
-                <div key={cond.id} className="flex items-center gap-2 relative">
-                  <span className="text-sm text-gray-500 w-6 text-right">
-                    {idx + 1}
-                  </span>
-
-                  {/* TYPE select */}
-                  <select
-                    className={`${selectStyleBase} ${err ? inputErrorClass : ""}`}
-                    value={cond.type}
-                    onChange={(e) =>
-                      updateCondition(
-                        "initialState",
-                        cond.id,
-                        "type",
-                        e.target.value as TestCondition["type"],
-                      )
-                    }
-                  >
-                    <option value="Register">Register</option>
-                    <option value="Memory">Memory</option>
-                    <option value="Flag">Flag</option>
-                  </select>
-
-                  {/* LOCATION control (depends on type) */}
-                  {cond.type === "Register" && (
-                    <select
-                      className={`${selectStyleBase} ${err ? inputErrorClass : ""}`}
-                      value={cond.location}
-                      onChange={(e) =>
-                        updateCondition(
-                          "initialState",
-                          cond.id,
-                          "location",
-                          e.target.value,
-                        )
-                      }
-                    >
-                      <option value="" disabled>
-                        Select register...
-                      </option>
-                      {regOptions.length === 0 ? (
-                        <option value="" disabled>
-                          (no registers available)
-                        </option>
-                      ) : (
-                        regOptions.map((r) => (
-                          <option key={r} value={r}>
-                            {r}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  )}
-
-                  {cond.type === "Flag" && (
-                    <select
-                      className={`${selectStyleBase} ${err ? inputErrorClass : ""}`}
-                      value={cond.location}
-                      onChange={(e) =>
-                        updateCondition(
-                          "initialState",
-                          cond.id,
-                          "location",
-                          e.target.value,
-                        )
-                      }
-                    >
-                      <option value="" disabled>
-                        Select flag...
-                      </option>
-                      {flagOptions.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  {cond.type === "Memory" && (
-                    <>
-                      <Input
-                        list={datalistId}
-                        value={cond.location}
-                        onChange={(e) =>
-                          updateCondition(
-                            "initialState",
-                            cond.id,
-                            "location",
-                            e.target.value,
-                          )
-                        }
-                        placeholder="Address (0-255)"
-                        className={`w-28 ${err ? inputErrorClass : ""}`}
-                      />
-                      <datalist id={datalistId}>
-                        <option value="" />
-                        {Array.from({ length: 256 })
-                          .map((_, i) => String(i))
-                          .filter(
-                            (a) => !usedMemory.has(a) || a === cond.location,
-                          )
-                          .map((addr) => (
-                            <option key={addr} value={addr} />
-                          ))}
-                      </datalist>
-                    </>
-                  )}
-
-                  <span className="text-gray-500 mx-1">:</span>
-
-                  {/* value field + tooltip above it */}
-                  <div className="relative flex-1">
-                    {cond.type === "Flag" ? (
-                      <select
-                        className={`${selectStyleBase} ${err ? inputErrorClass : ""} flex-1`}
-                        value={cond.value}
-                        onChange={(e) =>
-                          updateCondition(
-                            "initialState",
-                            cond.id,
-                            "value",
-                            e.target.value,
-                          )
-                        }
-                      >
-                        <option value="" disabled>
-                          Select...
-                        </option>
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                      </select>
-                    ) : (
-                      <Input
-                        value={cond.value}
-                        onChange={(e) =>
-                          updateCondition(
-                            "initialState",
-                            cond.id,
-                            "value",
-                            e.target.value,
-                          )
-                        }
-                        placeholder="Value (0-255)"
-                        className={`flex-1 ${err ? inputErrorClass : ""}`}
-                        onKeyDown={(ev) => {
-                          if (ev.key.length === 1 && !/^[0-9]$/.test(ev.key))
-                            ev.preventDefault();
-                        }}
-                      />
-                    )}
-
-                    {/* tooltip above value; absolute so not affect layout */}
-                    {err && (
-                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-full mb-2 w-max max-w-xs p-2 text-xs text-white bg-red-600 rounded shadow-lg pointer-events-none z-50">
-                        {err}
-                      </div>
-                    )}
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeCondition("initialState", cond.id)}
-                  >
-                    <HiTrash className="w-5 h-5 text-red-400" />
-                  </Button>
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Initial State</h3>
+            <button
+              onClick={() => addCondition("initialState")}
+              className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
+            >
+              <HiPlus className="w-3.5 h-3.5" /> Add Value
+            </button>
           </div>
 
-          <Button
-            variant="outline"
-            className="w-full bg-green-50 text-green-700 hover:bg-green-100 mt-6"
-            onClick={() => addCondition("initialState")}
-          >
-            <HiPlus className="w-5 h-5 mr-1" /> Add Initial Value
-          </Button>
+          {/* Table Header */}
+          {localTestCase.initialState.length > 0 && (
+            <div className="grid grid-cols-12 gap-3 mb-2 text-xs font-semibold text-gray-500 px-2">
+              <div className="col-span-1">#</div>
+              <div className="col-span-3">Type</div>
+              <div className="col-span-3">Target / Address</div>
+              <div className="col-span-4">Value</div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            {localTestCase.initialState.map((cond, idx) => (
+              <ConditionRow
+                key={cond.id}
+                index={idx + 1}
+                condition={cond}
+                onChange={(f, v) => updateCondition("initialState", cond.id, f, v)}
+                onRemove={() => removeCondition("initialState", cond.id)}
+                availableRegisters={availableRegisterOptions}
+                flagOptions={flagOptions}
+              />
+            ))}
+          </div>
+
+          {localTestCase.initialState.length === 0 && (
+            <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg">
+              No initial conditions set
+            </div>
+          )}
         </div>
 
         {/* expected */}
         <div>
-          <h3 className="text-lg font-semibold mb-2">Expected Final State</h3>
-          <div className="space-y-2">
-            {localTestCase.expectedState.map((cond, idx) => {
-              const err = errors[cond.id];
-
-              const regOptions = availableRegisterOptions.filter(
-                (r) => !usedRegisters.has(r) || r === cond.location,
-              );
-
-              const datalistId = `mem-${localTestCase.id}-exp-${cond.id}`;
-
-              return (
-                <div key={cond.id} className="flex items-center gap-2 relative">
-                  <span className="text-sm text-gray-500 w-6 text-right">
-                    {idx + 1}
-                  </span>
-
-                  {/* TYPE select */}
-                  <select
-                    className={`${selectStyleBase} ${err ? inputErrorClass : ""}`}
-                    value={cond.type}
-                    onChange={(e) =>
-                      updateCondition(
-                        "expectedState",
-                        cond.id,
-                        "type",
-                        e.target.value as TestCondition["type"],
-                      )
-                    }
-                  >
-                    <option value="Register">Register</option>
-                    <option value="Memory">Memory</option>
-                    <option value="Flag">Flag</option>
-                  </select>
-
-                  {/* LOCATION control */}
-                  {cond.type === "Register" && (
-                    <select
-                      className={`${selectStyleBase} ${err ? inputErrorClass : ""}`}
-                      value={cond.location}
-                      onChange={(e) =>
-                        updateCondition(
-                          "expectedState",
-                          cond.id,
-                          "location",
-                          e.target.value,
-                        )
-                      }
-                    >
-                      <option value="" disabled>
-                        Select register...
-                      </option>
-                      {regOptions.length === 0 ? (
-                        <option value="" disabled>
-                          (no registers available)
-                        </option>
-                      ) : (
-                        regOptions.map((r) => (
-                          <option key={r} value={r}>
-                            {r}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  )}
-
-                  {cond.type === "Flag" && (
-                    <select
-                      className={`${selectStyleBase} ${err ? inputErrorClass : ""}`}
-                      value={cond.location}
-                      onChange={(e) =>
-                        updateCondition(
-                          "expectedState",
-                          cond.id,
-                          "location",
-                          e.target.value,
-                        )
-                      }
-                    >
-                      <option value="" disabled>
-                        Select flag...
-                      </option>
-                      {flagOptions.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  {cond.type === "Memory" && (
-                    <>
-                      <Input
-                        list={datalistId}
-                        value={cond.location}
-                        onChange={(e) =>
-                          updateCondition(
-                            "expectedState",
-                            cond.id,
-                            "location",
-                            e.target.value,
-                          )
-                        }
-                        placeholder="Address (0-255)"
-                        className={`w-28 ${err ? inputErrorClass : ""}`}
-                      />
-                      <datalist id={datalistId}>
-                        <option value="" />
-                        {Array.from({ length: 256 })
-                          .map((_, i) => String(i))
-                          .filter(
-                            (a) => !usedMemory.has(a) || a === cond.location,
-                          )
-                          .map((addr) => (
-                            <option key={addr} value={addr} />
-                          ))}
-                      </datalist>
-                    </>
-                  )}
-
-                  <span className="text-gray-500 mx-1">:</span>
-
-                  <div className="relative flex-1">
-                    {cond.type === "Flag" ? (
-                      <select
-                        className={`${selectStyleBase} ${err ? inputErrorClass : ""} flex-1`}
-                        value={cond.value}
-                        onChange={(e) =>
-                          updateCondition(
-                            "expectedState",
-                            cond.id,
-                            "value",
-                            e.target.value,
-                          )
-                        }
-                      >
-                        <option value="" disabled>
-                          Select...
-                        </option>
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                      </select>
-                    ) : (
-                      <Input
-                        value={cond.value}
-                        onChange={(e) =>
-                          updateCondition(
-                            "expectedState",
-                            cond.id,
-                            "value",
-                            e.target.value,
-                          )
-                        }
-                        placeholder="Value (0-255)"
-                        className={`flex-1 ${err ? inputErrorClass : ""}`}
-                        onKeyDown={(ev) => {
-                          if (ev.key.length === 1 && !/^[0-9]$/.test(ev.key))
-                            ev.preventDefault();
-                        }}
-                      />
-                    )}
-
-                    {err && (
-                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-full mb-2 w-max max-w-xs p-2 text-xs text-white bg-red-600 rounded shadow-lg pointer-events-none z-50">
-                        {err}
-                      </div>
-                    )}
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeCondition("expectedState", cond.id)}
-                  >
-                    <HiTrash className="w-5 h-5 text-red-400" />
-                  </Button>
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Expected Final State</h3>
+            <button
+              onClick={() => addCondition("expectedState")}
+              className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
+            >
+              <HiPlus className="w-3.5 h-3.5" /> Add Expectation
+            </button>
           </div>
 
-          <Button
-            variant="outline"
-            className="w-full bg-green-50 text-green-700 hover:bg-green-100 mt-6"
-            onClick={() => addCondition("expectedState")}
-          >
-            <HiPlus className="w-5 h-5 mr-1" /> Add Expectation
-          </Button>
+          {/* Table Header */}
+          {localTestCase.expectedState.length > 0 && (
+            <div className="grid grid-cols-12 gap-3 mb-2 text-xs font-semibold text-gray-500 px-2">
+              <div className="col-span-1">#</div>
+              <div className="col-span-3">Type</div>
+              <div className="col-span-3">Target / Address</div>
+              <div className="col-span-4">Value</div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            {localTestCase.expectedState.map((cond, idx) => (
+              <ConditionRow
+                key={cond.id}
+                index={idx + 1}
+                condition={cond}
+                onChange={(f, v) => updateCondition("expectedState", cond.id, f, v)}
+                onRemove={() => removeCondition("expectedState", cond.id)}
+                availableRegisters={availableRegisterOptions}
+                flagOptions={flagOptions}
+              />
+            ))}
+          </div>
+
+          {localTestCase.expectedState.length === 0 && (
+            <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg">
+              No expectations set
+            </div>
+          )}
         </div>
 
         {/* actions */}
@@ -718,12 +305,168 @@ export default function TestCaseModal({
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={hasErrors}>
+            <Button onClick={handleSave}>
               Save
             </Button>
           </div>
         </div>
       </div>
     </Modal>
+  );
+}
+
+function ConditionRow({
+  index,
+  condition,
+  onChange,
+  onRemove,
+  availableRegisters,
+  flagOptions,
+}: {
+  index: number;
+  condition: TestCondition;
+  onChange: (field: keyof TestCondition, value: string) => void;
+  onRemove: () => void;
+  availableRegisters: string[];
+  flagOptions: string[];
+}) {
+  const OUT_PORTS = [
+    { label: '0: Console (ASCII)', value: '0' },
+    { label: '1: Console (Num)', value: '1' },
+    { label: '2: 7-Segment', value: '2' },
+    { label: '3: LED Select', value: '3' },
+    { label: '4: LED Data', value: '4' },
+  ];
+
+  const IN_PORTS = [
+    { label: '0: Keyboard', value: '0' },
+    { label: '4: Gamepad', value: '4' },
+    { label: '5: RNG', value: '5' },
+  ];
+
+  const renderLocationInput = () => {
+    switch (condition.type) {
+      case "Register":
+        return (
+          <ModernDropdown
+            value={condition.location}
+            onChange={(v) => onChange("location", String(v))}
+            options={availableRegisters.map(r => ({ label: r, value: r }))}
+            placeholder="Register"
+          />
+        );
+      case "Flag":
+        return (
+          <ModernDropdown
+            value={condition.location}
+            onChange={(v) => onChange("location", String(v))}
+            options={flagOptions.map(f => ({ label: f, value: f }))}
+            placeholder="Flag"
+          />
+        );
+      case "Output":
+        return (
+          <ModernDropdown
+            value={condition.location}
+            onChange={(v) => onChange("location", String(v))}
+            options={OUT_PORTS}
+            placeholder="Port"
+          />
+        );
+      case "Input":
+        return (
+          <ModernDropdown
+            value={condition.location}
+            onChange={(v) => onChange("location", String(v))}
+            options={IN_PORTS}
+            placeholder="Port"
+          />
+        );
+      case "Memory":
+      default:
+        return (
+          <input
+            type="number"
+            min="0"
+            max="255"
+            value={condition.location}
+            onChange={(e) => onChange("location", e.target.value)}
+            placeholder="Address"
+            className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+          />
+        );
+    }
+  };
+
+  const renderValueInput = () => {
+    if (condition.type === "Flag") {
+      return (
+        <ModernDropdown
+          value={condition.value}
+          onChange={(v) => onChange("value", String(v))}
+          options={[
+            { label: "0", value: "0" },
+            { label: "1", value: "1" },
+          ]}
+          placeholder="Value"
+        />
+      );
+    }
+
+    return (
+      <input
+        type="text"
+        value={condition.value}
+        onChange={(e) => onChange("value", e.target.value)}
+        placeholder="Value"
+        className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+      />
+    );
+  };
+
+  return (
+    <div className="grid grid-cols-12 gap-3 items-center p-2 rounded-lg hover:bg-gray-50 group border border-transparent hover:border-gray-200 transition-colors">
+      {/* Index */}
+      <div className="col-span-1 text-xs text-gray-400 font-mono text-center">
+        {index}
+      </div>
+
+      {/* Type Selector */}
+      <div className="col-span-3">
+        <ModernDropdown
+          value={condition.type}
+          onChange={(v) => onChange("type", v as any)}
+          options={[
+            { label: "Register", value: "Register" },
+            { label: "Memory", value: "Memory" },
+            { label: "Flag", value: "Flag" },
+            { label: "Output", value: "Output" },
+            { label: "Input", value: "Input" },
+          ]}
+          placeholder="Type"
+        />
+      </div>
+
+      {/* Location / Address */}
+      <div className="col-span-3">
+        {renderLocationInput()}
+      </div>
+
+      {/* Value Input */}
+      <div className="col-span-4">
+        {renderValueInput()}
+      </div>
+
+      {/* Actions */}
+      <div className="col-span-1 flex justify-center">
+        <button
+          onClick={onRemove}
+          className="p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+          title="Remove Condition"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
   );
 }

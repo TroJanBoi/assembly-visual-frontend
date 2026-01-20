@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
 import { HiSearch, HiViewGrid, HiViewList } from "react-icons/hi";
 import { cn } from "@/lib/utils";
@@ -30,21 +28,39 @@ const StateCell = ({ label, value }: { label: string; value: number }) => (
 const MemoryListItem = ({
   address,
   value,
+  variableName,
+  isHighlighted
 }: {
   address: number;
   value: number;
+  variableName?: string;
+  isHighlighted?: boolean;
 }) => {
   const percentage = (value / 255) * 100;
   const hexAddress = address.toString(16).toUpperCase().padStart(2, "0");
 
   return (
-    <div className="flex items-center gap-4 text-sm">
+    <div
+      className={cn(
+        "flex items-center gap-4 text-sm transition-all duration-300",
+        isHighlighted && "bg-yellow-100 p-1 rounded ring-2 ring-yellow-400"
+      )}
+      id={`mem-list-item-${address}`}
+    >
       <span className="font-mono text-gray-500 w-12">0x{hexAddress}</span>
-      <div className="flex-1 h-6 bg-gray-100 rounded-md overflow-hidden border">
+      <div className="flex-1 h-6 bg-gray-100 rounded-md overflow-hidden border relative group">
         <div
-          className="h-full bg-indigo-300 transition-all duration-300"
+          className={cn(
+            "h-full transition-all duration-300",
+            variableName ? "bg-green-300" : "bg-indigo-300"
+          )}
           style={{ width: `${percentage}%` }}
         />
+        {variableName && (
+          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-green-800 opacity-60">
+            {variableName}
+          </span>
+        )}
       </div>
       <span className="font-mono font-semibold w-8 text-right">{value}</span>
     </div>
@@ -54,22 +70,20 @@ const MemoryListItem = ({
 const AddressTooltip = ({
   address,
   value,
+  variableName,
   x,
   y,
 }: {
   address: number;
   value: number | undefined;
+  variableName?: string;
   x: number;
   y: number;
 }) => {
   const hexAddress = `0x${address.toString(16).toUpperCase().padStart(2, "0")}`;
-  const decValue = value ?? "N/A";
-  const hexValue =
-    value !== undefined
-      ? `0x${value.toString(16).toUpperCase().padStart(2, "0")}`
-      : "N/A";
-  const binValue =
-    value !== undefined ? value.toString(2).padStart(8, "0") : "N/A";
+  const decValue = value ?? 0; // Default to 0 for uninitialized cells
+  const hexValue = `0x${decValue.toString(16).toUpperCase().padStart(2, "0")}`;
+  const binValue = decValue.toString(2).padStart(8, "0");
 
   return (
     <div
@@ -79,8 +93,9 @@ const AddressTooltip = ({
         top: y,
       }}
     >
-      <div className="font-bold text-base mb-2 border-b border-gray-600 pb-1">
-        {hexAddress}
+      <div className="font-bold text-base mb-2 border-b border-gray-600 pb-1 flex justify-between">
+        <span>{hexAddress}</span>
+        {variableName && <span className="text-green-400 text-xs ml-2 self-center">{variableName}</span>}
       </div>
       <div className="grid grid-cols-[auto_1fr] gap-x-2">
         <span>DEC:</span> <span className="text-right">{decValue}</span>
@@ -101,35 +116,99 @@ export default React.memo(function ProcessorDashboard({
   onDeleteVariable,
 }: ProcessorDashboardProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [highlightedAddress, setHighlightedAddress] = useState<number | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const [hoveredInfo, setHoveredInfo] = useState<{
     address: number;
+    variableName?: string;
     x: number; // px inside root
     y: number; // px inside root
   } | null>(null);
 
   const memoryMap = new Map(memory.map((item) => [item.address, item.value]));
 
+  // Helper to get value from Memory Map OR Variable
+  const getEffectiveValue = (address: number): number | undefined => {
+    if (memoryMap.has(address)) return memoryMap.get(address);
+    const v = variables.find(v => v.address === address);
+    return v ? v.value : undefined;
+  };
+
+  // Auto-scroll logic for List View
+  useEffect(() => {
+    if (viewMode === 'list' && highlightedAddress !== null) {
+      const el = document.getElementById(`mem-list-item-${highlightedAddress}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [highlightedAddress, viewMode]);
+
+  // Search Handler
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+
+    if (!val) {
+      setHighlightedAddress(null);
+      return;
+    }
+
+    let addr = -1;
+    // Hex format: 0x...
+    if (val.toLowerCase().startsWith('0x')) {
+      addr = parseInt(val, 16);
+    }
+    // Decimal 0-255 or generic number
+    else if (!isNaN(Number(val))) {
+      addr = Number(val);
+    }
+
+    if (addr >= 0 && addr <= 255) {
+      setHighlightedAddress(addr);
+    } else {
+      setHighlightedAddress(null);
+    }
+  };
+
+
   // helper: คำนวณพิกัด tooltip ให้ติดเมาส์และไม่หลุดขอบ
+  // Modified to show TOP-RIGHT of cursor
   const computeTooltipPos = (e: React.MouseEvent, pad = 12) => {
     const root = rootRef.current;
     if (!root) return { x: 0, y: 0 };
 
     const rootRect = root.getBoundingClientRect();
     // ตำแหน่งเมาส์ relative กับ root
-    let x = e.clientX - rootRect.left + pad;
-    let y = e.clientY - rootRect.top + pad;
+    const mouseX = e.clientX - rootRect.left;
+    const mouseY = e.clientY - rootRect.top;
 
-    // ขนาด tooltip คร่าว ๆ: w-48 = 12rem = 192px; h ประเมิน ~140px
+    // ขนาด tooltip คร่าว ๆ
     const TIP_W = 192;
     const TIP_H = 140;
 
-    // clamp ขอบขวา/ล่าง
-    const maxX = rootRect.width - TIP_W - 8;
-    const maxY = rootRect.height - TIP_H - 8;
-    if (x > maxX) x = Math.max(8, maxX);
-    if (y > maxY) y = Math.max(8, maxY);
+    // Default: Top-Right of cursor
+    // X: mouseX + pad
+    // Y: mouseY - TIP_H - pad (Above)
+    let x = mouseX + pad;
+    let y = mouseY - TIP_H - pad;
+
+    // Clamp X (Right edge)
+    if (x + TIP_W > rootRect.width) {
+      // Flip to Left if no space on Right
+      x = mouseX - TIP_W - pad;
+    }
+
+    // Clamp Y (Top edge)
+    if (y < 0) {
+      // Flip to Bottom if no space on Top
+      y = mouseY + pad;
+    }
+
+    // Ensure it doesn't go off left edge either
+    if (x < 0) x = 8;
 
     return { x, y };
   };
@@ -139,7 +218,8 @@ export default React.memo(function ProcessorDashboard({
     address: number,
   ) => {
     const { x, y } = computeTooltipPos(e);
-    setHoveredInfo({ address, x, y });
+    const v = variables.find(v => v.address === address);
+    setHoveredInfo({ address, variableName: v?.name, x, y });
   };
   const handleMouseMove = (
     e: React.MouseEvent<HTMLDivElement>,
@@ -147,7 +227,8 @@ export default React.memo(function ProcessorDashboard({
   ) => {
     // อัปเดตพิกัดขณะลากเมาส์บนช่องเดิม
     const { x, y } = computeTooltipPos(e);
-    setHoveredInfo({ address, x, y });
+    const v = variables.find(v => v.address === address);
+    setHoveredInfo({ address, variableName: v?.name, x, y });
   };
   const handleMouseLeave = () => setHoveredInfo(null);
 
@@ -164,7 +245,8 @@ export default React.memo(function ProcessorDashboard({
       {hoveredInfo && (
         <AddressTooltip
           address={hoveredInfo.address}
-          value={memoryMap.get(hoveredInfo.address)}
+          value={getEffectiveValue(hoveredInfo.address)}
+          variableName={hoveredInfo.variableName}
           x={hoveredInfo.x}
           y={hoveredInfo.y}
         />
@@ -248,15 +330,26 @@ export default React.memo(function ProcessorDashboard({
           </div>
         </div>
         <div className="relative">
-          <Input type="text" placeholder="Go to address..." className="pl-8" />
+          <Input
+            type="text"
+            placeholder="Go to address (e.g., 10, 0x0A)"
+            className="pl-8"
+            value={searchQuery}
+            onChange={handleSearch}
+          />
           <HiSearch className="absolute left-2 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         </div>
 
         {viewMode === "grid" && (
           <div className="mt-4 grid grid-cols-16 border-t border-l border-gray-300 rounded-lg overflow-hidden">
             {Array.from({ length: 256 }).map((_, i) => {
-              const hasValue = memoryMap.has(i);
+              const variable = variables.find(v => v.address === i);
+              const val = getEffectiveValue(i);
+              const hasValue = val !== undefined;
+              const displayVal = val ?? i;
+
               const isStack = i >= 224;
+              const isHighlighted = highlightedAddress === i;
 
               return (
                 <div
@@ -265,17 +358,27 @@ export default React.memo(function ProcessorDashboard({
                   onMouseMove={(e) => handleMouseMove(e, i)}
                   onMouseLeave={handleMouseLeave}
                   className={cn(
-                    "aspect-square text-[9px] flex items-center justify-center border-r border-b border-gray-200 cursor-pointer transition-colors",
-                    hasValue
-                      ? isStack
-                        ? "bg-amber-200 font-bold text-amber-900" // Stack Value
-                        : "bg-indigo-200 font-bold text-indigo-800" // Heap/Code Value
-                      : isStack
-                        ? "bg-slate-100 text-slate-400 hover:bg-slate-200" // Stack Empty (Gray Zone)
-                        : "text-gray-400 hover:bg-gray-100", // Heap/Code Empty
+                    "aspect-square text-[9px] flex items-center justify-center border-r border-b border-gray-200 cursor-pointer transition-colors relative",
+                    // Search Highlighting (Highest Priority)
+                    isHighlighted && "bg-yellow-300 animate-pulse z-10 ring-2 ring-yellow-500",
+
+                    // Normal State
+                    !isHighlighted && (
+                      // Priority: Variable > Value > Empty
+                      variable
+                        ? "bg-green-100 font-bold text-green-700 border-green-200" // Variable Reserved
+                        : hasValue
+                          ? isStack
+                            ? "bg-amber-200 font-bold text-amber-900" // Stack Value
+                            : "bg-indigo-200 font-bold text-indigo-800" // Heap/Code Value
+                          : isStack
+                            ? "bg-slate-100 text-slate-400 hover:bg-slate-200" // Stack Empty (Gray Zone)
+                            : "text-gray-400 hover:bg-gray-100" // Heap/Code Empty
+                    )
                   )}
+                  title={variable ? `Var: ${variable.name}` : undefined}
                 >
-                  {hasValue ? (memoryMap.get(i) as number) : i}
+                  {displayVal}
                 </div>
               );
             })}
@@ -284,14 +387,19 @@ export default React.memo(function ProcessorDashboard({
 
         {viewMode === "list" && (
           <div className="mt-4 space-y-2">
-            {memory.length > 0 ? (
-              memory.map((mem) => (
-                <MemoryListItem
-                  key={mem.address}
-                  address={mem.address}
-                  value={mem.value}
-                />
-              ))
+            {Array.from({ length: 256 }, (_, i) => i).filter(i => getEffectiveValue(i) !== undefined || variables.some(v => v.address === i)).length > 0 ? (
+              // Combine memoryMap keys and variables to show all relevant cells
+              Array.from(new Set([...Array.from(memoryMap.keys()), ...variables.map(v => v.address)]))
+                .sort((a, b) => a - b)
+                .map((addr) => (
+                  <MemoryListItem
+                    key={addr}
+                    address={addr}
+                    value={getEffectiveValue(addr) ?? 0}
+                    variableName={variables.find(v => v.address === addr)?.name}
+                    isHighlighted={highlightedAddress === addr}
+                  />
+                ))
             ) : (
               <p className="text-center text-gray-400 pt-8">Memory is empty.</p>
             )}
@@ -301,3 +409,4 @@ export default React.memo(function ProcessorDashboard({
     </div>
   );
 });
+

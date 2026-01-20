@@ -1,5 +1,5 @@
 {
-    "users": [
+    "user": [
         {
             "id": 1,
             "email": "teacher@example.com",
@@ -114,7 +114,7 @@
             "create_at": "2024-01-15T10:05:00Z"
         }
     ],
-    "assignments": [
+    "assignment": [
         {
             "id": 1001,
             "class_id": 101,
@@ -190,7 +190,7 @@
             "deleted_at": null
         }
     ],
-    "test_suites": [
+    "test_suite": [
         {
             "id": 501,
             "assignment_id": 1001,
@@ -236,7 +236,7 @@
             "created_at": "2024-01-20T10:00:00Z"
         }
     ],
-    "playgrounds": [
+    "playground": [
         {
             "id": 901,
             "assignment_id": 1001,
@@ -316,7 +316,6 @@
     "submission": [
         {
             "id": 1,
-            "submission_uuid": "sub-uuid-001",
             "user_id": 2,
             "assignment_id": 1001,
             "playground_id": 901,
@@ -440,7 +439,6 @@
             "title": "Assignment Graded",
             "message": "Your submission for 'Lab 1: Basic Addition' has been graded.",
             "data": {
-                "submission_uuid": "sub-uuid-001",
                 "assignment_id": 1001,
                 "score": 100
             },
