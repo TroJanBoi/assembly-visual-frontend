@@ -375,7 +375,7 @@
             "id": 0,
             "instruction": "START",
             "operands": [],
-            "next": 1,
+            "next": 5,
             "next_true": -1,
             "next_false": -1,
             "sourceNodeId": "61b672e3-a817-4783-a48b-ff7f4eea0d5c"
@@ -393,7 +393,7 @@
                 "value": "55"
               }
             ],
-            "next": 2,
+            "next": 4,
             "next_true": -1,
             "next_false": -1,
             "sourceNodeId": "eba3a38a-287c-439a-9edb-2d5d252ac645"
@@ -411,7 +411,7 @@
                 "value": "45"
               }
             ],
-            "next": 3,
+            "next": 6,
             "next_true": -1,
             "next_false": -1,
             "sourceNodeId": "9c61f7ca-6849-44e4-b344-dad8da43c255"
@@ -424,6 +424,54 @@
             "next_true": -1,
             "next_false": -1,
             "sourceNodeId": "9cffc880-e07e-418b-8c1f-4a73eb1edd68"
+          },
+          {
+            "id": 4,
+            "instruction": "LOAD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "A"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "0942d7b3-5b8a-4cf8-b706-829d7285abc8"
+          },
+          {
+            "id": 5,
+            "instruction": "LABEL",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "5dc368aa-c3b5-42c5-890d-199ecd352bb3"
+          },
+          {
+            "id": 6,
+            "instruction": "JNZ",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ],
+            "next": 5,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "58d2481a-6a69-4a7c-a67a-372d09a13d52"
           }
         ],
         "react_flow": {
@@ -433,7 +481,7 @@
               "type": "instruction",
               "position": {
                 "x": 620,
-                "y": -160
+                "y": -420
               },
               "data": {
                 "instructionType": "START",
@@ -445,7 +493,7 @@
               "selected": false,
               "positionAbsolute": {
                 "x": 620,
-                "y": -160
+                "y": -420
               },
               "dragging": false
             },
@@ -454,7 +502,7 @@
               "type": "instruction",
               "position": {
                 "x": 520,
-                "y": -60
+                "y": -160
               },
               "data": {
                 "instructionType": "MOV",
@@ -470,7 +518,7 @@
               "selected": false,
               "positionAbsolute": {
                 "x": 520,
-                "y": -60
+                "y": -160
               },
               "dragging": false,
               "style": {}
@@ -480,7 +528,7 @@
               "type": "instruction",
               "position": {
                 "x": 520,
-                "y": 60
+                "y": 120
               },
               "data": {
                 "instructionType": "ADD",
@@ -496,7 +544,7 @@
               "selected": false,
               "positionAbsolute": {
                 "x": 520,
-                "y": 60
+                "y": 120
               },
               "dragging": false,
               "style": {}
@@ -506,26 +554,137 @@
               "type": "instruction",
               "position": {
                 "x": 620,
-                "y": 180
+                "y": 380
               },
               "data": {
                 "instructionType": "HLT",
-                "isActiveExec": true
+                "isActiveExec": false,
+                "isProximity": false
               },
               "width": 200,
               "height": 56,
               "selected": false,
               "positionAbsolute": {
                 "x": 620,
-                "y": 180
+                "y": 380
               },
-              "dragging": false
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "0942d7b3-5b8a-4cf8-b706-829d7285abc8",
+              "type": "instruction",
+              "position": {
+                "x": 520,
+                "y": -20
+              },
+              "data": {
+                "instructionType": "LOAD",
+                "memMode": "imm",
+                "memImm": "A",
+                "memReg": "",
+                "dest": "R0",
+                "isActiveExec": false
+              },
+              "width": 400,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 520,
+                "y": -20
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "5dc368aa-c3b5-42c5-890d-199ecd352bb3",
+              "type": "instruction",
+              "position": {
+                "x": 560,
+                "y": -300
+              },
+              "data": {
+                "instructionType": "LABEL",
+                "label": "loop_1",
+                "isActiveExec": false
+              },
+              "width": 320,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 560,
+                "y": -300
+              },
+              "dragging": false,
+              "style": {}
+            },
+            {
+              "id": "58d2481a-6a69-4a7c-a67a-372d09a13d52",
+              "type": "instruction",
+              "position": {
+                "x": 560,
+                "y": 260
+              },
+              "data": {
+                "instructionType": "JNZ",
+                "label": "loop_1",
+                "isActiveExec": false
+              },
+              "width": 320,
+              "height": 56,
+              "selected": false,
+              "positionAbsolute": {
+                "x": 560,
+                "y": 260
+              },
+              "dragging": false,
+              "style": {}
             }
           ],
           "edges": [
             {
-              "id": "e61b672e3-a817-4783-a48b-ff7f4eea0d5c-eba3a38a-287c-439a-9edb-2d5d252ac645",
+              "type": "default",
+              "animated": false,
+              "source": "0942d7b3-5b8a-4cf8-b706-829d7285abc8",
+              "sourceHandle": "source-bottom",
+              "target": "9c61f7ca-6849-44e4-b344-dad8da43c255",
+              "targetHandle": "in",
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              },
+              "id": "reactflow__edge-0942d7b3-5b8a-4cf8-b706-829d7285abc8source-bottom-9c61f7ca-6849-44e4-b344-dad8da43c255in",
+              "selected": false
+            },
+            {
+              "id": "eeba3a38a-287c-439a-9edb-2d5d252ac645-0942d7b3-5b8a-4cf8-b706-829d7285abc8",
+              "source": "eba3a38a-287c-439a-9edb-2d5d252ac645",
+              "target": "0942d7b3-5b8a-4cf8-b706-829d7285abc8",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            },
+            {
+              "id": "e61b672e3-a817-4783-a48b-ff7f4eea0d5c-5dc368aa-c3b5-42c5-890d-199ecd352bb3",
               "source": "61b672e3-a817-4783-a48b-ff7f4eea0d5c",
+              "target": "5dc368aa-c3b5-42c5-890d-199ecd352bb3",
+              "sourceHandle": "source-bottom",
+              "targetHandle": "in",
+              "type": "default",
+              "animated": false,
+              "style": {
+                "stroke": "#94a3b8",
+                "strokeWidth": 2
+              }
+            },
+            {
+              "id": "e5dc368aa-c3b5-42c5-890d-199ecd352bb3-eba3a38a-287c-439a-9edb-2d5d252ac645",
+              "source": "5dc368aa-c3b5-42c5-890d-199ecd352bb3",
               "target": "eba3a38a-287c-439a-9edb-2d5d252ac645",
               "sourceHandle": "source-bottom",
               "targetHandle": "in",
@@ -537,9 +696,9 @@
               }
             },
             {
-              "id": "eeba3a38a-287c-439a-9edb-2d5d252ac645-9c61f7ca-6849-44e4-b344-dad8da43c255",
-              "source": "eba3a38a-287c-439a-9edb-2d5d252ac645",
-              "target": "9c61f7ca-6849-44e4-b344-dad8da43c255",
+              "id": "e9c61f7ca-6849-44e4-b344-dad8da43c255-58d2481a-6a69-4a7c-a67a-372d09a13d52",
+              "source": "9c61f7ca-6849-44e4-b344-dad8da43c255",
+              "target": "58d2481a-6a69-4a7c-a67a-372d09a13d52",
               "sourceHandle": "source-bottom",
               "targetHandle": "in",
               "type": "default",
@@ -550,8 +709,8 @@
               }
             },
             {
-              "id": "e9c61f7ca-6849-44e4-b344-dad8da43c255-9cffc880-e07e-418b-8c1f-4a73eb1edd68",
-              "source": "9c61f7ca-6849-44e4-b344-dad8da43c255",
+              "id": "e58d2481a-6a69-4a7c-a67a-372d09a13d52-9cffc880-e07e-418b-8c1f-4a73eb1edd68",
+              "source": "58d2481a-6a69-4a7c-a67a-372d09a13d52",
               "target": "9cffc880-e07e-418b-8c1f-4a73eb1edd68",
               "sourceHandle": "source-bottom",
               "targetHandle": "in",
@@ -561,12 +720,26 @@
                 "stroke": "#94a3b8",
                 "strokeWidth": 2
               }
+            },
+            {
+              "id": "label-58d2481a-6a69-4a7c-a67a-372d09a13d52-5dc368aa-c3b5-42c5-890d-199ecd352bb3",
+              "source": "58d2481a-6a69-4a7c-a67a-372d09a13d52",
+              "target": "5dc368aa-c3b5-42c5-890d-199ecd352bb3",
+              "sourceHandle": "left",
+              "targetHandle": "left",
+              "type": "circuitLoop",
+              "animated": true,
+              "style": {
+                "strokeDasharray": "5 5",
+                "stroke": "#9333ea"
+              },
+              "zIndex": -1
             }
           ],
           "viewport": {
-            "x": 51.92771115650703,
-            "y": 187.46405067523327,
-            "zoom": 1.0000000000000004
+            "x": 414.97438586920896,
+            "y": 311.56881139182065,
+            "zoom": 0.5743491774985177
           }
         },
         "cpu_state": {
@@ -600,7 +773,7 @@
           ]
         },
         "meta_data": {
-          "last_saved": "2026-01-20T19:42:31.757Z",
+          "last_saved": "2026-01-22T06:31:24.135Z",
           "version": "1.0"
         }
       },
@@ -10965,6 +11138,1182 @@
       "duration_ms": 0,
       "feedback": null,
       "created_at": "2026-01-20T19:05:48.593Z"
+    },
+    {
+      "id": 59,
+      "user_id": 4,
+      "assignment_id": 1002,
+      "playground_id": 2,
+      "attempt_number": 5,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "61b672e3-a817-4783-a48b-ff7f4eea0d5c"
+          },
+          {
+            "id": 1,
+            "instruction": "MOV",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "55"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "eba3a38a-287c-439a-9edb-2d5d252ac645"
+          },
+          {
+            "id": 2,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "45"
+              }
+            ],
+            "next": 3,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9c61f7ca-6849-44e4-b344-dad8da43c255"
+          },
+          {
+            "id": 3,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9cffc880-e07e-418b-8c1f-4a73eb1edd68"
+          }
+        ],
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0,
+            "R2": 0,
+            "R3": 0,
+            "R4": 0,
+            "R5": 0,
+            "R6": 0,
+            "R7": 0
+          },
+          "flags": {
+            "Z": 0,
+            "C": 0,
+            "V": 0,
+            "O": 0
+          },
+          "memory": [],
+          "ports": {
+            "5": 0
+          }
+        }
+      },
+      "client_result": {
+        "test_results": {
+          "suiteId": "4",
+          "results": [
+            {
+              "caseId": "5",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 100,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [
+                {
+                  "condition": {
+                    "id": "6a96e827-3b6a-4e76-9061-de65a939a228",
+                    "type": "Register",
+                    "location": "",
+                    "value": "55"
+                  },
+                  "actualValue": "Undefined"
+                }
+              ]
+            },
+            {
+              "caseId": "6",
+              "passed": true,
+              "actualState": {
+                "registers": {
+                  "R0": 100,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": []
+            }
+          ],
+          "timestamp": 1769056062094
+        },
+        "passed_count": 1,
+        "total_count": 2
+      },
+      "server_result": {
+        "is_pass": true,
+        "verified_score": 50,
+        "score_breakdown": {
+          "test_case_score": 50,
+          "node_count_score": 0,
+          "total_score": 50
+        }
+      },
+      "score": 50,
+      "status": "submitted",
+      "is_verified": true,
+      "duration_ms": 0,
+      "feedback": null,
+      "created_at": "2026-01-22T04:27:42.508Z"
+    },
+    {
+      "id": 60,
+      "user_id": 4,
+      "assignment_id": 1002,
+      "playground_id": 2,
+      "attempt_number": 6,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "61b672e3-a817-4783-a48b-ff7f4eea0d5c"
+          },
+          {
+            "id": 1,
+            "instruction": "MOV",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "55"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "eba3a38a-287c-439a-9edb-2d5d252ac645"
+          },
+          {
+            "id": 2,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "45"
+              }
+            ],
+            "next": 3,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9c61f7ca-6849-44e4-b344-dad8da43c255"
+          },
+          {
+            "id": 3,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9cffc880-e07e-418b-8c1f-4a73eb1edd68"
+          }
+        ],
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0,
+            "R2": 0,
+            "R3": 0,
+            "R4": 0,
+            "R5": 0,
+            "R6": 0,
+            "R7": 0
+          },
+          "flags": {
+            "Z": 0,
+            "C": 0,
+            "V": 0,
+            "O": 0
+          },
+          "memory": [],
+          "ports": {
+            "5": 0
+          }
+        }
+      },
+      "client_result": {
+        "test_results": {
+          "suiteId": "4",
+          "results": [
+            {
+              "caseId": "5",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 100,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [
+                {
+                  "condition": {
+                    "id": "8908ef00-88b0-429a-a88c-c150300e35a0",
+                    "type": "Register",
+                    "location": "",
+                    "value": "55"
+                  },
+                  "actualValue": "Undefined"
+                }
+              ]
+            },
+            {
+              "caseId": "6",
+              "passed": true,
+              "actualState": {
+                "registers": {
+                  "R0": 100,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": []
+            }
+          ],
+          "timestamp": 1769056137607
+        },
+        "passed_count": 1,
+        "total_count": 2
+      },
+      "server_result": {
+        "is_pass": true,
+        "verified_score": 50,
+        "score_breakdown": {
+          "test_case_score": 50,
+          "node_count_score": 0,
+          "total_score": 50
+        }
+      },
+      "score": 50,
+      "status": "submitted",
+      "is_verified": true,
+      "duration_ms": 0,
+      "feedback": null,
+      "created_at": "2026-01-22T04:28:58.018Z"
+    },
+    {
+      "id": 61,
+      "user_id": 4,
+      "assignment_id": 1002,
+      "playground_id": 2,
+      "attempt_number": 7,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "61b672e3-a817-4783-a48b-ff7f4eea0d5c"
+          },
+          {
+            "id": 1,
+            "instruction": "MOV",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "55"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "eba3a38a-287c-439a-9edb-2d5d252ac645"
+          },
+          {
+            "id": 2,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "45"
+              }
+            ],
+            "next": 3,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9c61f7ca-6849-44e4-b344-dad8da43c255"
+          },
+          {
+            "id": 3,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9cffc880-e07e-418b-8c1f-4a73eb1edd68"
+          }
+        ],
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0,
+            "R2": 0,
+            "R3": 0,
+            "R4": 0,
+            "R5": 0,
+            "R6": 0,
+            "R7": 0
+          },
+          "flags": {
+            "Z": 0,
+            "C": 0,
+            "V": 0,
+            "O": 0
+          },
+          "memory": [],
+          "ports": {
+            "5": 0
+          }
+        }
+      },
+      "client_result": {
+        "test_results": {
+          "suiteId": "4",
+          "results": [
+            {
+              "caseId": "5",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 100,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [
+                {
+                  "condition": {
+                    "id": "5b354d82-00f2-43b4-b3dc-63e5546ce91a",
+                    "type": "Register",
+                    "location": "",
+                    "value": "55"
+                  },
+                  "actualValue": "Undefined"
+                }
+              ]
+            },
+            {
+              "caseId": "6",
+              "passed": true,
+              "actualState": {
+                "registers": {
+                  "R0": 100,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": []
+            }
+          ],
+          "timestamp": 1769056721613
+        },
+        "passed_count": 0,
+        "total_count": 1
+      },
+      "server_result": {
+        "is_pass": false,
+        "verified_score": 0,
+        "score_breakdown": {
+          "test_case_score": 0,
+          "node_count_score": 0,
+          "total_score": 0
+        }
+      },
+      "score": 0,
+      "status": "submitted",
+      "is_verified": true,
+      "duration_ms": 0,
+      "feedback": null,
+      "created_at": "2026-01-22T04:38:42.024Z"
+    },
+    {
+      "id": 62,
+      "user_id": 4,
+      "assignment_id": 1002,
+      "playground_id": 2,
+      "attempt_number": 8,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 5,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "61b672e3-a817-4783-a48b-ff7f4eea0d5c"
+          },
+          {
+            "id": 1,
+            "instruction": "MOV",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "55"
+              }
+            ],
+            "next": 4,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "eba3a38a-287c-439a-9edb-2d5d252ac645"
+          },
+          {
+            "id": 2,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "45"
+              }
+            ],
+            "next": 6,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9c61f7ca-6849-44e4-b344-dad8da43c255"
+          },
+          {
+            "id": 3,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9cffc880-e07e-418b-8c1f-4a73eb1edd68"
+          },
+          {
+            "id": 4,
+            "instruction": "LOAD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "A"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "0942d7b3-5b8a-4cf8-b706-829d7285abc8"
+          },
+          {
+            "id": 5,
+            "instruction": "LABEL",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "5dc368aa-c3b5-42c5-890d-199ecd352bb3"
+          },
+          {
+            "id": 6,
+            "instruction": "JNZ",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ],
+            "next": 5,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "58d2481a-6a69-4a7c-a67a-372d09a13d52"
+          }
+        ],
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0,
+            "R2": 0,
+            "R3": 0,
+            "R4": 0,
+            "R5": 0,
+            "R6": 0,
+            "R7": 0
+          },
+          "flags": {
+            "Z": 0,
+            "C": 0,
+            "V": 0,
+            "O": 0
+          },
+          "memory": [],
+          "ports": {
+            "5": 0
+          }
+        }
+      },
+      "client_result": {
+        "test_results": {
+          "suiteId": "4",
+          "results": [
+            {
+              "caseId": "5",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 55,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [],
+              "error": "Invalid immediate value: A"
+            },
+            {
+              "caseId": "6",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 55,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [],
+              "error": "Invalid immediate value: A"
+            }
+          ],
+          "timestamp": 1769061330516
+        },
+        "passed_count": 0,
+        "total_count": 2
+      },
+      "server_result": {
+        "is_pass": false,
+        "verified_score": 0,
+        "score_breakdown": {
+          "test_case_score": 0,
+          "node_count_score": 0,
+          "total_score": 0
+        }
+      },
+      "score": 0,
+      "status": "submitted",
+      "is_verified": true,
+      "duration_ms": 0,
+      "feedback": null,
+      "created_at": "2026-01-22T05:55:30.926Z"
+    },
+    {
+      "id": 63,
+      "user_id": 4,
+      "assignment_id": 1002,
+      "playground_id": 2,
+      "attempt_number": 9,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 5,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "61b672e3-a817-4783-a48b-ff7f4eea0d5c"
+          },
+          {
+            "id": 1,
+            "instruction": "MOV",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "55"
+              }
+            ],
+            "next": 4,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "eba3a38a-287c-439a-9edb-2d5d252ac645"
+          },
+          {
+            "id": 2,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "45"
+              }
+            ],
+            "next": 6,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9c61f7ca-6849-44e4-b344-dad8da43c255"
+          },
+          {
+            "id": 3,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9cffc880-e07e-418b-8c1f-4a73eb1edd68"
+          },
+          {
+            "id": 4,
+            "instruction": "LOAD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "A"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "0942d7b3-5b8a-4cf8-b706-829d7285abc8"
+          },
+          {
+            "id": 5,
+            "instruction": "LABEL",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "5dc368aa-c3b5-42c5-890d-199ecd352bb3"
+          },
+          {
+            "id": 6,
+            "instruction": "JNZ",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ],
+            "next": 5,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "58d2481a-6a69-4a7c-a67a-372d09a13d52"
+          }
+        ],
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0,
+            "R2": 0,
+            "R3": 0,
+            "R4": 0,
+            "R5": 0,
+            "R6": 0,
+            "R7": 0
+          },
+          "flags": {
+            "Z": 0,
+            "C": 0,
+            "V": 0,
+            "O": 0
+          },
+          "memory": [],
+          "ports": {
+            "5": 0
+          }
+        }
+      },
+      "client_result": {
+        "test_results": {
+          "suiteId": "4",
+          "results": [
+            {
+              "caseId": "5",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 55,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [],
+              "error": "Invalid immediate value: A"
+            },
+            {
+              "caseId": "6",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 55,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [],
+              "error": "Invalid immediate value: A"
+            }
+          ],
+          "timestamp": 1769061391786
+        },
+        "passed_count": 0,
+        "total_count": 2
+      },
+      "server_result": {
+        "is_pass": false,
+        "verified_score": 0,
+        "score_breakdown": {
+          "test_case_score": 0,
+          "node_count_score": 0,
+          "total_score": 0
+        }
+      },
+      "score": 0,
+      "status": "submitted",
+      "is_verified": true,
+      "duration_ms": 0,
+      "feedback": null,
+      "created_at": "2026-01-22T05:56:32.195Z"
+    },
+    {
+      "id": 64,
+      "user_id": 4,
+      "assignment_id": 1002,
+      "playground_id": 2,
+      "attempt_number": 10,
+      "item_snapshot": {
+        "items": [
+          {
+            "id": 0,
+            "instruction": "START",
+            "operands": [],
+            "next": 5,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "61b672e3-a817-4783-a48b-ff7f4eea0d5c"
+          },
+          {
+            "id": 1,
+            "instruction": "MOV",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "55"
+              }
+            ],
+            "next": 4,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "eba3a38a-287c-439a-9edb-2d5d252ac645"
+          },
+          {
+            "id": 2,
+            "instruction": "ADD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "45"
+              }
+            ],
+            "next": 6,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9c61f7ca-6849-44e4-b344-dad8da43c255"
+          },
+          {
+            "id": 3,
+            "instruction": "HLT",
+            "operands": [],
+            "next": -1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "9cffc880-e07e-418b-8c1f-4a73eb1edd68"
+          },
+          {
+            "id": 4,
+            "instruction": "LOAD",
+            "operands": [
+              {
+                "type": "Register",
+                "value": "R0"
+              },
+              {
+                "type": "Immediate",
+                "value": "A"
+              }
+            ],
+            "next": 2,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "0942d7b3-5b8a-4cf8-b706-829d7285abc8"
+          },
+          {
+            "id": 5,
+            "instruction": "LABEL",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ],
+            "next": 1,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "5dc368aa-c3b5-42c5-890d-199ecd352bb3"
+          },
+          {
+            "id": 6,
+            "instruction": "JNZ",
+            "label": "loop_1",
+            "operands": [
+              {
+                "type": "Label",
+                "value": "loop_1"
+              }
+            ],
+            "next": 5,
+            "next_true": -1,
+            "next_false": -1,
+            "sourceNodeId": "58d2481a-6a69-4a7c-a67a-372d09a13d52"
+          }
+        ],
+        "cpu_state": {
+          "registers": {
+            "R0": 0,
+            "R1": 0,
+            "R2": 0,
+            "R3": 0,
+            "R4": 0,
+            "R5": 0,
+            "R6": 0,
+            "R7": 0
+          },
+          "flags": {
+            "Z": 0,
+            "C": 0,
+            "V": 0,
+            "O": 0
+          },
+          "memory": [],
+          "ports": {
+            "5": 0
+          }
+        }
+      },
+      "client_result": {
+        "test_results": {
+          "suiteId": "4",
+          "results": [
+            {
+              "caseId": "5",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 55,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [],
+              "error": "Invalid immediate value: A"
+            },
+            {
+              "caseId": "6",
+              "passed": false,
+              "actualState": {
+                "registers": {
+                  "R0": 55,
+                  "R1": 0,
+                  "R2": 0,
+                  "R3": 0,
+                  "R4": 0,
+                  "R5": 0,
+                  "R6": 0,
+                  "R7": 0
+                },
+                "flags": {
+                  "Z": 0,
+                  "C": 0,
+                  "V": 0,
+                  "N": 0
+                },
+                "memory": [],
+                "ports": {
+                  "5": 0
+                }
+              },
+              "failedConditions": [],
+              "error": "Invalid immediate value: A"
+            }
+          ],
+          "timestamp": 1769061407581
+        },
+        "passed_count": 0,
+        "total_count": 2
+      },
+      "server_result": {
+        "is_pass": false,
+        "verified_score": 0,
+        "score_breakdown": {
+          "test_case_score": 0,
+          "node_count_score": 0,
+          "total_score": 0
+        }
+      },
+      "score": 0,
+      "status": "submitted",
+      "is_verified": true,
+      "duration_ms": 0,
+      "feedback": null,
+      "created_at": "2026-01-22T05:56:47.994Z"
     }
   ],
   "bookmark": [

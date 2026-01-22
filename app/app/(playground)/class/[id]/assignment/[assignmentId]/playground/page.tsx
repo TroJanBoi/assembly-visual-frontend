@@ -2068,19 +2068,8 @@ export default function AssignmentPlaygroundPage() {
   }, [nodes, edges, assignment, variables]);
 
   const toggleDebugPlay = useCallback(() => {
-    if (isRunning) {
-      setIsRunning(false);
-      if (simulationRef.current.interval) {
-        clearInterval(simulationRef.current.interval);
-        simulationRef.current.interval = null;
-      }
-    } else {
-      setIsRunning(true);
-      simulationRef.current.interval = setInterval(() => {
-        handleStep();
-      }, 1000 / speed); // Use state speed
-    }
-  }, [isRunning, handleStep, speed]);
+    setIsRunning(prev => !prev);
+  }, []);
 
   // VISUAL HIGHLIGHT: execution pop effect
   useEffect(() => {
@@ -2139,15 +2128,32 @@ export default function AssignmentPlaygroundPage() {
 
   }, [highlightedLine, setNodes]);
 
-  // Update interval when speed changes
+  // Centralized Verification & Interval Management
   useEffect(() => {
-    if (isRunning && simulationRef.current.interval) {
-      clearInterval(simulationRef.current.interval);
+    // Cleanup helper
+    const cleanup = () => {
+      if (simulationRef.current.interval) {
+        clearInterval(simulationRef.current.interval);
+        simulationRef.current.interval = null;
+      }
+    };
+
+    if (isRunning) {
+      // Clear existing if any (e.g. speed change or re-render)
+      cleanup();
+
+      // Start new interval
       simulationRef.current.interval = setInterval(() => {
         handleStep();
       }, 1000 / speed);
+    } else {
+      // Ensure we are stopped
+      cleanup();
     }
-  }, [speed, isRunning, handleStep]);
+
+    // Unmount cleanup
+    return cleanup;
+  }, [isRunning, speed, handleStep]);
 
 
   // 3. Test Suite (Mock)
