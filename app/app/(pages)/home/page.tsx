@@ -23,7 +23,7 @@ export default function HomePage() {
         setLoading(true);
         setError(null);
         const fetchedClasses = await getPublicClasses();
-        setPublicClasses(fetchedClasses);
+        setPublicClasses(fetchedClasses || []);
       } catch (err: any) {
         setError(err.message || "Failed to fetch public classes.");
         console.error(err);

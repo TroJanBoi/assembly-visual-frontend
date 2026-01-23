@@ -9,12 +9,12 @@ import { createClass } from "@/lib/api/class";
 import { AssignmentFormData } from "@/types/assignment";
 import { decodeToken, getToken } from "@/lib/auth/token";
 
-// SweetAlert2
-import Swal from "sweetalert2";
-import withReactContent from "sweetalert2-react-content";
-import "sweetalert2/dist/sweetalert2.min.css";
+// import Swal from "sweetalert2";
+// import withReactContent from "sweetalert2-react-content";
+// import "sweetalert2/dist/sweetalert2.min.css";
+import { toast } from "sonner";
 
-const MySwal = withReactContent(Swal);
+// const MySwal = withReactContent(Swal);
 
 type Privacy = "public" | "private";
 
@@ -47,12 +47,9 @@ export default function CreateClassPage() {
     const okType = /image\/(png|jpeg)/.test(file.type);
     const okSize = file.size <= 4 * 1024 * 1024; // 4MB
     if (!okType)
-      return MySwal.fire({
-        icon: "warning",
-        title: "Only JPG or PNG is supported.",
-      });
+      return toast.warning("Only JPG or PNG is supported.");
     if (!okSize)
-      return MySwal.fire({ icon: "warning", title: "Max file size is 4MB." });
+      return toast.warning("Max file size is 4MB.");
     setBanner(file);
   };
 
@@ -64,10 +61,7 @@ export default function CreateClassPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      return MySwal.fire({
-        icon: "warning",
-        title: "Please enter a class name.",
-      });
+      return toast.warning("Please enter a class name.");
     }
 
     try {
@@ -94,22 +88,15 @@ export default function CreateClassPage() {
 
       const res = await createClass(classData);
 
-      await MySwal.fire({
-        icon: "success",
-        title: "Class Created!",
-        text: res.message || "The new class has been created successfully.",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
+      toast.success("Class Created!", {
+        description: res.message || "The new class has been created successfully.",
+        duration: 1500,
       });
 
       router.push("/class");
     } catch (err: any) {
-      MySwal.fire({
-        icon: "error",
-        title: "Creation Failed",
-        text: err?.message || "Something went wrong.",
-        confirmButtonText: "Close",
+      toast.error("Creation Failed", {
+        description: err?.message || "Something went wrong.",
       });
     } finally {
       setSubmitting(false);

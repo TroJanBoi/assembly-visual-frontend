@@ -4,7 +4,7 @@ const server = jsonServer.create();
 const router = jsonServer.router('mock/db.json');
 const middlewares = jsonServer.defaults();
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Middleware for logging
 server.use((req, res, next) => {
@@ -253,12 +253,12 @@ server.post('/api/v2/playground/:id/execute', (req, res) => {
     });
 });
 
-// Custom route: GET /api/v2/class/public
-server.get('/api/v2/class/public', (req, res) => {
+// Custom route: GET /api/v2/classroom/public
+server.get('/api/v2/classroom/public', (req, res) => {
     const db = router.db;
-    const classes = db.get('class').value();
-    const users = db.get('user').value();
-    const members = db.get('member').value();
+    const classes = db.get('classroom').value() || [];
+    const users = db.get('user').value() || [];
+    const members = db.get('member').value() || [];
 
     const publicClasses = classes
         .filter(c => c.status === 0)
@@ -297,8 +297,8 @@ server.get('/api/v2/profile/', (req, res) => {
     }
 });
 
-// Custom route: GET /api/v2/class/:id/members
-server.get('/api/v2/class/:id/members', (req, res) => {
+// Custom route: GET /api/v2/classroom/:id/members
+server.get('/api/v2/classroom/:id/members', (req, res) => {
     const classId = parseInt(req.params.id);
     const db = router.db;
 
@@ -312,7 +312,7 @@ server.get('/api/v2/class/:id/members', (req, res) => {
     }
 
     // Get user details for each member
-    const users = db.get('user').value();
+    const users = db.get('user').value() || [];
     const classMembers = memberships.map(m => {
         const user = users.find(u => u.id === m.user_id);
         if (user) {
@@ -331,50 +331,49 @@ server.get('/api/v2/class/:id/members', (req, res) => {
     res.json(classMembers);
 });
 
-// Custom route: GET /api/v2/class (to fix 304/404 issues if any)
-server.get('/api/v2/class', (req, res) => {
+// Custom route: GET /api/v2/classroom (to fix 304/404 issues if any)
+server.get('/api/v2/classroom', (req, res) => {
     const db = router.db;
-    const classes = db.get('class').value();
+    const classes = db.get('classroom').value() || [];
     res.json(classes);
 });
 
-// Custom route: GET /api/v2/class/my - Get classes owned by current user
-server.get('/api/v2/class/my', (req, res) => {
+// Custom route: GET /api/v2/classroom/my - Get classes owned by current user
+server.get('/api/v2/classroom/my', (req, res) => {
     const user_id = getUserIdFromRequest(req);
     const db = router.db;
-    const users = db.get('user').value();
-    const members = db.get('member').value();
+    const users = db.get('user').value() || [];
+    const members = db.get('member').value() || [];
 
-    const myClasses = db.get('class')
+    const myClasses = db.get('classroom')
         .filter({ owner: user_id })
-        .value()
-        .map(c => {
-            const owner = users.find(u => u.id === c.owner);
-            const memberCount = members.filter(m => m.classroom_id === c.id).length;
-            return {
-                ...c,
-                owner_name: owner ? owner.name : "Unknown Instructor",
-                member_count: memberCount
-            };
-        })
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by newest first
+        .value() || []
+            .map(c => {
+                const owner = users.find(u => u.id === c.owner);
+                const memberCount = members.filter(m => m.classroom_id === c.id).length;
+                return {
+                    ...c,
+                    owner_name: owner ? owner.name : "Unknown Instructor",
+                    member_count: memberCount
+                };
+            })
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by newest first
 
     res.json(myClasses);
 });
 
-// Custom route: GET /api/v2/class/joined - Get classes user has joined (but doesn't own)
-server.get('/api/v2/class/joined', (req, res) => {
+// Custom route: GET /api/v2/classroom/joined - Get classes user has joined (but doesn't own)
+server.get('/api/v2/classroom/joined', (req, res) => {
     const user_id = getUserIdFromRequest(req);
     const db = router.db;
-    const users = db.get('user').value();
-    const members = db.get('member').value();
+    const users = db.get('user').value() || [];
+    const members = db.get('member').value() || [];
 
     // Find all memberships for this user (with joined_at info)
     const userMemberships = members.filter(m => m.user_id === user_id);
 
     // Get classes where user is a member but not the owner
-    const joinedClasses = db.get('class')
-        .value()
+    const joinedClasses = (db.get('classroom').value() || [])
         .filter(c => userMemberships.some(m => m.classroom_id === c.id) && c.owner !== user_id)
         .map(c => {
             const owner = users.find(u => u.id === c.owner);
@@ -384,34 +383,34 @@ server.get('/api/v2/class/joined', (req, res) => {
                 ...c,
                 owner_name: owner ? owner.name : "Unknown Instructor",
                 member_count: memberCount,
-                joined_at: membership?.joined_at // Include joined_at for sorting
+                joined_at: membership?.joined_at
             };
         })
-        .sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at)); // Sort by most recently joined
+        .sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
 
     res.json(joinedClasses);
 });
 
-// Custom route: GET /api/v2/class/:classId/assignment
-server.get('/api/v2/class/:classId/assignment', (req, res) => {
+// Custom route: GET /api/v2/classroom/:classId/assignment
+server.get('/api/v2/classroom/:classId/assignment', (req, res) => {
     const classId = parseInt(req.params.classId);
     const db = router.db;
 
     const assignments = db.get('assignment')
-        .filter({ class_id: classId })
-        .value();
+        .filter({ classroom_id: classId })
+        .value() || [];
 
     res.json(assignments || []);
 });
 
-// Custom route: GET /api/v2/class/:classId/assignment/:assignmentId
-server.get('/api/v2/class/:classId/assignment/:assignmentId', (req, res) => {
+// Custom route: GET /api/v2/classroom/:classId/assignment/:assignmentId
+server.get('/api/v2/classroom/:classId/assignment/:assignmentId', (req, res) => {
     const classId = parseInt(req.params.classId);
     const assignmentId = parseInt(req.params.assignmentId);
     const db = router.db;
 
     const assignment = db.get('assignment')
-        .find({ id: assignmentId, class_id: classId })
+        .find({ id: assignmentId, classroom_id: classId })
         .value();
 
     if (assignment) {
@@ -421,8 +420,8 @@ server.get('/api/v2/class/:classId/assignment/:assignmentId', (req, res) => {
     }
 });
 
-// Custom route: POST /api/v2/class/:classId/assignment
-server.post('/api/v2/class/:classId/assignment', (req, res) => {
+// Custom route: POST /api/v2/classroom/:classId/assignment
+server.post('/api/v2/classroom/:classId/assignment', (req, res) => {
     const classId = parseInt(req.params.classId);
     const db = router.db;
     const assignments = db.get('assignment').value() || [];
@@ -431,7 +430,7 @@ server.post('/api/v2/class/:classId/assignment', (req, res) => {
 
     const newAssignment = {
         id: newId,
-        class_id: classId,
+        classroom_id: classId,
         title: req.body.title || "Untitled Assignment",
         description: req.body.description || "",
         due_date: req.body.due_date || null,
@@ -448,14 +447,14 @@ server.post('/api/v2/class/:classId/assignment', (req, res) => {
     res.status(201).json({ id: newId });
 });
 
-// Custom route: POST /api/v2/class/:id/join
-server.post('/api/v2/class/:id/join', (req, res) => {
+// Custom route: POST /api/v2/classroom/:id/join
+server.post('/api/v2/classroom/:id/join', (req, res) => {
     const classId = parseInt(req.params.id);
     const user_id = getUserIdFromRequest(req);
     const db = router.db;
 
     // Check if class exists
-    const classItem = db.get('class').find({ id: classId }).value();
+    const classItem = db.get('classroom').find({ id: classId }).value();
     if (!classItem) {
         return res.status(404).json({ error: "Class not found" });
     }
@@ -481,8 +480,8 @@ server.post('/api/v2/class/:id/join', (req, res) => {
     res.json({ message: "Successfully joined the class!" });
 });
 
-// Custom route: POST /api/v2/class/:classId/assignment/:assignmentId/test-suite
-server.post('/api/v2/class/:classId/assignment/:assignmentId/test-suite', (req, res) => {
+// Custom route: POST /api/v2/classroom/:classId/assignment/:assignmentId/test-suite
+server.post('/api/v2/classroom/:classId/assignment/:assignmentId/test-suite', (req, res) => {
     const assignmentId = parseInt(req.params.assignmentId);
     const db = router.db;
 
@@ -502,8 +501,8 @@ server.post('/api/v2/class/:classId/assignment/:assignmentId/test-suite', (req, 
     res.status(201).json({ id: newSuiteId });
 });
 
-// Custom route: POST /api/v2/class/:classId/assignment/:assignmentId/test-suite/:testSuiteId/test-case
-server.post('/api/v2/class/:classId/assignment/:assignmentId/test-suite/:testSuiteId/test-case', (req, res) => {
+// Custom route: POST /api/v2/classroom/:classId/assignment/:assignmentId/test-suite/:testSuiteId/test-case
+server.post('/api/v2/classroom/:classId/assignment/:assignmentId/test-suite/:testSuiteId/test-case', (req, res) => {
     const testSuiteId = parseInt(req.params.testSuiteId);
     const db = router.db;
 
@@ -529,14 +528,14 @@ server.post('/api/v2/class/:classId/assignment/:assignmentId/test-suite/:testSui
     res.status(201).json({ id: newTestCaseId });
 });
 
-// Custom route: POST /api/v2/class/:id/bookmark
-server.post('/api/v2/class/:id/bookmark', (req, res) => {
+// Custom route: POST /api/v2/classroom/:id/bookmark
+server.post('/api/v2/classroom/:id/bookmark', (req, res) => {
     const classId = parseInt(req.params.id);
     const user_id = getUserIdFromRequest(req); // Helper to get user ID
     const db = router.db;
 
     const existingBookmark = db.get('bookmark')
-        .find({ user_id: user_id, class_id: classId })
+        .find({ user_id: user_id, classroom_id: classId })
         .value();
 
     if (existingBookmark) {
@@ -549,32 +548,32 @@ server.post('/api/v2/class/:id/bookmark', (req, res) => {
         // Add bookmark
         const newId = (db.get('bookmark').value().length || 0) + 1;
         db.get('bookmark')
-            .push({ id: newId, user_id: user_id, class_id: classId })
+            .push({ id: newId, user_id: user_id, classroom_id: classId })
             .write();
         res.json({ bookmarked: true, message: "Bookmark added" });
     }
 });
 
-// Custom route: GET /api/v2/class/:id (Enriched Data)
-server.get('/api/v2/class/:id', (req, res) => {
+// Custom route: GET /api/v2/classroom/:id (Enriched Data)
+server.get('/api/v2/classroom/:id', (req, res) => {
     const classId = parseInt(req.params.id);
     const user_id = getUserIdFromRequest(req);
     const db = router.db;
 
-    const classItem = db.get('class').find({ id: classId }).value();
+    const classItem = db.get('classroom').find({ id: classId }).value();
 
     if (!classItem) {
         // Fallback to router handler if not found (though this intercepts it)
         return res.status(404).json({});
     }
 
-    const users = db.get('user').value();
+    const users = db.get('user').value() || [];
     const members = db.get('member').value();
     const bookmarks = db.get('bookmark').value();
 
     const owner = users.find(u => u.id === classItem.owner);
     const memberCount = members.filter(m => m.classroom_id === classId).length;
-    const isBookmarked = bookmarks.some(b => b.user_id === user_id && b.class_id === classId);
+    const isBookmarked = bookmarks.some(b => b.user_id === user_id && b.classroom_id === classId);
 
     res.json({
         ...classItem,
@@ -583,10 +582,10 @@ server.get('/api/v2/class/:id', (req, res) => {
     });
 });
 
-// Custom route: POST /api/v2/class
-server.post('/api/v2/class', (req, res) => {
+// Custom route: POST /api/v2/classroom
+server.post('/api/v2/classroom', (req, res) => {
     const db = router.db;
-    const classes = db.get('class').value() || [];
+    const classes = db.get('classroom').value() || [];
 
     const newId = classes.length > 0 ? Math.max(...classes.map(c => c.id)) + 1 : 101;
 
@@ -612,7 +611,7 @@ server.post('/api/v2/class', (req, res) => {
         updated_at: new Date().toISOString()
     };
 
-    db.get('class').push(newClass).write();
+    db.get('classroom').push(newClass).write();
     return res.status(201).json(newClass);
 });
 
@@ -873,9 +872,9 @@ server.put('/api/v2/submission/:id', (req, res) => {
 server.use('/api/v2', router);
 
 server.listen(PORT, () => {
-    console.log(`\n🚀 Mock API Server is running!`);
-    console.log(`📍 URL: http://localhost:${PORT}`);
-    console.log(`📊 Mock Data: mock/db.json`);
+    console.log(`\n !Mock API Server is running!`);
+    console.log(`URL: http://localhost:${PORT}`);
+    console.log(`Mock Data: mock/db.json`);
     console.log(`\nTo use with frontend:`);
-    console.log(`  NEXT_PUBLIC_API_URL=http://localhost:${PORT} npm run dev\n`);
+    console.log(`NEXT_PUBLIC_API_URL=http://localhost:${PORT} npm run dev\n`);
 });

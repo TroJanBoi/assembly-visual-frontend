@@ -1,5 +1,6 @@
 
 import { CPUState } from './cpu';
+import { generateUUID } from "@/lib/utils";
 import { ProgramItem } from '@/lib/api/playground';
 import { executeProgram } from './executor';
 import { VirtualIO } from './io';
@@ -51,7 +52,7 @@ export interface TestSuiteResult {
 
 export function createEmptyTestCase(): TestCase {
     return {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         name: "New Test Case",
         initialState: [],
         expectedState: []
@@ -60,7 +61,7 @@ export function createEmptyTestCase(): TestCase {
 
 export function createEmptyTestSuite(): TestSuite {
     return {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         name: "New Test Suite",
         cases: []
     };

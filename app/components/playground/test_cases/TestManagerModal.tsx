@@ -22,7 +22,7 @@ import {
     deleteTestCase
 } from "@/lib/api/test_cases";
 import { apiFetch } from "@/lib/api/client";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 interface Props {
     isOpen: boolean;

@@ -4,14 +4,15 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getProfile, updateProfile, deleteProfile, type Profile } from "@/lib/api/profile";
 import { changePassword } from "@/lib/api/auth";
-import Swal from "sweetalert2";
-import withReactContent from "sweetalert2-react-content";
+// import Swal from "sweetalert2";
+// import withReactContent from "sweetalert2-react-content";
+import { toast } from "sonner";
 
 import multiavatar from "@multiavatar/multiavatar";
 import { svgToDataUrl, randomSeed } from "@/components/utils/avatar";
 import { uploadAvatarFile, uploadAvatarSvg } from "@/lib/api/upload";
 
-const MySwal = withReactContent(Swal);
+// const MySwal = withReactContent(Swal);
 
 type TabKey = "profile" | "password" | "danger";
 
@@ -22,13 +23,13 @@ export default function ProfilePage() {
 
   // form state (profile)
   const [editing, setEditing] = useState(false);
-  const [name, setName]   = useState("");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [tel, setTel]     = useState("");
+  const [tel, setTel] = useState("");
 
   // form state (password)
   // const [curPwd, setCurPwd]   = useState("");
-  const [newPwd, setNewPwd]   = useState("");
+  const [newPwd, setNewPwd] = useState("");
   const [confPwd, setConfPwd] = useState("");
 
   // const [showCurPwd, setShowCurPwd] = useState(false);
@@ -76,14 +77,8 @@ export default function ProfilePage() {
     return (a + b).slice(0, 2);
   }, [displayName]);
 
-  async function toastOK(message: string) {
-    await MySwal.fire({
-      icon: "success",
-      title: message,
-      showConfirmButton: false,
-      timer: 1000,
-      timerProgressBar: true,
-    });
+  function toastOK(message: string) {
+    toast.success(message);
   }
 
   async function onSaveProfile() {
@@ -94,46 +89,45 @@ export default function ProfilePage() {
       toastOK("Saved successfully");
     } catch (e) {
       console.error(e);
-      MySwal.fire({ icon: "error", title: "Save failed" });
+      toast.error("Save failed");
     }
   }
 
   async function onChangePassword() {
     if (!newPwd || newPwd !== confPwd) {
-      MySwal.fire({ icon: "warning", title: "New passwords do not match" });
+      toast.warning("New passwords do not match");
       return;
     }
-    
+
     try {
       // await changePassword({ currentPassword: curPwd, newPassword: newPwd });
-      await changePassword(newPwd );
+      await changePassword(newPwd);
       setNewPwd(""); setConfPwd("");
       toastOK("Password updated");
     } catch (e) {
       console.error(e);
-      MySwal.fire({ icon: "error", title: "Change password failed" });
+      toast.error("Change password failed");
     }
   }
 
-  async function onDeleteAccount() {
-    const ok = await MySwal.fire({
-      icon: "warning",
-      title: "Delete account permanently?",
-      text: "This action is irreversible.",
-      showCancelButton: true,
-      confirmButtonText: "Delete",
-      confirmButtonColor: "#dc2626",
+  function onDeleteAccount() {
+    toast("Delete account permanently?", {
+      description: "This action is irreversible.",
+      action: {
+        label: "Delete",
+        onClick: async () => {
+          try {
+            await deleteProfile(); // ✅ /api/v2/profile/
+            toast.success("Account deleted");
+            // TODO: signout + router.push("/signin")
+          } catch (e) {
+            console.error(e);
+            toast.error("Delete failed");
+          }
+        },
+      },
+      cancel: { label: "Cancel", onClick: () => { } },
     });
-    if (!ok.isConfirmed) return;
-
-    try {
-      await deleteProfile(); // ✅ /api/v2/profile/
-      await toastOK("Account deleted");
-      // TODO: signout + router.push("/signin")
-    } catch (e) {
-      console.error(e);
-      MySwal.fire({ icon: "error", title: "Delete failed" });
-    }
   }
 
   if (loading) {
@@ -188,7 +182,7 @@ export default function ProfilePage() {
       toastOK("Avatar updated");
     } catch (e) {
       console.error(e);
-      MySwal.fire({ icon: "error", title: "Update avatar failed" });
+      toast.error("Update avatar failed");
     }
   }
 
@@ -202,11 +196,10 @@ export default function ProfilePage() {
               <li>
                 <button
                   onClick={() => setTab("profile")}
-                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${
-                    tab === "profile"
-                      ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100"
-                      : "hover:bg-gray-50 dark:hover:bg-slate-800/50 text-gray-600 dark:text-gray-300"
-                  }`}
+                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${tab === "profile"
+                    ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100"
+                    : "hover:bg-gray-50 dark:hover:bg-slate-800/50 text-gray-600 dark:text-gray-300"
+                    }`}
                 >
                   My Profile
                 </button>
@@ -214,11 +207,10 @@ export default function ProfilePage() {
               <li>
                 <button
                   onClick={() => setTab("password")}
-                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${
-                    tab === "password"
-                      ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100"
-                      : "hover:bg-gray-50 dark:hover:bg-slate-800/50 text-gray-600 dark:text-gray-300"
-                  }`}
+                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${tab === "password"
+                    ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100"
+                    : "hover:bg-gray-50 dark:hover:bg-slate-800/50 text-gray-600 dark:text-gray-300"
+                    }`}
                 >
                   Change Password
                 </button>
@@ -226,11 +218,10 @@ export default function ProfilePage() {
               <li>
                 <button
                   onClick={() => setTab("danger")}
-                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${
-                    tab === "danger"
-                      ? "bg-red-50 text-red-700 dark:bg-red-900/20"
-                      : "hover:bg-red-50/60 text-red-600"
-                  }`}
+                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${tab === "danger"
+                    ? "bg-red-50 text-red-700 dark:bg-red-900/20"
+                    : "hover:bg-red-50/60 text-red-600"
+                    }`}
                 >
                   Delete Account
                 </button>
@@ -283,21 +274,19 @@ export default function ProfilePage() {
                   <div className="flex gap-2 mb-4">
                     <button
                       onClick={() => setAvatarTab("generator")}
-                      className={`px-3 py-1.5 rounded border text-sm ${
-                        avatarTab === "generator"
-                          ? "bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
-                          : "border-transparent hover:bg-gray-50 dark:hover:bg-slate-800/60"
-                      }`}
+                      className={`px-3 py-1.5 rounded border text-sm ${avatarTab === "generator"
+                        ? "bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
+                        : "border-transparent hover:bg-gray-50 dark:hover:bg-slate-800/60"
+                        }`}
                     >
                       Random / Seed (Multiavatar)
                     </button>
                     <button
                       onClick={() => setAvatarTab("upload")}
-                      className={`px-3 py-1.5 rounded border text-sm ${
-                        avatarTab === "upload"
-                          ? "bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
-                          : "border-transparent hover:bg-gray-50 dark:hover:bg-slate-800/60"
-                      }`}
+                      className={`px-3 py-1.5 rounded border text-sm ${avatarTab === "upload"
+                        ? "bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
+                        : "border-transparent hover:bg-gray-50 dark:hover:bg-slate-800/60"
+                        }`}
                     >
                       From device
                     </button>
@@ -442,20 +431,20 @@ export default function ProfilePage() {
                     >
                       {/* {showNewPwd ? "Hide" : "Show"} */}
                       {showNewPwd ? (
-                      // Eye-off
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 3l18 18" />
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    ) : (
-                      // Eye
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
-                      
+                        // Eye-off
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3l18 18" />
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      ) : (
+                        // Eye
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+
                     </button>
                   </div>
 
@@ -475,19 +464,19 @@ export default function ProfilePage() {
                     >
                       {/* {showConfPwd ? "Hide" : "Show"} */}
                       {showConfPwd ? (
-                      // Eye-off
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 3l18 18" />
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    ) : (
-                      // Eye
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
+                        // Eye-off
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3l18 18" />
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      ) : (
+                        // Eye
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
                     </button>
                   </div>
 

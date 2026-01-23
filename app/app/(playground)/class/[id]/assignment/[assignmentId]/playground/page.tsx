@@ -1,5 +1,6 @@
 "use client";
 import { getToken, decodeToken } from "@/lib/auth/token";
+import { generateUUID } from "@/lib/utils";
 import { useState, useCallback, useEffect, useRef, DragEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -42,7 +43,7 @@ import { useAutoSave } from "@/hooks/useAutoSave";
 import { usePlaygroundDBSave, loadPlaygroundFromDB } from "@/hooks/usePlaygroundDB";
 import { saveToLocalStorage, loadFromLocalStorage, migrateLegacyStorage } from "@/lib/storage/playground";
 import { ExecutionDeck, ExecutionMode } from "@/components/playground/ExecutionDeck";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 import TestManagerModal from "@/components/playground/test_cases/TestManagerModal";
 import SubmissionModal from "@/components/playground/SubmissionModal";
@@ -52,7 +53,7 @@ import { calculateGrade } from "@/lib/playground/grading";
 import { submitAssignment, SubmissionPayload, getSubmissions, Submission } from "@/lib/api/submission";
 
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
-const getId = () => crypto.randomUUID();
+const getId = () => generateUUID();
 // let id = 0; 
 // const getId = () => ...
 
@@ -639,7 +640,7 @@ export default function AssignmentPlaygroundPage() {
     }
 
     const newVar: Variable = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       name,
       value,
       address: newAddress,
@@ -1078,12 +1079,12 @@ export default function AssignmentPlaygroundPage() {
         // 1. Validation
         const isCore = key === "hlt" || key === "start";
         if (!isCore && allowed.size && !allowed.has(key)) {
-          alert(`Instruction "${type}" is not allowed for this assignment.`);
+          toast.error(`Instruction "${type}" is not allowed for this assignment.`);
           return;
         }
 
         if (maxNodes !== null && nodes.length >= maxNodes) {
-          alert(`Node limit reached (max ${maxNodes}).`);
+          toast.error(`Node limit reached (max ${maxNodes}).`);
           return;
         }
 

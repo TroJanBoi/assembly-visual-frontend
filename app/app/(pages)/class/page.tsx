@@ -6,12 +6,13 @@ import { HiPlus, HiOutlineArrowRight, HiChevronRight } from "react-icons/hi";
 
 import { Modal } from "@/components/ui/Modal";
 import { getMyClasses, getJoinedClasses, Class, joinClass } from "@/lib/api/class";
-import "sweetalert2/dist/sweetalert2.min.css";
-import Swal from "sweetalert2";
-import withReactContent from "sweetalert2-react-content";
+// import "sweetalert2/dist/sweetalert2.min.css";
+// import Swal from "sweetalert2";
+// import withReactContent from "sweetalert2-react-content";
+import { toast } from "sonner";
 import ClassCard from "@/components/class/ClassCard"; // 1. Import ClassCard ที่แยกไว้
 
-const MySwal = withReactContent(Swal);
+// const MySwal = withReactContent(Swal);
 
 export default function ClassPage() {
   const [joinOpen, setJoinOpen] = useState(false);
@@ -33,10 +34,8 @@ export default function ClassPage() {
       setJoinedClasses(joined);
     } catch (err: any) {
       setError(err.message || "Failed to fetch classes.");
-      MySwal.fire({
-        icon: "error",
-        title: "Error",
-        text: err.message || "Failed to fetch classes.",
+      toast.error("Error", {
+        description: err.message || "Failed to fetch classes.",
       });
     } finally {
       setPageLoading(false);
@@ -60,20 +59,14 @@ export default function ClassPage() {
       setJoinOpen(false);
       setJoinCode("");
 
-      await MySwal.fire({
-        icon: "success",
-        title: "Joined Successfully!",
-        text: res.message,
-        timer: 1500,
-        showConfirmButton: false,
+      toast.success("Joined Successfully!", {
+        description: res.message,
       });
 
       await fetchClasses();
     } catch (err: any) {
-      MySwal.fire({
-        icon: "error",
-        title: "Join Failed",
-        text: err.message || "Could not join the class. Please check the code.",
+      toast.error("Join Failed", {
+        description: err.message || "Could not join the class. Please check the code.",
       });
     } finally {
       setLoading(false);

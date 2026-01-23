@@ -3,7 +3,7 @@ import { getToken, clearToken } from "../auth/token";
 import type { Playground } from "@/lib/api/playground";
 
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:9090";
 
 const DEBUG_API =
   process.env.NEXT_PUBLIC_DEBUG_API === "1" ||
@@ -25,15 +25,16 @@ export async function apiFetch<T>(
   const token = getToken();
 
   const headers: Record<string, string> = {
+    ...(init.headers as Record<string, string> | undefined),
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(init.headers as Record<string, string> | undefined),
   };
 
   const url = `${API_BASE}${path}`;
   const reqInit: RequestInit = {
     ...init,
     headers,
+    credentials: 'include',
   };
 
   if (DEBUG_API) {

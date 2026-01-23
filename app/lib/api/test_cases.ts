@@ -1,5 +1,6 @@
 import { apiFetch, post, put, del } from "@/lib/api/client";
 import { TestCase, TestSuite } from "@/lib/playground/test_runner";
+import { generateUUID } from "@/lib/utils";
 
 // API Types (Back-end representation)
 export interface APITestSuite {
@@ -73,7 +74,7 @@ function parseInitToFrontend(init: any): any[] {
     if (init.registers) {
         Object.entries(init.registers).forEach(([reg, val]) => {
             conditions.push({
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 type: 'Register',
                 location: reg,
                 value: String(val)
@@ -85,7 +86,7 @@ function parseInitToFrontend(init: any): any[] {
     if (init.memory) {
         Object.entries(init.memory).forEach(([addr, val]) => {
             conditions.push({
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 type: 'Memory',
                 location: addr,
                 value: String(val)
@@ -97,7 +98,7 @@ function parseInitToFrontend(init: any): any[] {
     if (init.flags) {
         Object.entries(init.flags).forEach(([flag, val]) => {
             conditions.push({
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 type: 'Flag',
                 location: flag,
                 value: String(val)
@@ -109,7 +110,7 @@ function parseInitToFrontend(init: any): any[] {
     if (init.io_input) {
         Object.entries(init.io_input).forEach(([port, val]) => {
             conditions.push({
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 type: 'Input',
                 location: port,
                 value: String(val)
@@ -127,25 +128,25 @@ function parseAssertToFrontend(assert: any): any[] {
     // Registers
     if (assert.registers) {
         Object.entries(assert.registers).forEach(([reg, val]) => {
-            conditions.push({ id: crypto.randomUUID(), type: 'Register', location: reg, value: String(val) });
+            conditions.push({ id: generateUUID(), type: 'Register', location: reg, value: String(val) });
         });
     }
     // Memory
     if (assert.memory) {
         Object.entries(assert.memory).forEach(([addr, val]) => {
-            conditions.push({ id: crypto.randomUUID(), type: 'Memory', location: addr, value: String(val) });
+            conditions.push({ id: generateUUID(), type: 'Memory', location: addr, value: String(val) });
         });
     }
     // Flags
     if (assert.flags) {
         Object.entries(assert.flags).forEach(([flag, val]) => {
-            conditions.push({ id: crypto.randomUUID(), type: 'Flag', location: flag, value: String(val) });
+            conditions.push({ id: generateUUID(), type: 'Flag', location: flag, value: String(val) });
         });
     }
     // Output
     if (assert.io_output) {
         Object.entries(assert.io_output).forEach(([port, val]) => {
-            conditions.push({ id: crypto.randomUUID(), type: 'Output', location: port, value: String(val) });
+            conditions.push({ id: generateUUID(), type: 'Output', location: port, value: String(val) });
         });
     }
 

@@ -1,7 +1,7 @@
 import "./globals.css";
-import "@/components/ui/ToastAlert/style.css";
+
 import { Poppins, JetBrains_Mono } from "next/font/google";
-import { ToastProvider } from "@/components/ui/ToastAlert/ToastAlert";
+import { Toaster } from "@/components/ui/sonner";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
 
 const poppins = Poppins({
@@ -30,11 +30,10 @@ export default function RootLayout({
     <html lang="en" className={`${poppins.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-screen">
         {/* Wrap children with the ToastProvider */}
-        <ToastProvider>
-          <GlobalLoadingProvider>
-            {children}
-          </GlobalLoadingProvider>
-        </ToastProvider>
+        <Toaster position="bottom-right" richColors />
+        <GlobalLoadingProvider>
+          {children}
+        </GlobalLoadingProvider>
       </body>
     </html>
   );

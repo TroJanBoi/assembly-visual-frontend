@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Lock } from "lucide-react";
 import { TestCase, TestCondition, TestLocationType } from "@/lib/playground/test_runner";
-import { cn } from "@/lib/utils";
+import { cn, generateUUID } from "@/lib/utils";
 import ModernDropdown from "@/components/ui/ModernDropdown";
 
 interface Props {
@@ -28,7 +28,7 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
 
     const addCondition = (target: "initialState" | "expectedState") => {
         const newCond: TestCondition = {
-            id: crypto.randomUUID(),
+            id: generateUUID(),
             type: "Register",
             location: "R0",
             value: "0"

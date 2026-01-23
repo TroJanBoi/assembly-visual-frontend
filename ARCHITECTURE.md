@@ -1,83 +1,81 @@
 # ARCHITECTURE.md
 
-This document serves as the "Brain" and "Source of Truth" for the 8-bit Assembly Simulator project.
+This document serves as the **"Brain" and "Source of Truth"** for the **Assembly Visual Frontend** project.
 
 ## 1. Project Overview
-**Visual Assembly Frontend** is a client-side simulator for an 8-bit CPU architecture. It allows users to write assembly code, visualize execution (step-by-step), and interact with virtual hardware via I/O instructions.
 
--   **Stack:** Next.js (App Router) + TypeScript + Tailwind CSS.
--   **Execution Model:** Fully client-side execution engine (no backend dependency for running code).
--   **API:** Uses a mock API (`json-server`) for persistence (saving code, assignments) in development.
+**Visual Assembly Frontend** is a modern, client-side interactive simulator for an 8-bit CPU architecture. It provides an immersive environment for students to write assembly code, visualize execution, debug with "Time Travel," and complete graded assignments.
 
-## 2. Directory Map (The "Where")
+-   **Stack**: Next.js 14+ (App Router), TypeScript, Tailwind CSS.
+-   **Execution Engine**: Pure client-side TypeScript CPU simulator.
+-   **Persistence**: Backend API integration (verified `json-server` or Go backend) for saving user progress, classes, and assignments.
 
-### Core Logic (`app/lib/playground/`)
-Contains the execution engine and CPU definition. Logic here is framework-agnostic (pure TypeScript).
--   `cpu.ts`: Defines the `CPU` class, Registers (`R0`...`R3`), Flags (`Z`, `C`, `V`, `O`), and Memory (`256 bytes`).
--   `stepExecutor.ts`: The main execution loop. Handles fetching instructions, decoding, and updating CPU state.
--   `instructionDefs.ts`: Definitions for the Assembler/UI (e.g., valid operands for `MOV`, `ADD`).
--   `io.ts`: Defines the `IOHandler` interface and `VirtualIO` class (Port logic).
--   `ports.ts`: Constants for Virtual Ports definitions (IDs and Names).
+## 2. Directory Structure ( The "Where" )
 
-### UI Components (`app/components/playground/`)
-React components for visualization.
--   `io/`: I/O specific components (`LEDMatrix`, `NumberDisplay`, `TerminalOutput`, `IOContainer`).
--   `nodes/`: Visual nodes for the program graph.
--   `NodePanel.tsx`: The panel showing available instructions.
+The project follows the standard **Next.js App Router** structure with `src` located at `app/`.
 
-### Pages (`app/app/`)
--   `app/(playground)/class/[id]/assignment/[assignmentId]/playground/page.tsx`: The main entry point for the simulator. Orchestrates state between the `CPU` and the UI.
+### 2.1 Routes (`app/app/`)
+Organized using **Route Groups** to separate layouts and concerns:
 
-### Types (`app/lib/api/`)
--   `playground.ts`: core types for the graph and program (`ProgramItem`, `Operand`).
+-   **(auth)/**: Authentication routes (Login, Signup, etc.).
+-   **(pages)/**: Main application dashboard and feature pages:
+    -   `home/`: Landing/Dashboard.
+    -   `class/`: Classroom management and assignment lists.
+    -   `profile/`, `bookmark/`, `calendar/`, `recent/`: User-centric features.
+-   **(playground)/**: The core simulator environment.
+    -   `/class/[id]/assignment/[assignmentId]/playground`: The main IDE interface.
 
-## 3. Data Flow & Architecture (The "How")
+### 2.2 Core Logic (`app/lib/`)
+Contains business logic, utilities, and the CPU engine.
 
-### Execution Engine -> UI
-1.  **State Management**: The `page.tsx` maintains the `StepExecutionState`, which contains the `cpu`, `memory`, and `ioHandler`.
-2.  **Stepping**: When the user clicks "Step", the `executeStep` function (from `stepExecutor.ts`) is called.
-3.  **IOHandler**: The `VirtualIO` instance is persistent and passed to `executeStep` or `executeProgram`.
-4.  **Async "Run"**: The `executeProgram` function is **async** and yields to the event loop (via `setTimeout(0)`) every 20 steps. This allows the browser to process UI events (like keyboard input) while the simulation runs in a loop.
-5.  **Re-render**: After each step or yield, the state updates to filter down to UI components.
+-   **`playground/`**: The heart of the simulator.
+    -   `cpu.ts`: Defines `CPU` state, Registers, Flags, and Memory.
+    -   `executor.ts` & `stepExecutor.ts`: Handles the fetch-decode-execute cycle.
+    -   `instructionDefs.ts`: Instruction set definitions (opcodes, operands).
+    -   `io.ts` & `ports.ts`: Virtual I/O device handling (Console, LED Matrix, etc.).
+    -   `grader.ts` & `grading.ts`: Logic for verifying student code against test cases.
+    -   `test_runner.ts`: Automated test execution engine.
+-   **`api/`**: API client and type definitions for backend communication.
+-   **`auth/`**: Authentication logic providers.
+-   **`storage/`**: Local storage helpers.
 
-### I/O System
--   **Port 0 (Console)**:
-    -   **Output**: CPU writes -> `VirtualIO` appends to `consoleOutput` string.
-    -   **Input**: `VirtualIO` maintains a **Key Buffer**. Typing in the UI pushes to this buffer. `IN R0, 0` reads from it (FIFO). Returns 0 if empty.
--   **Ports 1-3 (Displays)**: Updates `sevenSegment` and `ledMatrix` state.
--   **Port 4 (Gamepad)**: Reads immediate state from UI Gamepad buttons.
--   **Port 5 (RNG)**: Returns random 8-bit integer.
--   **Configuration**: Users select ports via a dropdown in the Property Panel, mapped to `VIRTUAL_PORTS` constants.
+### 2.3 UI Components (`app/components/`)
+-   **`ui/`**: Reusable design system components (often customized or shadcn-like).
+    -   Includes `Button`, `Modal`, `Input`, `ToastAlert`.
+    -   Special visual components: `PixelBackground`, `DecryptedText`, `RotatingText`.
+-   **`playground/`**: Simulator-specific components.
+    -   `io/`: Hardware visualizations (Terminal, LED Matrix).
+    -   `nodes/`: Graph-based program visualization nodes.
+-   **`assignment/`**, **`class/`**: Feature-specific components.
+-   **`layout/`**: Global layout components (Sidebars, Headers).
 
-## 4. Development Rules (The "Laws")
+## 3. Data Flow & Execution Model
 
-### Rule 1: Separation of Logic and UI
--   **Do not** put React code (hooks, JSX) inside `lib/playground/`.
--   **Do not** put CPU execution logic inside React Components. Components should only *display* data passed via props.
+### 3.1 The Simulator Loop
+1.  **State**: The `CPU` object holds the truth (Registers, RAM, Flags).
+2.  **Execution**: `stepExecutor.ts` performs atomic steps. `executor.ts` likely manages the higher-level run loop and "Step Back" history.
+3.  **Visualization**: React components subscribe to state changes to render the current CPU state.
+4.  **I/O**:
+    -   **Input**: Buffered via `VirtualIO` (Keyboard, Gamepad).
+    -   **Output**: Written to virtual ports, triggering UI updates (Console logs, LED updates).
 
-### Rule 2: The Ripple Effect
-If you add or modify an instruction (e.g. `MUL`):
-1.  **Update `instructionDefs.ts`**: To let the UI/Assembler know about it (valid operands).
-2.  **Update `stepExecutor.ts`**: To implement the execution logic (`executeMUL`).
-3.  **Update `cpu.ts`**: If it affects flags or registers in a new way.
+### 3.2 Grading System
+-   assignments define **Test Cases** (Input/Output pairs).
+-   `test_runner.ts` executes the student's code in a sandbox (headless CPU or accelerated mode).
+-   `grader.ts` compares actual outputs against expected outputs to generate a score.
 
-### Rule 3: Design System
--   **Style**: Modern SaaS Dashboard.
--   **Colors**: Slate (backgrounds/text), Indigo/Violet (accents/active states), Emerald (success/terminal).
--   **Shapes**: Rounded corners (`rounded-lg`, `rounded-xl`), subtle borders (`border-slate-200`), soft shadows (`shadow-sm`).
--   **Avoid**: "Retro/Pixel-art" styles. Keep it clean and professional.
+## 4. Design Guidelines
 
-## 5. Current Status
--   **CPU**: 8-bit architecture fully verified. Supports Reg-Reg and Reg-Imm operations.
--   **Memory**: 256-byte linear memory space.
--   **Instructions**: 
-    -   System: `START`, `HLT`
-    -   Data: `MOV`, `LOAD`, `STORE`, `PUSH`, `POP`
-    -   Arithmetic: `ADD`, `SUB`, `INC`, `DEC`, `MUL`, `DIV`
-    -   Bitwise: `AND`, `OR`, `XOR`, `NOT`, `SHL`, `SHR`
-    -   Control Flow: `JMP`, `JZ`, `JNZ`, `CALL`, `RET`, `CMP`
--   **I/O**: Implemented `IN`/`OUT` with Virtual Device handlers:
-    -   Output: Console, 7-Segment, LED Matrix.
-    -   Input: Console (Keyboard Buffer), Gamepad (Port 4), RNG (Port 5).
--   **UI**: I/O Components created, including Gamepad. Main graph editor supports configured instruction sets.
--   **API**: Mock server (`json-server`) configured with public classes support.
+-   **Aesthetic**: Modern, "Tech-Forward" SaaS. Uses dark modes, glassmorphism, and pixel-art inspired accents (`PixelBackground`).
+-   **UX**: Fast, responsive, and intuitive. "Time Travel" debugging is a key feature.
+-   **Code Quality**:
+    -   **Strict Separation**: No React calls in `lib/playground/`. CPU logic must remain pure TS.
+    -   **Type Safety**: Comprehensive TypeScript definitions for all instructions and API responses.
+
+## 5. Current Features & Status
+
+-   **CPU**: 8-bit architecture with Reg-Reg, Reg-Imm ops, and Stack support.
+-   **I/O**: Console (ASCII/Numeric), LED Matrix (Ports 1-3), Gamepad (Port 4), RNG (Port 5).
+-   **IDE**: Code editor with syntax highlighting, graph visualization, and "Step" debugging.
+-   **Education**: Classrooms, Assignments, and Automated Grading.
+-   **Auth**: User accounts and Google integration (implied by `controller` names in backend).

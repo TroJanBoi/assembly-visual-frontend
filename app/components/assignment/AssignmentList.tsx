@@ -54,7 +54,7 @@ const AssignmentListItem = ({
   // Placeholder functions for edit/delete
   const handleEdit = () => {
     console.log("Edit assignment:", assignment.id);
-    // router.push(`/class/${assignment.class_id}/assignments/${assignment.id}/edit`);
+    // router.push(`/class/${assignment.classroom_id}/assignments/${assignment.id}/edit`);
   };
 
   const handleDelete = () => {
@@ -100,7 +100,7 @@ const AssignmentListItem = ({
               aria-label="Play assignment"
               onClick={() =>
                 router.push(
-                  `/class/${assignment.class_id}/assignment/${assignment.id}/playground`,
+                  `/class/${assignment.classroom_id}/assignment/${assignment.id}/playground`,
                 )
               }
               className="p-2 text-gray-500 hover:text-green-600 hover:bg-gray-100 rounded-md"
@@ -129,7 +129,7 @@ const AssignmentListItem = ({
             disabled={isPast}
             onClick={() =>
               router.push(
-                `/class/${assignment.class_id}/assignment/${assignment.id}/playground`,
+                `/class/${assignment.classroom_id}/assignment/${assignment.id}/playground`,
               )
             }
           >

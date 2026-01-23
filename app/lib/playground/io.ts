@@ -1,3 +1,5 @@
+import { generateUUID } from "@/lib/utils";
+
 /**
  * I/O Interface and Virtual Devices
  * Handles communication between CPU and virtual peripherals
@@ -58,7 +60,7 @@ export class VirtualIO implements IOHandler {
         }
 
         this.state.logs.push({
-            id: crypto.randomUUID(),
+            id: generateUUID(),
             timestamp: Date.now(),
             type,
             content

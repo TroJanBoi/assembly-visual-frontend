@@ -1,11 +1,12 @@
-import { apiFetch } from "./client";
+import { apiFetch, API_BASE } from "./client";
 import { setToken, clearToken } from "../auth/token";
+
+export const OAUTH_GOOGLE_URL = `${API_BASE}/api/v2/oauth/google/login`;
 
 export interface SignupInput {
   name: string;
   email: string;
   password: string;
-  tel?: string;
 }
 
 export interface SignupResponse {
@@ -19,6 +20,13 @@ export interface SigninInput {
   email: string;
   password: string;
   remember?: boolean;
+}
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  name: string;
+  picture_path: string;
 }
 
 export interface SigninResponse {
@@ -35,45 +43,81 @@ export interface SigninResponse {
 }
 
 export async function signup(data: SignupInput): Promise<SignupResponse> {
-  console.log("📦 Signup data:", data);
+  // Backend expects: { email, password, name }
   return apiFetch<SignupResponse>("/api/v2/auth/sign-up", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      email: data.email,
+      password: data.password,
+      name: data.name,
+    }),
   });
 }
 
-/** 🔐 Sign in (email/password) */
+/**  Sign in (email/password) */
 export async function signin(data: SigninInput): Promise<SigninResponse> {
-  const payload = {
-    email: data.email,
-    password: data.password,
-    ...(typeof data.remember === "boolean" ? { remember: data.remember } : {}),
-  };
 
-  const res = await apiFetch<SigninResponse>("/api/v2/auth/login", {
+  // 1. Call Login API to get token
+  const loginRes = await apiFetch<{ token: string; error?: string }>("/api/v2/auth/login", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      email: data.email,
+      password: data.password,
+    }),
   });
 
-  if (res && typeof window !== "undefined" && res.token) {
-    console.log("🔑 Token received:", res.token);   // ✅
-    localStorage.setItem("authToken", res.token);
-
+  if (!loginRes || !loginRes.token) {
+    throw new Error(loginRes?.error || "Login failed");
   }
 
-  if (res?.token) setToken(res.token);
-  // ถ้าต้องการเก็บข้อมูล user ไว้โชว์ชื่อมุมขวาบน:
-  // if (res?.user) localStorage.setItem("me", JSON.stringify(res.user));
+  const token = loginRes.token;
 
-  return res;
+  // 2. Save token using helper (and optionally localStorage if desired)
+  setToken(token);
+  if (data.remember) {
+    localStorage.setItem("authToken", token);
+  }
+
+  // 3. Fetch User Profile using the new token
+  // Use apiFetch, which should pick up the token from where setToken saved it (cookie) 
+  // or we might need to verify if apiFetch reads from cookie.
+  // Assuming apiFetch reads cookie set by setToken.
+
+  let userProfile: UserProfile | null = null;
+  try {
+    userProfile = await apiFetch<UserProfile>("/api/v2/profile", {
+      method: "GET",
+    });
+  } catch (err) {
+    console.error("Failed to fetch profile after login:", err);
+  }
+
+  const response: SigninResponse = {
+    token: token,
+    user: userProfile ? {
+      id: userProfile.id,
+      email: userProfile.email,
+      name: userProfile.name,
+      picture_path: userProfile.picture_path,
+      // Backend doesn't return role/tel yet, use defaults or omit
+    } : undefined
+  };
+
+  // 4. Save user info to localStorage for easy access if needed (optional)
+  if (response.user) {
+    localStorage.setItem("me", JSON.stringify(response.user));
+  }
+
+  return response;
 }
 
 export async function signout(): Promise<void> {
   try {
-    localStorage.removeItem("authToken")
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("me");
     window.location.href = "/signin";
   } catch {
-    // ถ้า backend ไม่มี endpoint นี้ก็ไม่เป็นไร
+    // Ignore errors
   } finally {
     clearToken();
   }
@@ -88,6 +132,7 @@ export async function changePassword(new_password: string) {
 }
 
 export async function oauthLogin(provider: string, code: string) {
+  // This might need similar chaining update later if OAuth endpoint doesn't return user profile
   return apiFetch<SigninResponse>(`/api/v2/auth/oauth/${provider}/login?code=${encodeURIComponent(code)}`, {
     method: "GET",
   });
