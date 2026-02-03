@@ -124,10 +124,10 @@ export default function SmartCombobox({
                     onFocus={() => setIsOpen(true)}
                     placeholder={placeholder}
                     className={cn(
-                        "w-full pl-9 pr-8 py-2 text-sm bg-white border rounded-xl transition-all duration-200 outline-none font-mono",
-                        !isOpen && "border-gray-200 hover:border-indigo-300",
+                        "w-full pl-9 pr-8 py-2 text-sm bg-white dark:bg-slate-900 border rounded-xl transition-all duration-200 outline-none font-mono dark:text-white",
+                        !isOpen && "border-gray-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500",
                         isOpen && "border-indigo-500 ring-4 ring-indigo-500/10 shadow-sm",
-                        disabled && "opacity-50 cursor-not-allowed bg-gray-50"
+                        disabled && "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-slate-800"
                     )}
                 />
 
@@ -166,7 +166,7 @@ export default function SmartCombobox({
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 p-1 max-h-64 overflow-y-auto custom-scrollbar">
+                <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 p-1 max-h-64 overflow-y-auto custom-scrollbar">
 
                     {/* Immediate Value Option (Creatable) */}
                     {search && !options.some(o => o.value.toString() === search) && !isNaN(Number(search)) && (
@@ -174,7 +174,7 @@ export default function SmartCombobox({
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => handleSelect(search)}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 rounded-lg mb-1 border border-indigo-100 border-dashed"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-slate-800/50 hover:bg-indigo-100 dark:hover:bg-slate-800 rounded-lg mb-1 border border-indigo-100 dark:border-indigo-900/30 border-dashed"
                         >
                             <Hash className="w-3.5 h-3.5" />
                             <span className="font-medium">Use Immediate: "{search}"</span>
@@ -210,8 +210,8 @@ export default function SmartCombobox({
                                             onClick={() => handleSelect(option.value)}
                                             className={cn(
                                                 "w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors text-left mb-0.5",
-                                                "hover:bg-indigo-50 hover:text-indigo-700",
-                                                isSelected && "bg-indigo-50 text-indigo-700 font-semibold"
+                                                "hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-gray-300",
+                                                isSelected && "bg-indigo-50 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 font-semibold"
                                             )}
                                         >
                                             <span className="flex items-center gap-2 truncate font-mono">

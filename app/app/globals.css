@@ -1,4 +1,5 @@
 @import "react-phone-input-2/lib/style.css";
+@import "nprogress/nprogress.css";
 
 
 @keyframes dashdraw {
@@ -58,12 +59,15 @@
 }
 
 .dark {
-  --color-primary: #8C9EFF;
-  --color-bg: #1A1A2E;
-  /* dark background */
-  --color-text: #F5F5F5;
-  --color-sub-text: #B0B0B0;
-  --color-border: rgba(255, 255, 255, 0.23);
+  --color-primary: #818cf8;
+  /* indigo-400 to match dark mode primary */
+  --color-bg: #020617;
+  /* slate-950 */
+  --color-text: #f8fafc;
+  /* slate-50 */
+  --color-sub-text: #94a3b8;
+  /* slate-400 */
+  --color-border: rgba(255, 255, 255, 0.1);
 }
 
 .brand-text {

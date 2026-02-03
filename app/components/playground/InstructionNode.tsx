@@ -65,7 +65,8 @@ const TAILWIND_COLOR_MAP: Record<string, string> = {
 };
 
 const getTailwindColorValue = (tailwindClass: string): string => {
-  return TAILWIND_COLOR_MAP[tailwindClass] || '#ffffff';
+  const base = tailwindClass.split(" ")[0];
+  return TAILWIND_COLOR_MAP[base] || '#ffffff';
 };
 
 // --- 2. Main Component ---
@@ -172,7 +173,7 @@ export default memo(function InstructionNode({
     if (def.name === "CMP") {
       return <Scale className={cn("w-3.5 h-3.5", colorClass)} />;
     }
-    if (["AND", "OR", "XOR", "NOT", "SHL", "SHR"].includes(def.name)) {
+    if (["AND", "OR", "XOR", "NAND", "NOR", "XNOR", "NOT", "SHL", "SHR"].includes(def.name)) {
       return <Settings className={cn("w-3.5 h-3.5", colorClass)} />;
     }
     // Default: Assignment arrow
@@ -183,9 +184,10 @@ export default memo(function InstructionNode({
 
   // Extract strong border color from styles
   const getBorderColorClass = () => {
-    const borderClass = styles.borderColor; // e.g., "border-lime-200"
-    // Convert to stronger variant: border-lime-200 -> border-lime-500
-    return borderClass.replace(/-200$/, "-500").replace(/-300$/, "-500");
+    // const borderClass = styles.borderColor; 
+    // Return standard strong border for active states
+    // Use colorFamily to generate consistent border
+    return `border-${colorFamily}-500 dark:border-${colorFamily}-400`;
   };
 
   // Extract color name for dynamic highlight
@@ -202,7 +204,8 @@ export default memo(function InstructionNode({
       className={cn(
         "rounded-2xl border-2 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group overflow-hidden",
         "flex flex-row items-center h-14",
-        getBorderColorClass(),
+        // getBorderColorClass(), // Use style border by default, override on active
+        styles.borderColor,
         styles.bodyBg,
         // Active Proximity State (Magnetic Pulse)
         data.isProximity
@@ -211,7 +214,7 @@ export default memo(function InstructionNode({
 
         // EXECUTION HIGHLIGHT (Pop Effect)
         // EXECUTION HIGHLIGHT (Pop Effect)
-        data.isActiveExec && `scale-110 !border-${colorFamily}-500 shadow-[0_0_25px_5px_rgba(0,0,0,0.1)] shadow-${colorFamily}-500/50 z-[1000] ring-4 ring-offset-2 ring-${colorFamily}-400/30`,
+        data.isActiveExec && `scale-110 !border-${colorFamily}-500 dark:!border-${colorFamily}-400 shadow-[0_0_25px_5px_rgba(0,0,0,0.1)] shadow-${colorFamily}-500/50 z-[1000] ring-4 ring-offset-2 ring-${colorFamily}-400/30`,
 
         // Selection State (Lower Priority than Proximity if overlapping, or merge?)
         // If selected AND proximity, proximity should win for "drag target" feel, or both? 
@@ -325,8 +328,8 @@ export default memo(function InstructionNode({
 
           {/* Input Slot */}
           <div className="w-full overflow-hidden flex-1 py-2 flex items-center justify-center px-2">
-            <div className={cn("bg-white rounded-md px-3 py-1.5 flex-1 min-w-0 border-2", styles.borderColor)}>
-              <span className="max-w-full overflow-hidden text-sm font-mono font-medium text-slate-700 truncate block text-center">
+            <div className={cn("bg-white dark:bg-slate-900 rounded-md px-3 py-1.5 flex-1 min-w-0 border-2 dark:border-slate-700", styles.borderColor)}>
+              <span className="max-w-full overflow-hidden text-sm font-mono font-medium text-slate-700 dark:text-slate-200 truncate block text-center">
                 {['LABEL', 'JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN', 'CALL'].includes(def.name) ? label : dest}
               </span>
             </div>
@@ -358,8 +361,8 @@ export default memo(function InstructionNode({
             {/* Body: Input1 | Icon | Input2 */}
             <div className="flex-1 flex items-center gap-2 px-2">
               {/* Input 1 */}
-              <div className={cn("bg-white rounded-md border-2 px-2 py-1.5 flex-1 min-w-0", styles.borderColor)}>
-                <span className="text-xs font-mono font-medium text-slate-700 truncate block text-center">
+              <div className={cn("bg-white dark:bg-slate-900 rounded-md border-2 px-2 py-1.5 flex-1 min-w-0 dark:border-slate-700", styles.borderColor)}>
+                <span className="text-xs font-mono font-medium text-slate-700 dark:text-slate-200 truncate block text-center">
                   {isOut
                     ? (memImm !== undefined && memImm !== null ? getPortName(memImm) : "Port")
                     : isStore
@@ -377,8 +380,8 @@ export default memo(function InstructionNode({
               </div>
 
               {/* Input 2 (Source) */}
-              <div className={cn("bg-white rounded-md border-2 px-2 py-1.5 flex-1 min-w-0", styles.borderColor)}>
-                <span className="text-xs font-mono font-medium text-slate-700 truncate block text-center">
+              <div className={cn("bg-white dark:bg-slate-900 rounded-md border-2 px-2 py-1.5 flex-1 min-w-0 dark:border-slate-700", styles.borderColor)}>
+                <span className="text-xs font-mono font-medium text-slate-700 dark:text-slate-200 truncate block text-center">
                   {src}
                 </span>
               </div>

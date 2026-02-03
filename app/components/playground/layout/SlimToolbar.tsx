@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import {
     instructionCategories,
     colorStyles,
+    type InstructionDef,
 } from "@/lib/playground/instructionDefs";
 import {
     Calculator,
@@ -44,7 +45,7 @@ const CategoryItem = ({
     onHover,
     onLeave,
 }: {
-    cat: { title: string; instructions: any[] };
+    cat: { title: string; instructions: InstructionDef[] };
     isActive: boolean;
     onHover: (title: string) => void;
     onLeave: () => void;
@@ -102,7 +103,7 @@ const CategoryItem = ({
                     <div className="absolute top-4 -left-1.5 w-3 h-3 bg-white border-l border-b border-gray-200 transform rotate-45 z-50" />
 
                     {/* Menu Content */}
-                    <div className="bg-white border border-gray-200 rounded-xl shadow-xl p-3 w-52 relative z-40">
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-xl p-3 w-64 relative z-40">
                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-1 border-b border-gray-100 pb-2">
                             {cat.title}
                         </div>
@@ -118,7 +119,7 @@ const CategoryItem = ({
                                 >
                                     <span
                                         className={cn(
-                                            "w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-1 ring-black/5",
+                                            "w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-1 ring-black/5 shrink-0",
                                             styles.badgeBg,
                                             styles.badgeText
                                         )}
@@ -129,12 +130,15 @@ const CategoryItem = ({
                                             <inst.icon size={14} />
                                         )}
                                     </span>
-                                    <div className="flex flex-col">
+                                    <div className="flex flex-col min-w-0">
                                         <span className="text-sm font-bold text-gray-700 leading-none group-hover/item:text-indigo-600 transition-colors">
                                             {inst.name}
                                         </span>
-                                        <span className="text-[10px] text-gray-400 font-medium">
+                                        <span className="text-[10px] text-gray-400 font-medium mt-0.5">
                                             {inst.arity === 0 ? "No operands" : `${inst.arity} operand${inst.arity > 1 ? "s" : ""}`}
+                                        </span>
+                                        <span className="text-[10px] text-gray-500 leading-tight mt-1">
+                                            {inst.description}
                                         </span>
                                     </div>
                                 </div>

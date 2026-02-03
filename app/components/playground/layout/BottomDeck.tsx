@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp, Terminal, Monitor, GripHorizontal, GripVertical } from "lucide-react";
 import { ConsolePanel } from "@/components/playground/io/ConsolePanel";
 import { NumberDisplay } from "@/components/playground/io/NumberDisplay";
-import { LEDMatrix } from "@/components/playground/io/LEDMatrix";
 import LedPanel from "@/components/playground/LedPanel";
 
 import { LogEntry } from "@/lib/playground/io";
@@ -15,7 +14,6 @@ type Props = {
     consoleBuffer: string;
     onConsoleInput: (key: string) => void;
     sevenSegment: number;
-    ledMatrix: number[];
     ledPanelValue: number;
     memory: number[];
     outputLines: string[];
@@ -27,7 +25,6 @@ export default function BottomDeck({
     consoleBuffer,
     onConsoleInput,
     sevenSegment,
-    ledMatrix,
     ledPanelValue,
     memory,
     outputLines,
@@ -74,14 +71,9 @@ export default function BottomDeck({
 
         const handleMouseMove = (e: MouseEvent) => {
             if (isDraggingV) {
-                // Resizing Height: 
-                // Since panel is bottom-anchored, dragging UP (lower Y) increases height
-                // We need to calculate based on window height or previous rect
-                // Ideally: newHeight = window.innerHeight - e.clientY
                 const newHeight = window.innerHeight - e.clientY;
                 setPanelHeight(Math.min(Math.max(newHeight, MIN_HEIGHT), MAX_HEIGHT));
             } else if (isDraggingH && containerRef.current) {
-                // Resizing Split Position
                 const rect = containerRef.current.getBoundingClientRect();
                 const relativeX = e.clientX - rect.left;
                 const newPct = (relativeX / rect.width) * 100;
@@ -199,22 +191,18 @@ export default function BottomDeck({
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Visual Devices</span>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 flex flex-row flex-wrap items-center justify-center gap-6 content-center">
+                        <div className="flex-1 overflow-y-auto flex flex-row flex-wrap items-center justify-center gap-2 content-center">
 
                             {/* Device 1: 7-Segment */}
-                            <div className="flex flex-col items-center gap-2 scale-90 origin-center bg-white p-3 rounded-xl border border-gray-200/60 shadow-sm">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Port 1</span>
+                            <div className="flex flex-col items-center gap-2 scale-90 origin-center bg-white py-3  rounded-xl border border-gray-200/60 shadow-sm">
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Port 1</span>
                                 <NumberDisplay value={sevenSegment} />
                             </div>
 
-                            <div className="flex flex-col items-center gap-2 scale-90 origin-center bg-white p-3 rounded-xl border border-gray-200/60 shadow-sm">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Port 2+3</span>
-                                <LEDMatrix rows={ledMatrix} />
-                            </div>
 
                             {/* Device 3: LED Panel (Address 255) */}
-                            <div className="flex flex-col items-center gap-2 scale-90 origin-center bg-white p-3 rounded-xl border border-gray-200/60 shadow-sm">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">Port 5 (Output)</span>
+                            <div className="flex flex-col items-center gap-2 scale-90 origin-center bg-white py-3 rounded-xl border border-gray-200/60 shadow-sm">
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-2">Port 3</span>
                                 <LedPanel value={ledPanelValue} />
                             </div>
 

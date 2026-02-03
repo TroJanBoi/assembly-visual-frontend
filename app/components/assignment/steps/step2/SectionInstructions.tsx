@@ -2,6 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Square, Clock } from "lucide-react";
 import { FaKeyboard, FaHashtag, FaPlus, FaMinus } from "react-icons/fa6";
 import { RiFlag2Line } from "react-icons/ri";
@@ -13,6 +14,9 @@ import {
   TbLogicOr,
   TbLogicNot,
   TbLogicXor,
+  TbLogicNand,
+  TbLogicNor,
+  TbLogicXnor,
   TbExposurePlus1,
   TbExposureMinus1,
   TbGitBranch,
@@ -85,6 +89,9 @@ const instructionCategories = [
       { name: "AND", icon: <TbLogicAnd />, color: "fuchsia" },
       { name: "OR", icon: <TbLogicOr />, color: "fuchsia" },
       { name: "XOR", icon: <TbLogicXor />, color: "fuchsia" },
+      { name: "NAND", icon: <TbLogicNand />, color: "fuchsia" },
+      { name: "NOR", icon: <TbLogicNor />, color: "fuchsia" },
+      { name: "XNOR", icon: <TbLogicXnor />, color: "fuchsia" },
       { name: "NOT", icon: <TbLogicNot />, color: "fuchsia" },
       { name: "SHL", icon: <TbChevronLeft />, color: "fuchsia" },
       { name: "SHR", icon: <TbChevronRight />, color: "fuchsia" },
@@ -213,32 +220,31 @@ export default function SectionInstructions({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4">
+    <Card>
+      <CardHeader className="bg-gray-50/50 border-b pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
             <HiOutlineCode className="w-5 h-5 text-purple-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Instruction Set</h3>
-            <p className="text-sm text-gray-600">Define allowed assembly instructions</p>
+            <CardTitle className="text-lg">Instruction Set</CardTitle>
+            <CardDescription>Define allowed assembly instructions</CardDescription>
           </div>
         </div>
-      </div>
-
-      <div className="p-6">
-        <p className="text-sm text-gray-600 mb-6">
+      </CardHeader>
+      <CardContent className="pt-6">
+        <p className="text-sm text-muted-foreground mb-6">
           Click to toggle instructions. Grayed-out instructions will be{" "}
-          <span className="font-semibold text-gray-900">disallowed</span> for this assignment.
+          <span className="font-semibold text-foreground">disallowed</span>.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {instructionCategories.map((category) => (
             <div
               key={category.title}
-              className="p-4 border-2 border-gray-200 rounded-xl shadow-sm bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-shadow"
+              className="p-4 border rounded-xl bg-card hover:bg-accent/5 transition-colors"
             >
-              <h4 className="text-center text-sm font-bold mb-3 text-gray-800 border-b border-gray-200 pb-2">
+              <h4 className="text-center text-sm font-bold mb-3 text-foreground border-b pb-2">
                 {category.title}
               </h4>
               <div className="space-y-2">
@@ -254,16 +260,16 @@ export default function SectionInstructions({
                       type="button"
                       onClick={() => toggleInstruction(inst.name)}
                       className={cn(
-                        "w-full flex items-center gap-2 p-2.5 rounded-lg border-2 transition-all duration-200 relative",
-                        styles.button,
-                        styles.textColor,
-                        isDisallowed && "opacity-30 grayscale hover:opacity-40",
+                        "w-full flex items-center gap-2 p-2.5 rounded-lg border transition-all duration-200 relative",
+                        isDisallowed
+                          ? "bg-muted border-muted-foreground/20 opacity-50 grayscale hover:opacity-100"
+                          : cn(styles.button, styles.textColor)
                       )}
                     >
                       <span
                         className={cn(
                           "w-7 h-7 grid place-items-center rounded-md border shrink-0",
-                          styles.iconBox,
+                          isDisallowed ? "bg-muted border-transparent" : styles.iconBox
                         )}
                       >
                         {inst.icon}
@@ -281,7 +287,7 @@ export default function SectionInstructions({
             </div>
           ))}
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -15,6 +15,7 @@ import ReactFlow, {
   ConnectionLineType,
 } from "reactflow";
 import CircuitLoopEdge from "./edges/CircuitLoopEdge";
+import { useTheme } from "next-themes";
 
 const edgeTypes = {
   circuitLoop: CircuitLoopEdge,
@@ -56,8 +57,10 @@ export default React.memo(function PlaygroundCanvas({
   onNodeDrag,
   onNodeDragStop,
 }: PlaygroundCanvasProps) {
+  const { resolvedTheme } = useTheme();
+
   return (
-    <div className="w-full h-full" onDrop={onDrop} onDragOver={onDragOver}>
+    <div className="w-full h-full bg-slate-50 dark:bg-slate-900" onDrop={onDrop} onDragOver={onDragOver}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -81,9 +84,18 @@ export default React.memo(function PlaygroundCanvas({
         connectionLineType={ConnectionLineType.Bezier}
         fitView
       >
-        <Background gap={16} size={1} />
-        <MiniMap pannable zoomable />
-        <Controls />
+        <Background
+          gap={16}
+          size={1}
+          color={resolvedTheme === 'dark' ? '#475569' : '#94a3b8'}
+        />
+        <MiniMap
+          pannable
+          zoomable
+          className="dark:bg-slate-800 dark:border-slate-700"
+          maskColor={resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.8)' : 'rgba(240, 242, 243, 0.6)'}
+        />
+        <Controls className="dark:bg-slate-800 dark:border-slate-700 dark:fill-white dark:text-white [&>button]:dark:bg-slate-800 [&>button]:dark:border-slate-700 [&>button:hover]:dark:bg-slate-700" />
       </ReactFlow>
     </div>
   );

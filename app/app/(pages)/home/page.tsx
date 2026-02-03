@@ -7,6 +7,7 @@ import ClassCard from "@/components/class/ClassCard";
 import { HiOutlineArrowRight, HiPlus, HiOutlineSparkles } from "react-icons/hi";
 import { HiGlobeAsiaAustralia } from "react-icons/hi2";
 import { Loader2 } from "lucide-react";
+import ClassCardSkeleton from "@/components/skeletons/ClassCardSkeleton";
 
 export default function HomePage() {
   const [publicClasses, setPublicClasses] = useState<Class[]>([]);
@@ -34,10 +35,23 @@ export default function HomePage() {
     fetchPublicClasses();
   }, []);
 
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+      <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-gray-50/50 font-sans text-slate-900">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="text-center max-w-2xl mx-auto mb-16 pt-10">
+            <div className="h-8 w-32 bg-indigo-50 rounded-full mx-auto mb-6 animate-pulse" />
+            <div className="h-12 w-3/4 bg-slate-200 rounded-lg mx-auto mb-4 animate-pulse" />
+            <div className="h-6 w-1/2 bg-slate-100 rounded-lg mx-auto animate-pulse" />
+          </div>
+
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <ClassCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

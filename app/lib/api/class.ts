@@ -2,9 +2,17 @@ import { apiFetch } from "./client";
 
 export interface CreateClassInput {
   topic: string;
-  description?: string;
+  description: string;
   google_course_id?: string;
   google_course_link?: string;
+  banner_id?: number;
+  status?: number;
+}
+
+export interface UpdateClassInput {
+  topic?: string;
+  description?: string;
+  banner_id?: number;
   status?: number;
 }
 
@@ -14,17 +22,17 @@ export interface CreateClassResponse {
 
 export interface Class {
   id: number;
+  banner_id: number;
   code: string;
   topic: string;
   description: string;
   google_course_id: string;
   google_course_link: string;
   google_synced_at: string;
-  fav_score: number;
-  owner: number;
-  owner_name?: string;
-  member_count?: number;
-  is_bookmarked?: boolean;
+  favorite: number;
+  owner_id: number;
+  owner_name: string;
+  member_amount: number;
   status: number;
 }
 
@@ -32,7 +40,9 @@ export interface Member {
   id: number;
   email: string;
   name: string;
+  picture_path: string;
   role: string;
+  join_at: string;
 }
 
 /* --- API function --- */
@@ -53,14 +63,14 @@ export async function getClasses(): Promise<Class[]> {
  * Fetches classes owned by the current user.
  */
 export async function getMyClasses(): Promise<Class[]> {
-  return apiFetch<Class[]>("/api/v2/classroom/my");
+  return apiFetch<Class[]>("/api/v2/user/owner/classroom");
 }
 
 /**
  * Fetches classes joined by the current user (excluding owned classes).
  */
 export async function getJoinedClasses(): Promise<Class[]> {
-  return apiFetch<Class[]>("/api/v2/classroom/joined");
+  return apiFetch<Class[]>("/api/v2/user/me/classroom");
 }
 
 export async function getClassById(id: string | number): Promise<Class> {
@@ -106,5 +116,73 @@ export async function toggleBookmark(
   return apiFetch<{ bookmarked: boolean; message: string }>(
     `/api/v2/classroom/${pathId}/bookmark`,
     { method: "POST" }
+  );
+}
+export async function updateClass(
+  classId: string | number,
+  data: UpdateClassInput
+): Promise<{ message: string }> {
+  const pathId = typeof classId === "number" ? classId.toString() : classId;
+  return apiFetch<{ message: string }>(`/api/v2/classroom/${pathId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteClass(
+  classId: string | number
+): Promise<{ message: string }> {
+  const pathId = typeof classId === "number" ? classId.toString() : classId;
+  return apiFetch<{ message: string }>(`/api/v2/classroom/${pathId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function changeMemberRole(
+  classId: string | number,
+  userId: number,
+  newRole: string
+): Promise<{ message: string }> {
+  const pathId = typeof classId === "number" ? classId.toString() : classId;
+  return apiFetch<{ message: string }>(
+    `/api/v2/classroom/${pathId}/member/permission`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        class_id: Number(pathId),
+        user_id: userId,
+        new_role: newRole,
+      }),
+    }
+  );
+}
+
+export async function removeMember(
+  classId: string | number,
+  userId: number
+): Promise<{ message: string }> {
+  const pathId = typeof classId === "number" ? classId.toString() : classId;
+  return apiFetch<{ message: string }>("/api/v2/classroom/member", {
+    method: "DELETE",
+    body: JSON.stringify({
+      class_id: Number(pathId),
+      user_id: userId,
+    }),
+  });
+}
+
+export async function inviteMember(
+  classId: string | number,
+  email: string
+): Promise<{ message: string }> {
+  const pathId = typeof classId === "number" ? classId.toString() : classId;
+  // Endpoint expects email as a query parameter
+  return apiFetch<{ message: string }>(
+    `/api/v2/classroom/${pathId}/invitation/send?email=${encodeURIComponent(
+      email
+    )}`,
+    {
+      method: "POST",
+    }
   );
 }

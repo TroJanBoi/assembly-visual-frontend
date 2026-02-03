@@ -13,6 +13,7 @@ type AddressMode = "imm" | "reg";
 type SrcMode = "imm" | "reg";
 
 import ModernDropdown, { type DropdownOption } from "@/components/ui/ModernDropdown";
+import { Terminal, Hash, LayoutGrid, Binary, Tag } from "lucide-react";
 
 import { Variable } from "@/components/playground/VariableManager";
 import SmartCombobox, { ComboOption } from "@/components/ui/SmartCombobox";
@@ -308,10 +309,18 @@ export default React.memo(function EmbeddedPropertyPanel({
         onChange: (v: number) => void;
         type: "INPUT" | "OUTPUT";
     }) => {
+        const getPortIcon = (id: number) => {
+            if (id === 0 || id === 1) return Terminal;
+            if (id === 2) return Hash;
+            if (id === 3) return LayoutGrid;
+            return Binary;
+        };
+
         const options: DropdownOption[] = [
             ...VIRTUAL_PORTS.filter((p) => p.type === type || p.type === "INOUT").map((p) => ({
                 label: p.name,
                 value: p.id,
+                icon: getPortIcon(p.id)
             })),
         ];
 
@@ -332,8 +341,8 @@ export default React.memo(function EmbeddedPropertyPanel({
     const isLoad = NAME === "LOAD";
     const isStore = NAME === "STORE";
     const isCmp = NAME === "CMP";
-    const isUnary = ["INC", "DEC", "NOT", "SHL", "SHR", "PUSH", "POP"].includes(NAME);
-    const hasSrcValueOrReg = ["MOV", "ADD", "SUB", "MUL", "DIV", "AND", "OR", "XOR"].includes(NAME);
+    const isUnary = ["INC", "DEC", "NOT", "PUSH", "POP"].includes(NAME);
+    const hasSrcValueOrReg = ["MOV", "ADD", "SUB", "MUL", "DIV", "AND", "OR", "XOR", "NAND", "NOR", "XNOR", "SHL", "SHR"].includes(NAME);
     const isIn = NAME === "IN";
     const isOut = NAME === "OUT";
     const allowCmpImm = true;
@@ -351,9 +360,11 @@ export default React.memo(function EmbeddedPropertyPanel({
                 >
                     <ArrowLeft size={16} />
                 </button>
-                <div>
+                <div className="min-w-0">
                     <h2 className="text-base font-bold text-gray-800 leading-none">{NAME}</h2>
-                    <p className="text-[10px] text-gray-500 mt-0.5 font-medium tracking-wide uppercase">Properties</p>
+                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1 font-medium leading-tight">
+                        {def.description}
+                    </p>
                 </div>
             </div>
 
@@ -383,7 +394,7 @@ export default React.memo(function EmbeddedPropertyPanel({
                         <ModernDropdown
                             value={data.label}
                             onChange={(v: string) => patch({ label: v })}
-                            options={labels.map(lb => ({ label: lb, value: lb }))}
+                            options={labels.map(lb => ({ label: lb, value: lb, icon: Tag }))}
                             placeholder="Select Label"
                         />
                     </div>

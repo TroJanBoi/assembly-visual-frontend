@@ -45,7 +45,6 @@ server.post('/api/v2/auth/login', (req, res) => {
         user_id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
         exp: Date.now() + (24 * 60 * 60 * 1000)
     })).toString('base64');
 
@@ -55,8 +54,6 @@ server.post('/api/v2/auth/login', (req, res) => {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
-            tel: user.tel,
             picture_path: user.picture_path
         }
     });
@@ -84,9 +81,7 @@ server.post('/api/v2/auth/sign-up', (req, res) => {
         email,
         password_hash: mockHash,
         name: name || email.split('@')[0],
-        tel: tel || null,
         picture_path: null,
-        role: 'student', // Default role
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         deleted_at: null
@@ -169,8 +164,7 @@ server.post('/api/v2/playground/me', (req, res) => {
                     version: "1.0"
                 }
             },
-            status: 'in_progress',
-            attempt_no: 1
+            status: 'in_progress'
         };
 
         db.get('playground').push(newPlayground).write();
@@ -213,8 +207,7 @@ server.put('/api/v2/playground/me', (req, res) => {
             assignment_id,
             user_id,
             item: item || {},
-            status: status || 'in_progress',
-            attempt_no: 1
+            status: status || 'in_progress'
         };
 
         db.get('playground').push(newPlayground).write();
@@ -263,12 +256,14 @@ server.get('/api/v2/classroom/public', (req, res) => {
     const publicClasses = classes
         .filter(c => c.status === 0)
         .map(c => {
-            const owner = users.find(u => u.id === c.owner);
-            const memberCount = members.filter(m => m.classroom_id === c.id).length;
+            const owner = users.find(u => u.id === c.owner_id);
+            const memberCount = members.filter(m => m.class_id === c.id).length;
             return {
                 ...c,
                 owner_name: owner ? owner.name : "Unknown Instructor",
-                member_count: memberCount
+                member_amount: memberCount,
+                favorite: 0,
+                banner_id: 0
             };
         });
 
@@ -288,8 +283,6 @@ server.get('/api/v2/profile/', (req, res) => {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
-            tel: user.tel,
             picture_path: user.picture_path
         });
     } else {
@@ -304,7 +297,7 @@ server.get('/api/v2/classroom/:id/members', (req, res) => {
 
     // Find all memberships for this class
     const memberships = db.get('member')
-        .filter({ classroom_id: classId })
+        .filter({ class_id: classId })
         .value();
 
     if (!memberships || memberships.length === 0) {
@@ -321,7 +314,6 @@ server.get('/api/v2/classroom/:id/members', (req, res) => {
                 id: user.id,
                 email: user.email,
                 name: user.name,
-                role: user.role,
                 joined_at: m.joined_at
             };
         }
@@ -346,15 +338,17 @@ server.get('/api/v2/classroom/my', (req, res) => {
     const members = db.get('member').value() || [];
 
     const myClasses = db.get('classroom')
-        .filter({ owner: user_id })
+        .filter({ owner_id: user_id })
         .value() || []
             .map(c => {
-                const owner = users.find(u => u.id === c.owner);
-                const memberCount = members.filter(m => m.classroom_id === c.id).length;
+                const owner = users.find(u => u.id === c.owner_id);
+                const memberCount = members.filter(m => m.class_id === c.id).length;
                 return {
                     ...c,
                     owner_name: owner ? owner.name : "Unknown Instructor",
-                    member_count: memberCount
+                    member_amount: memberCount,
+                    favorite: 0,
+                    banner_id: 0
                 };
             })
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by newest first
@@ -374,16 +368,18 @@ server.get('/api/v2/classroom/joined', (req, res) => {
 
     // Get classes where user is a member but not the owner
     const joinedClasses = (db.get('classroom').value() || [])
-        .filter(c => userMemberships.some(m => m.classroom_id === c.id) && c.owner !== user_id)
+        .filter(c => userMemberships.some(m => m.class_id === c.id) && c.owner_id !== user_id)
         .map(c => {
-            const owner = users.find(u => u.id === c.owner);
-            const memberCount = members.filter(m => m.classroom_id === c.id).length;
-            const membership = userMemberships.find(m => m.classroom_id === c.id);
+            const owner = users.find(u => u.id === c.owner_id);
+            const memberCount = members.filter(m => m.class_id === c.id).length;
+            const membership = userMemberships.find(m => m.class_id === c.id);
             return {
                 ...c,
                 owner_name: owner ? owner.name : "Unknown Instructor",
-                member_count: memberCount,
-                joined_at: membership?.joined_at
+                member_amount: memberCount,
+                joined_at: membership?.joined_at,
+                favorite: 0,
+                banner_id: 0
             };
         })
         .sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
@@ -397,7 +393,7 @@ server.get('/api/v2/classroom/:classId/assignment', (req, res) => {
     const db = router.db;
 
     const assignments = db.get('assignment')
-        .filter({ classroom_id: classId })
+        .filter({ class_id: classId })
         .value() || [];
 
     res.json(assignments || []);
@@ -410,7 +406,7 @@ server.get('/api/v2/classroom/:classId/assignment/:assignmentId', (req, res) => 
     const db = router.db;
 
     const assignment = db.get('assignment')
-        .find({ id: assignmentId, classroom_id: classId })
+        .find({ id: assignmentId, class_id: classId })
         .value();
 
     if (assignment) {
@@ -428,15 +424,16 @@ server.post('/api/v2/classroom/:classId/assignment', (req, res) => {
 
     const newId = assignments.length > 0 ? Math.max(...assignments.map(a => a.id)) + 1 : 1001;
 
+    // Note: Backend Swagger has inconsistency - POST expects 'settings' (plural), GET returns 'setting' (singular)
     const newAssignment = {
         id: newId,
-        classroom_id: classId,
+        class_id: classId,
         title: req.body.title || "Untitled Assignment",
         description: req.body.description || "",
         due_date: req.body.due_date || null,
-        max_attempts: req.body.max_attempts || 0,
+        max_attempt: req.body.max_attempt || 0,
         grade: req.body.grade || 100,
-        settings: req.body.settings || {},
+        setting: req.body.settings || req.body.setting || {}, // Accept both 'settings' (POST) and 'setting' (legacy)
         condition: req.body.condition || {},
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -461,7 +458,7 @@ server.post('/api/v2/classroom/:id/join', (req, res) => {
 
     // Check if already a member
     const existingMember = db.get('member')
-        .find({ classroom_id: classId, user_id: user_id })
+        .find({ class_id: classId, user_id: user_id })
         .value();
 
     if (existingMember) {
@@ -471,7 +468,7 @@ server.post('/api/v2/classroom/:id/join', (req, res) => {
     // Add to members
     db.get('member')
         .push({
-            classroom_id: classId,
+            class_id: classId,
             user_id: user_id,
             joined_at: new Date().toISOString()
         })
@@ -492,7 +489,6 @@ server.post('/api/v2/classroom/:classId/assignment/:assignmentId/test-suite', (r
         id: newSuiteId,
         assignment_id: assignmentId,
         name: req.body.name || "Untitled Suite",
-        description: req.body.description || "",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
@@ -513,13 +509,8 @@ server.post('/api/v2/classroom/:classId/assignment/:assignmentId/test-suite/:tes
         id: newTestCaseId,
         test_suite_id: testSuiteId,
         name: req.body.name || "Untitled Case",
-        args: req.body.args || [],
-        stdin: req.body.stdin || "",
         init: req.body.init || [],
         assert: req.body.assert || [],
-        _meta: {
-            hidden: req.body.hidden || false
-        },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
@@ -535,7 +526,7 @@ server.post('/api/v2/classroom/:id/bookmark', (req, res) => {
     const db = router.db;
 
     const existingBookmark = db.get('bookmark')
-        .find({ user_id: user_id, classroom_id: classId })
+        .find({ user_id: user_id, class_id: classId })
         .value();
 
     if (existingBookmark) {
@@ -548,7 +539,7 @@ server.post('/api/v2/classroom/:id/bookmark', (req, res) => {
         // Add bookmark
         const newId = (db.get('bookmark').value().length || 0) + 1;
         db.get('bookmark')
-            .push({ id: newId, user_id: user_id, classroom_id: classId })
+            .push({ id: newId, user_id: user_id, class_id: classId })
             .write();
         res.json({ bookmarked: true, message: "Bookmark added" });
     }
@@ -571,14 +562,16 @@ server.get('/api/v2/classroom/:id', (req, res) => {
     const members = db.get('member').value();
     const bookmarks = db.get('bookmark').value();
 
-    const owner = users.find(u => u.id === classItem.owner);
-    const memberCount = members.filter(m => m.classroom_id === classId).length;
-    const isBookmarked = bookmarks.some(b => b.user_id === user_id && b.classroom_id === classId);
+    const owner = users.find(u => u.id === classItem.owner_id);
+    const memberCount = members.filter(m => m.class_id === classId).length;
+    const isBookmarked = bookmarks.some(b => b.user_id === user_id && b.class_id === classId);
 
     res.json({
         ...classItem,
         owner_name: owner ? owner.name : "Unknown Instructor",
-        member_count: memberCount,
+        member_amount: memberCount,
+        favorite: isBookmarked ? 1 : 0, // Assuming favorite might be used for bookmark status or score
+        banner_id: 0
     });
 });
 
@@ -599,7 +592,7 @@ server.post('/api/v2/classroom', (req, res) => {
 
     const newClass = {
         id: newId,
-        owner: req.body.owner,
+        owner_id: req.body.owner_id,
         code: code,
         topic: req.body.topic,
         description: req.body.description,
@@ -612,7 +605,14 @@ server.post('/api/v2/classroom', (req, res) => {
     };
 
     db.get('classroom').push(newClass).write();
-    return res.status(201).json(newClass);
+    const responseClass = {
+        ...newClass,
+        owner_name: req.body.owner_name || "Me",
+        member_amount: 0,
+        favorite: 0,
+        banner_id: 0
+    };
+    return res.status(201).json(responseClass);
 });
 
 // ==================== TEST SUITES & TEST CASES API ====================

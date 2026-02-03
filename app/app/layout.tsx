@@ -3,6 +3,8 @@ import "./globals.css";
 import { Poppins, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { NavigationLoader } from "@/components/ui/NavigationLoader";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -27,13 +29,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${poppins.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${poppins.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="min-h-screen">
+        {/* Navigation Loading UX */}
+        <NavigationLoader />
+
         {/* Wrap children with the ToastProvider */}
-        <Toaster position="bottom-right" richColors />
-        <GlobalLoadingProvider>
-          {children}
-        </GlobalLoadingProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Toaster position="bottom-right" richColors />
+          <GlobalLoadingProvider>
+            {children}
+          </GlobalLoadingProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

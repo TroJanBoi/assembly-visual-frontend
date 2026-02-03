@@ -27,6 +27,8 @@ import PlaygroundCanvas from "@/components/playground/PlaygroundCanvas";
 import { Variable } from "@/components/playground/VariableManager";
 
 import { getAssignmentById, Assignment } from "@/lib/api/assignment";
+import { getClassById } from "@/lib/api/class";
+
 import {
   checkPlayground,
   createPlayground,
@@ -44,13 +46,20 @@ import { usePlaygroundDBSave, loadPlaygroundFromDB } from "@/hooks/usePlayground
 import { saveToLocalStorage, loadFromLocalStorage, migrateLegacyStorage } from "@/lib/storage/playground";
 import { ExecutionDeck, ExecutionMode } from "@/components/playground/ExecutionDeck";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/useDebounce";
 
 import TestManagerModal from "@/components/playground/test_cases/TestManagerModal";
 import SubmissionModal from "@/components/playground/SubmissionModal";
 import { TestCase, TestSuite, runTestCase, runTestSuite, TestResult, TestSuiteResult } from '@/lib/playground/test_runner';
 import { getTestSuitesForAssignment } from "@/lib/api/test_cases";
 import { calculateGrade } from "@/lib/playground/grading";
-import { submitAssignment, SubmissionPayload, getSubmissions, Submission } from "@/lib/api/submission";
+import {
+  submitAssignment,
+  SubmissionPayload,
+  getSubmissions,
+  getMySubmissions,
+  Submission,
+} from "@/lib/api/submission";
 
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
 const getId = () => generateUUID();
@@ -98,28 +107,48 @@ function buildInitialCPUState(assignment: Assignment | null): CPUState {
     registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0, R6: 0, R7: 0 },
     flags: { Z: 0, C: 0, V: 0, O: 0 },
     memory: [],
-    ports: { 5: 0 },
+    ports: { 3: 0 },
   };
   if (!assignment) return defaults;
 
   const cond: any = assignment.condition || {};
-  const initState = cond.initial_state || {};
+  let initState = cond.initial_state;
+  // Fallback: Check if initial_state is nested inside execution_constraints (Backwards compatibility/Type definition mismatch)
+  if (!initState && cond.execution_constraints?.initial_state) {
+    initState = cond.execution_constraints.initial_state;
+  }
+  initState = initState || {};
 
-  // Read registers from initial_state.registers (with their initial values)
-  const initRegisters = initState.registers || {};
-  const registers: Record<string, number> = { ...initRegisters };
+  const execConstraints = cond.execution_constraints || {};
 
-  // Read memory from initial_state.memory
+  // 1. Build Registers based on register_count (default 8)
+  const regCount = typeof execConstraints.register_count === 'number' ? execConstraints.register_count : 8;
+  const registers: Record<string, number> = {};
+
+  // Initialize R0..Rn-1 with 0
+  for (let i = 0; i < regCount; i++) {
+    registers[`R${i}`] = 0;
+  }
+
+  // Overlay defined initial values from DB
+  if (initState.registers) {
+    // Ensure keys are upper case to match R0, R1...
+    for (const [k, v] of Object.entries(initState.registers)) {
+      registers[k.toUpperCase()] = Number(v);
+    }
+  }
+
+  // 2. Read memory from initial_state.memory
   const initMem = initState.memory;
   const memory: { address: number; value: number }[] = Array.isArray(initMem)
     ? initMem
     : [];
 
   return {
-    registers: Object.keys(registers).length ? registers : defaults.registers,
+    registers,
     flags: { Z: 0, C: 0, V: 0, O: 0 },
     memory,
-    ports: { 5: 0 },
+    ports: { 3: 0 },
   };
 }
 
@@ -140,6 +169,26 @@ function pickPlaygroundId(...candidates: any[]): number | null {
     if (Number.isFinite(n) && n > 0) return n;
   }
   return null;
+}
+
+function enforceRegisterConstraint(cpu: CPUState, assignment: Assignment): CPUState {
+  if (!assignment) return cpu;
+  const defaults = buildInitialCPUState(assignment);
+  // defaults has correct keys based on assignment setting (e.g. 4 or 8)
+
+  const newRegs: Record<string, number> = {};
+
+  // Iterate strictly over DEFAULT keys (the source of truth for count)
+  for (const key of Object.keys(defaults.registers)) {
+    // Keep existing value if key exists in saved state, else use default
+    if (Object.prototype.hasOwnProperty.call(cpu.registers, key)) {
+      newRegs[key] = cpu.registers[key];
+    } else {
+      newRegs[key] = defaults.registers[key];
+    }
+  }
+
+  return { ...cpu, registers: newRegs };
 }
 
 export default function AssignmentPlaygroundPage() {
@@ -171,6 +220,7 @@ export default function AssignmentPlaygroundPage() {
   const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [playgroundLoaded, setPlaygroundLoaded] = useState(false);
 
   // Execution state from BE
   const [execRegisters, setExecRegisters] = useState<Record<string, number>>(
@@ -188,8 +238,6 @@ export default function AssignmentPlaygroundPage() {
       logs: any[];
       consoleBuffer: string;
       sevenSegment: number;
-      ledMatrix: number[];
-      ledSelectedRow: number;
     }
     | undefined
   >(undefined);
@@ -204,25 +252,44 @@ export default function AssignmentPlaygroundPage() {
     return 0;
   });
 
-  const [playgroundLoaded, setPlaygroundLoaded] = useState(false);
-
-  // Test Suites & Submissions (must be after userId is declared)
+  const [isOwner, setIsOwner] = useState(false);
   const [testSuites, setTestSuites] = useState<TestSuite[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
 
-  const fetchSubmissions = useCallback(() => {
-    if (assignmentId && userId && userId > 0) {
-      getSubmissions(Number(assignmentId), Number(userId)).then(setSubmissions).catch(console.error);
+  const fetchSubmissions = useCallback(async () => {
+    if (assignmentId && userId) {
+      try {
+        const data = await getMySubmissions(Number(assignmentId));
+        setSubmissions(data || []);
+      } catch (e) {
+        console.error("Failed to fetch submissions", e);
+        setSubmissions([]);
+      }
     }
   }, [assignmentId, userId]);
 
   // Load Test Suites & Submissions
   useEffect(() => {
     if (assignmentId) {
-      getTestSuitesForAssignment(Number(assignmentId)).then(setTestSuites).catch(console.error);
+      getTestSuitesForAssignment(Number(classId), Number(assignmentId)).then(setTestSuites).catch(console.error);
+
+      // Check Ownership
+      const checkOwnership = async () => {
+        try {
+          const classData = await getClassById(classId);
+          const currentUserId = getCurrentUserId();
+          if (classData && currentUserId) {
+            setIsOwner(classData.owner_id === Number(currentUserId));
+          }
+        } catch (e) {
+          console.error("Failed to fetch class details for ownership check", e);
+        }
+      };
+      checkOwnership();
+
       fetchSubmissions();
     }
-  }, [assignmentId, fetchSubmissions]);
+  }, [assignmentId, classId, fetchSubmissions]);
 
   // Effect to update userId if token changes (e.g. login/logout)
   useEffect(() => {
@@ -256,7 +323,7 @@ export default function AssignmentPlaygroundPage() {
   const appendLog = (msg: string) => setLogs((prev) => [...prev, msg]);
 
   // IO State
-  const [gamepadState, setGamepadState] = useState<number>(0);
+
 
   // Persistent IO Handler for Keyboard Buffer
   const ioHandlerRef = useRef(new VirtualIO());
@@ -364,18 +431,20 @@ export default function AssignmentPlaygroundPage() {
           if (content.react_flow?.viewport && reactFlowInstance) {
             const { x, y, zoom } = content.react_flow.viewport;
             reactFlowInstance.setViewport({ x, y, zoom }, { duration: 400 });
-            console.log('[Hybrid Load] ✓ Viewport restored');
           } else if (reactFlowInstance) {
             setTimeout(() => reactFlowInstance.fitView(), 100);
           }
 
           // Restore CPU state
           if (content.cpu_state) {
-            setCpu(prev => ({
-              ...prev,
-              registers: content.cpu_state.registers || prev.registers,
-              memory: content.cpu_state.memory || prev.memory,
-            }));
+            setCpu(prev => {
+              const merged = {
+                ...prev,
+                registers: content.cpu_state.registers || prev.registers,
+                memory: content.cpu_state.memory || prev.memory,
+              };
+              return enforceRegisterConstraint(merged, assignment!);
+            });
             if (content.cpu_state.variables) setVariables(content.cpu_state.variables);
 
             // Rebuild exec memory sparse
@@ -392,47 +461,108 @@ export default function AssignmentPlaygroundPage() {
           return;
         }
 
-        // Step 2: Fallback to LocalStorage
-        console.log('[Hybrid Load] DB empty, trying LocalStorage...');
-        const localData = loadFromLocalStorage(numAssignmentId, userId);
+        // =========================================================
+        // Step 2: DB Not Found -> Explicit Create Logic as requested
+        // =========================================================
+        console.log('[Hybrid Load] DB returned 404/Empty. Creating new playground...');
 
-        if (localData && localData.react_flow) {
-          console.log('[Hybrid Load] ✓ Loaded from LocalStorage');
-          if (localData.react_flow.nodes) setNodes(localData.react_flow.nodes);
-          if (localData.react_flow.edges) setEdges(localData.react_flow.edges);
+        // 2a. Check LocalStorage (Offline Sync Scenario)
+        const localData = loadFromLocalStorage(numAssignmentId, userId);
+        let initialPayload;
+
+        if (localData && localData.cpu_state) {
+          console.log('[Hybrid Load] Found LocalStorage -> Syncing to DB');
+          // Use LocalData to seed the new playground
+          initialPayload = {
+            assignment_id: numAssignmentId,
+            item: localData,
+            status: 'in_progress'
+          };
+
+          // Hydrate UI State immediately from LocalStorage
+          if (localData.react_flow?.nodes) setNodes(localData.react_flow.nodes);
+          if (localData.react_flow?.edges) setEdges(localData.react_flow.edges);
 
           if (localData.cpu_state) {
-            setCpu(prev => ({
-              ...prev,
-              memory: localData.cpu_state?.memory || prev.memory,
-            }));
+            setCpu(prev => {
+              const merged = {
+                ...prev,
+                memory: localData.cpu_state?.memory || prev.memory,
+                registers: localData.cpu_state?.registers || prev.registers, // Sync registers too from Local
+              };
+              return enforceRegisterConstraint(merged, assignment!);
+            });
             if (localData.cpu_state.variables) setVariables(localData.cpu_state.variables);
+
+            const sparse: Record<string, number> = {};
+            (localData.cpu_state.memory || []).forEach((m: any) => {
+              sparse[m.address] = m.value;
+            });
+            setExecMemorySparse(sparse);
           }
-          setPlaygroundLoaded(true);
-          return;
+
+        } else {
+          console.log('[Hybrid Load] No LocalStorage -> Clean Start from Assignment');
+          // Use Assignment Init to seed
+          // Note: CPU State is already correctly set by fetchAssignmentData via buildInitialCPUState
+          // So we just need to send that state to DB.
+
+          // Re-derive initial CPU state to be sure we sending clean state
+          const initialCpuStr = buildInitialCPUState(assignment);
+
+          initialPayload = {
+            assignment_id: numAssignmentId,
+            item: {
+              react_flow: {
+                nodes: [],
+                edges: [],
+                viewport: { x: 0, y: 0, zoom: 1 }
+              },
+              cpu_state: {
+                registers: initialCpuStr.registers,
+                memory: initialCpuStr.memory,
+                variables: []
+              },
+              meta_data: {
+                version: '1.0',
+                last_saved: new Date().toISOString()
+              }
+            },
+            status: 'in_progress'
+          };
         }
 
-        // Step 3: Migrate Legacy LocalStorage
-        console.log('[Hybrid Load] No modern data, checking legacy...');
-        const migratedData = migrateLegacyStorage(numAssignmentId, userId);
+        // 2b. Call Create API
+        try {
+          console.log('[Hybrid Load] Creating Initial Playground Record...', initialPayload);
+          const created = await createPlayground(initialPayload) as any;
 
-        if (migratedData && migratedData.cpu_state) {
-          console.log('[Hybrid Load] ✓ Migrated legacy data');
-          setCpu(prev => ({
-            ...prev,
-            memory: migratedData.cpu_state?.memory || prev.memory,
-          }));
-          if (migratedData.cpu_state.variables) setVariables(migratedData.cpu_state.variables);
+          // Set Playground ID
+          const pid = created.id || (created.Data as any)?.id;
+          if (pid) {
+            playgroundIdRef.current = pid;
+            console.log('[Hybrid Load] ✓ Created Playground ID:', pid);
+          }
 
-          const sparse: Record<string, number> = {};
-          (migratedData.cpu_state.memory || []).forEach((m: any) => {
-            sparse[m.address] = m.value;
-          });
-          setExecMemorySparse(sparse);
+          // Save to LocalStorage to keep sync
+          if (initialPayload.item) {
+            const localItem: any = { ...initialPayload.item };
+            if (localItem.meta_data) {
+              localItem.meta = {
+                last_saved: localItem.meta_data.last_saved,
+                version: localItem.meta_data.version
+              };
+              delete localItem.meta_data;
+            }
+            saveToLocalStorage(numAssignmentId, userId, localItem);
+          }
+
+        } catch (createErr) {
+          console.error('[Hybrid Load] Failed to create initial playground:', createErr);
         }
 
         setPlaygroundLoaded(true);
-        console.log('[Hybrid Load] ✓ Load complete');
+        console.log('[Hybrid Load] ✓ Load complete (Created/Synced)');
 
       } catch (e) {
         console.error('[Hybrid Load] Failed:', e);
@@ -443,126 +573,49 @@ export default function AssignmentPlaygroundPage() {
     loadPlayground();
   }, [assignmentId, playgroundLoaded, userId, assignment, reactFlowInstance]);
 
-  // 2. Real-time LocalStorage Save (on every change)
+
+  // 2. Real-time LocalStorage Save (Debounced)
+  // We debounce the ENTIRE object to avoid frequent writes during dragging
+  const rawPlaygroundData = useMemo(() => ({
+    react_flow: {
+      nodes,
+      edges,
+      viewport: reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 },
+    },
+    cpu_state: {
+      registers: cpu.registers,
+      memory: cpu.memory,
+      variables,
+    },
+  }), [nodes, edges, cpu, variables, reactFlowInstance]);
+
+  const debouncedPlaygroundData = useDebounce(rawPlaygroundData, 1000); // 1s debounce
+
   useEffect(() => {
     if (!assignmentId || !playgroundLoaded) return;
 
     const numAssignmentId = parseInt(assignmentId);
-    const playgroundData = {
-      react_flow: {
-        nodes,
-        edges,
-        viewport: reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 },
-      },
-      cpu_state: {
-        registers: cpu.registers,
-        memory: cpu.memory,
-        variables,
-      },
-    };
+    saveToLocalStorage(numAssignmentId, userId, debouncedPlaygroundData);
+  }, [debouncedPlaygroundData, assignmentId, playgroundLoaded, userId]);
 
-    saveToLocalStorage(numAssignmentId, userId, playgroundData);
-  }, [nodes, edges, cpu, variables, assignmentId, playgroundLoaded, userId, reactFlowInstance]);
 
   // 3. Debounced Database Save (3 seconds after last change)
+  // 3. Debounced Database Save (3 seconds after last change)
   const programItems = useMemo<ProgramItem[]>(() => {
-    // 1. Map Node IDs to numeric indices
-    const nodeMap = new Map<string, number>();
-    nodes.forEach((node, index) => {
-      nodeMap.set(node.id, index);
-    });
+    // Optimization: Use debounced nodes/edges to prevent expensive parsing on every drag frame
+    // We prioritize the debounced data if available.
+    const currentNodes = debouncedPlaygroundData?.react_flow?.nodes || [];
+    const currentEdges = debouncedPlaygroundData?.react_flow?.edges || [];
+    const currentVars = debouncedPlaygroundData?.cpu_state?.variables || [];
 
-    // 2. Map Edges
-    const edgesMap = new Map<string, { next?: string, nextTrue?: string, nextFalse?: string }>();
-    edges.forEach(edge => {
-      const source = edge.source;
-      const target = edge.target;
-      const existing = edgesMap.get(source) || {};
-      if (edge.sourceHandle === 'true') existing.nextTrue = target;
-      else if (edge.sourceHandle === 'false') existing.nextFalse = target;
-      else existing.next = target;
-      edgesMap.set(source, existing);
-    });
+    // If debounced data is empty (initial load), fallback to current state to ensure we have something
+    // (Though initial load usually has empty nodes anyway)
+    if (currentNodes.length === 0 && nodes.length > 0) {
+      return parseProgramItems(nodes, edges, variables);
+    }
 
-    // 3. Compile Nodes
-    const items: ProgramItem[] = [];
-    nodes.forEach((node) => {
-      const numericId = nodeMap.get(node.id)!;
-      const links = edgesMap.get(node.id);
-
-      const nextId = links?.next ? nodeMap.get(links.next) ?? -1 : -1;
-      const nextTrueId = links?.nextTrue ? nodeMap.get(links.nextTrue) ?? -1 : -1;
-      const nextFalseId = links?.nextFalse ? nodeMap.get(links.nextFalse) ?? -1 : -1;
-
-      // Extract operands based on instruction type and node data
-      const type = node.data.instructionType;
-      const d = node.data;
-      const operands: any[] = [];
-
-      // 1. Jump/Label Instructions
-      if (['JMP', 'JZ', 'JNZ', 'JC', 'JNC', 'JN', 'CALL'].includes(type) || type === 'LABEL') {
-        if (d.label) operands.push({ type: 'Label', value: d.label });
-      }
-      // 2. LOAD (Reg, Addr)
-      else if (type === 'LOAD') {
-        operands.push({ type: 'Register', value: d.dest || 'R0' });
-        if (d.memMode === 'reg') {
-          operands.push({ type: 'Register', value: d.memReg || 'R0' });
-        } else {
-          operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
-        }
-      }
-      // 3. STORE (Addr, Reg)
-      else if (type === 'STORE') {
-        if (d.memMode === 'reg') {
-          operands.push({ type: 'Register', value: d.memReg || 'R0' });
-        } else {
-          operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
-        }
-        operands.push({ type: 'Register', value: d.srcReg || 'R0' });
-      }
-      // 4. IN (Reg, Port)
-      else if (type === 'IN') {
-        operands.push({ type: 'Register', value: d.dest || 'R0' });
-        operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
-      }
-      // 5. OUT (Port, Val)
-      else if (type === 'OUT') {
-        operands.push({ type: 'Immediate', value: String(d.memImm || 0) });
-        if (d.srcMode === 'reg') {
-          operands.push({ type: 'Register', value: d.srcReg || 'R0' });
-        } else {
-          operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
-        }
-      }
-      // 6. Standard 2-Operand
-      else if (['MOV', 'ADD', 'SUB', 'MUL', 'DIV', 'AND', 'OR', 'XOR', 'SHL', 'SHR', 'CMP'].includes(type)) {
-        operands.push({ type: 'Register', value: d.dest || 'R0' });
-        if (d.srcMode === 'reg') {
-          operands.push({ type: 'Register', value: d.srcReg || 'R0' });
-        } else {
-          operands.push({ type: 'Immediate', value: String(d.srcImm || 0) });
-        }
-      }
-      // 7. Standard 1-Operand
-      else if (['INC', 'DEC', 'PUSH', 'POP', 'NOT'].includes(type)) {
-        operands.push({ type: 'Register', value: d.dest || 'R0' });
-      }
-
-      items.push({
-        id: numericId,
-        instruction: type,
-        label: d.label,
-        operands: operands,
-        next: nextId,
-        next_true: nextTrueId,
-        next_false: nextFalseId,
-        sourceNodeId: node.id
-      });
-    });
-
-    return items.sort((a, b) => a.id - b.id);
-  }, [nodes, edges]);
+    return parseProgramItems(currentNodes, currentEdges, currentVars);
+  }, [debouncedPlaygroundData]);
 
   // 3. Debounced Database Save (3 seconds after last change)
   const playgroundDataForDB = useMemo(() => ({
@@ -633,8 +686,12 @@ export default function AssignmentPlaygroundPage() {
 
   const handleAddVariable = (name: string, value: number) => {
     // Auto-Addressing: First-Fit Strategy (Fill Gaps)
+    // Must check BOTH existing variables AND defined memory (from assignment init)
+    const usedAddresses = new Set<number>();
+    variables.forEach((v) => usedAddresses.add(v.address));
+    cpu.memory.forEach((m) => usedAddresses.add(m.address));
+
     let newAddress = 0;
-    const usedAddresses = new Set(variables.map((v) => v.address));
     while (usedAddresses.has(newAddress)) {
       newAddress++;
     }
@@ -673,8 +730,6 @@ export default function AssignmentPlaygroundPage() {
     });
   };
 
-  // ===== Test Manager State =====
-  const [isTestManagerOpen, setIsTestManagerOpen] = useState(false);
 
   const handleRunTestCase = async (testCase: TestCase): Promise<TestResult> => {
     console.log("🧪 [DEV] Running Test Case:", testCase);
@@ -982,6 +1037,12 @@ export default function AssignmentPlaygroundPage() {
 
   const onNodeDrag = useCallback(
     (_: any, node: Node) => {
+      // Optimization: Access nodes/edges via instance to avoid dependency churning
+      if (!reactFlowInstance) return;
+
+      const currentNodes = reactFlowInstance.getNodes();
+      const currentEdges = reactFlowInstance.getEdges();
+
       // Logic copied from onNodeDragStop but for visual feedback ONLY
       const NODE_WIDTH = node.width ?? 150;
       const NODE_HEIGHT = node.height ?? 80;
@@ -994,7 +1055,7 @@ export default function AssignmentPlaygroundPage() {
 
       // 1. Check PREDECESSOR (Other -> This)
       if (getInstr(node) !== "START") { // START can't be a target of predecessor
-        for (const other of nodes) {
+        for (const other of currentNodes) {
           if (other.id === node.id) continue;
           const otherW = other.width ?? 150;
           const otherH = other.height ?? 80;
@@ -1003,8 +1064,8 @@ export default function AssignmentPlaygroundPage() {
           const dist = Math.sqrt(Math.pow(otherOut.x - inputHandle.x, 2) + Math.pow(otherOut.y - inputHandle.y, 2));
 
           if (dist < CONNECT_THRESHOLD) {
-            const exists = edges.some(e => e.source === other.id && e.target === node.id);
-            const targetOccupied = edges.some(e => e.target === node.id && e.targetHandle === "in");
+            const exists = currentEdges.some(e => e.source === other.id && e.target === node.id);
+            const targetOccupied = currentEdges.some(e => e.target === node.id && e.targetHandle === "in");
 
             if (!exists && !targetOccupied) {
               foundTargetId = other.id; // Highlight the SOURCE (Other) to show it connects TO this
@@ -1016,7 +1077,7 @@ export default function AssignmentPlaygroundPage() {
 
       // 2. Check SUCCESSOR (This -> Other)
       if (!foundTargetId && getInstr(node) !== "HLT") {
-        for (const other of nodes) {
+        for (const other of currentNodes) {
           if (other.id === node.id) continue;
           const otherW = other.width ?? 150;
           const otherIn = { x: other.position.x + otherW / 2, y: other.position.y };
@@ -1024,8 +1085,8 @@ export default function AssignmentPlaygroundPage() {
           const dist = Math.sqrt(Math.pow(outputHandle.x - otherIn.x, 2) + Math.pow(outputHandle.y - otherIn.y, 2));
 
           if (dist < CONNECT_THRESHOLD) {
-            const exists = edges.some(e => e.source === node.id && e.target === other.id);
-            const targetOccupied = edges.some(e => e.target === other.id && e.targetHandle === "in");
+            const exists = currentEdges.some(e => e.source === node.id && e.target === other.id);
+            const targetOccupied = currentEdges.some(e => e.target === other.id && e.targetHandle === "in");
 
             if (!exists && !targetOccupied) {
               foundTargetId = other.id;
@@ -1058,7 +1119,7 @@ export default function AssignmentPlaygroundPage() {
         }));
       }
     },
-    [nodes, edges, highlightedTargetId]
+    [reactFlowInstance, highlightedTargetId, setHighlightedTargetId, setNodes]
   );
 
   const onDragOver = useCallback((event: DragEvent) => {
@@ -1305,7 +1366,16 @@ export default function AssignmentPlaygroundPage() {
         setAssignment(data);
 
         // CPU init
-        setCpu(buildInitialCPUState(data));
+        const initialCpu = buildInitialCPUState(data);
+        setCpu(initialCpu);
+        setExecRegisters(initialCpu.registers);
+
+        // Init execMemorySparse
+        const sparse: Record<string, number> = {};
+        initialCpu.memory.forEach(m => {
+          sparse[m.address] = m.value;
+        });
+        setExecMemorySparse(sparse);
 
         // Allowed instructions & max_nodes
         const cond: any = data.condition || {};
@@ -1777,8 +1847,6 @@ export default function AssignmentPlaygroundPage() {
           logs: result.io_state.logs,
           consoleBuffer: result.io_state.consoleBuffer,
           sevenSegment: result.io_state.sevenSegment,
-          ledMatrix: Array.from(result.io_state.ledMatrix),
-          ledSelectedRow: result.io_state.ledSelectedRow,
         });
         setExecOutputLines(result.io_state.outputLines || []);
       }
@@ -1792,8 +1860,6 @@ export default function AssignmentPlaygroundPage() {
           logs: result.io_state.logs || [],
           consoleBuffer: result.io_state.consoleBuffer || "",
           sevenSegment: result.io_state.sevenSegment || 0,
-          ledMatrix: result.io_state.ledMatrix || [0, 0, 0, 0, 0, 0, 0, 0],
-          ledSelectedRow: result.io_state.ledSelectedRow || 0,
         });
         console.log("   ✅ IO state updated");
       }
@@ -1861,8 +1927,6 @@ export default function AssignmentPlaygroundPage() {
         logs: ioRestoreState.logs,
         consoleBuffer: ioRestoreState.consoleBuffer,
         sevenSegment: ioRestoreState.sevenSegment,
-        ledMatrix: Array.from(ioRestoreState.ledMatrix),
-        ledSelectedRow: ioRestoreState.ledSelectedRow,
       });
       setExecOutputLines(ioRestoreState.outputLines || []);
 
@@ -2010,8 +2074,6 @@ export default function AssignmentPlaygroundPage() {
         logs: ioSnapshotSync.logs || [],
         consoleBuffer: ioSnapshotSync.consoleBuffer || "",
         sevenSegment: ioSnapshotSync.sevenSegment || 0,
-        ledMatrix: Array.from(ioSnapshotSync.ledMatrix) || [0, 0, 0, 0, 0, 0, 0, 0],
-        ledSelectedRow: ioSnapshotSync.ledSelectedRow || 0,
       });
       setExecOutputLines(ioSnapshotSync.outputLines || []);
 
@@ -2163,7 +2225,7 @@ export default function AssignmentPlaygroundPage() {
     setTestStatus("running");
 
     try {
-      const allSuites = await getTestSuitesForAssignment(parseInt(assignmentId));
+      const allSuites = await getTestSuitesForAssignment(parseInt(classId), parseInt(assignmentId));
       let allResults: TestResult[] = [];
 
       const initialState = buildInitialCPUState(assignment);
@@ -2374,7 +2436,7 @@ export default function AssignmentPlaygroundPage() {
   const RightInspector = require("@/components/playground/layout/RightInspector").default;
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-50 font-sans overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-gray-50 dark:bg-slate-950 font-sans overflow-hidden">
       {/* 1. Navbar (Top) */}
       <PlaygroundNavbar
         assignmentTitle={labName}
@@ -2382,18 +2444,8 @@ export default function AssignmentPlaygroundPage() {
         mode={executionMode}
         onRun={setExecutionMode}
         onSubmit={handleSubmit}
-        onOpenTestManager={() => setIsTestManagerOpen(true)}
+        onOpenTestManager={() => setTestManagerOpen(true)}
       />
-
-      <TestManagerModal
-        isOpen={isTestManagerOpen}
-        onClose={() => setIsTestManagerOpen(false)}
-        onRunTestCase={handleRunTestCase}
-        onRunTestSuite={handleRunTestSuite}
-        availableRegisters={registerNames}
-        assignmentId={Number(assignmentId)}
-      />
-
 
       {/* 2. Main Workspace (Flex Row) */}
       <div className="flex-1 flex overflow-hidden">
@@ -2408,8 +2460,8 @@ export default function AssignmentPlaygroundPage() {
         {/* 2.2 Center: Canvas & Bottom Deck */}
         <div className="flex-1 flex flex-col relative min-w-0">
           {/* Canvas Area */}
-          <div className="flex-1 relative bg-gray-100" ref={reactFlowWrapper}>
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur px-3 py-1 rounded border text-sm shadow-sm pointer-events-none">
+          <div className="flex-1 relative bg-gray-100 dark:bg-black/20" ref={reactFlowWrapper}>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur px-3 py-1 rounded border dark:border-slate-800 text-sm shadow-sm pointer-events-none text-slate-700 dark:text-slate-300">
               {limitBadge}
             </div>
 
@@ -2428,8 +2480,6 @@ export default function AssignmentPlaygroundPage() {
               onNodeDrag={onNodeDrag}
               onNodeDragStop={onNodeDragStop}
             />
-
-            {/* Properties Panel has been moved to RightInspector context */}
           </div>
 
           {/* Bottom Deck with Embedded Execution Controls */}
@@ -2439,23 +2489,13 @@ export default function AssignmentPlaygroundPage() {
             onConsoleInput={(key: string) => {
               console.log("⌨️ [Console Input] Key:", JSON.stringify(key), "Code:", key.charCodeAt(0), "waitingForInput:", waitingForInput);
               ioHandlerRef.current.receiveInput(key);
-              // Auto-resume with Play mode if waiting for input and user pressed Enter
-              // Terminal sends "Enter" string, not '\n'
               if (waitingForInput && key === 'Enter') {
-                console.log("✅ [Auto-Resume] Conditions met! Starting Play mode");
                 setWaitingForInput(false);
-                toggleDebugPlay(); // Start continuous play instead of single step
-              } else {
-                console.log("❌ [Auto-Resume] Conditions not met:", {
-                  waitingForInput,
-                  isEnter: key === 'Enter',
-                  keyCode: key.charCodeAt(0)
-                });
+                toggleDebugPlay();
               }
             }}
             sevenSegment={execIO?.sevenSegment ?? 0}
-            ledMatrix={execIO?.ledMatrix ?? [0, 0, 0, 0, 0, 0, 0, 0]}
-            ledPanelValue={execPorts[5] || 0}
+            ledPanelValue={execPorts[3] || 0}
             memory={displayMemoryArray}
             outputLines={execOutputLines}
             headerControls={
@@ -2494,6 +2534,7 @@ export default function AssignmentPlaygroundPage() {
           onAddVariable={handleAddVariable}
           onEditVariable={handleEditVariable}
           onDeleteVariable={handleDeleteVariable}
+          assignment={assignment}
         />
       </div>
 
@@ -2501,10 +2542,12 @@ export default function AssignmentPlaygroundPage() {
       <TestManagerModal
         isOpen={testManagerOpen}
         onClose={() => setTestManagerOpen(false)}
-        assignmentId={assignment?.id || 0}
+        onRunTestCase={handleRunTestCase}
+        onRunTestSuite={handleRunTestSuite}
         availableRegisters={registerNames}
-        onRunTestCase={(tc) => runTestCase(tc, programItems, cpu)}
-        onRunTestSuite={(ts) => runTestSuite(ts, programItems, cpu)}
+        assignmentId={Number(assignmentId)}
+        classId={Number(classId)}
+        isOwner={isOwner}
       />
 
       {assignment && userId > 0 && (

@@ -24,6 +24,7 @@ import {
 
 import { getProfile, type Profile } from "@/lib/api/profile";
 import { signout } from "@/lib/api/auth";
+import { clearToken } from "@/lib/auth/token";
 
 type NavItem = {
   href: string;
@@ -127,15 +128,15 @@ export default function SideBar({
       // fallback ต่อด้านล่าง
     }
 
+    // 2. Clear clean client state
+    clearToken();
     try {
-      localStorage.removeItem("access_token");
+      // Remove other auth-related keys if any
       localStorage.removeItem("refresh_token");
-      sessionStorage.removeItem("access_token");
-      sessionStorage.removeItem("refresh_token");
-      localStorage.removeItem("sidebar-collapsed");
+      sessionStorage.clear();
     } catch { }
 
-    router.replace("/"); // แก้ path ตามโปรเจกต์ของคุณ
+    router.replace("/signin");
   };
   // 1) เพิ่ม helper สำหรับ normalize/dedupe
   function normalizeNavItems(list: NavItem[]): NavItem[] {

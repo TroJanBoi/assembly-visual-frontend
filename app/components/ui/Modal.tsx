@@ -1,16 +1,19 @@
 "use client";
 import { useEffect } from "react";
+import { cn } from "@/lib/utils";
 
 export function Modal({
   open,
   onClose,
   children,
   title,
+  maxWidth = "max-w-md sm:max-w-lg",
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   title?: string;
+  maxWidth?: string;
 }) {
   // close on ESC
   useEffect(() => {
@@ -36,8 +39,8 @@ export function Modal({
       />
       {/* dialog */}
       <div
-        className="relative w-full max-w-md sm:max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-xl p-6"
-        >
+        className={cn("relative w-full rounded-2xl bg-white dark:bg-slate-900 shadow-xl p-6", maxWidth)}
+      >
 
         {/* header */}
         <div className="flex items-center justify-between mb-4">

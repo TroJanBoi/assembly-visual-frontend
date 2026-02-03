@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
 import { Button } from "@/components/ui/Button";
-import { useToast } from "@/components/ui/ToastAlert/ToastAlert";
+import { toast } from "sonner";
 
 // Import types from the central file
 import {
@@ -30,12 +30,16 @@ import {
 import Step1Detail from "@/components/assignment/steps/Step1Detail";
 import Step2Conditional from "@/components/assignment/steps/Step2Conditional";
 import Step3Grading from "@/components/assignment/steps/Step3Grading";
+import FormSkeleton from "@/components/skeletons/FormSkeleton";
 
 // Define the shape of the state payload expected by the backend for Test Cases
 interface TestCaseStatePayload {
   flags?: { [key: string]: number };
-  memory?: { address: number; value: number }[];
-  registers?: { [key: string]: number };
+  memory?: { [address: string]: number };
+  register?: { [key: string]: number };
+  io_input?: { [key: string]: string };
+  io_output?: { [key: string]: string };
+  _meta?: any;
 }
 
 // List of all instructions grouped by category for conversion
@@ -45,14 +49,14 @@ const allInstructionsByCategory = {
   data_movement: ["MOV", "LOAD", "STORE", "PUSH", "POP"],
   arithmetic: ["ADD", "SUB", "MUL", "DIV", "INC", "DEC"],
   control_flow: ["CMP", "JMP", "JZ", "JNZ", "JC", "JNC", "JN", "CALL", "RET"],
-  bitwise: ["AND", "OR", "XOR", "NOT", "SHL", "SHR"],
+  bitwise: ["AND", "OR", "XOR", "NAND", "NOR", "XNOR", "NOT", "SHL", "SHR"],
 };
 
 export default function CreateAssignmentPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const { addToast } = useToast();
+
 
   const [currentStep, setCurrentStep] = useState<Step>("detail");
   const [classData, setClassData] = useState<Class | null>(null);
@@ -101,40 +105,58 @@ export default function CreateAssignmentPage() {
         setClassData(data);
       } catch (error: any) {
         console.error("fetchClassData error:", error);
-        addToast(error.message || "Failed to load class data.", "error");
+        toast.error(error.message || "Failed to load class data.");
         router.back();
       } finally {
         setIsFetchingClass(false);
       }
     };
     fetchClassData();
-  }, [id, addToast, router]);
+  }, [id, router]);
 
   const transformConditionsToState = (
     conditions: TestCondition[],
+    isHidden: boolean = false
   ): TestCaseStatePayload => {
-    const state: TestCaseStatePayload = { flags: {}, memory: [], registers: {} };
-    conditions.forEach((cond) => {
+    const state: TestCaseStatePayload = {
+      flags: {},
+      memory: {},
+      register: {},
+      io_input: {},
+      io_output: {},
+      _meta: { hidden: !!isHidden }
+    };
+    (conditions || []).forEach((cond) => {
       const value = parseInt(cond.value, 10);
       if (isNaN(value)) return;
       switch (cond.type) {
         case "Register":
-          if (state.registers) state.registers[cond.location] = value;
+          if (!state.register) state.register = {};
+          state.register[cond.location] = value;
           break;
         case "Memory":
           const addr = parseInt(cond.location, 10);
           if (!isNaN(addr) && state.memory)
-            state.memory.push({ address: addr, value: value });
+            state.memory[addr.toString()] = value;
           break;
         case "Flag":
           if (state.flags && (value === 0 || value === 1))
             state.flags[cond.location] = value;
           break;
+        case "Input":
+          if (!state.io_input) state.io_input = {};
+          state.io_input[cond.location] = cond.value;
+          break;
+        case "Output":
+          if (!state.io_output) state.io_output = {};
+          state.io_output[cond.location] = cond.value;
+          break;
       }
     });
-    if (Object.keys(state.flags || {}).length === 0) delete state.flags;
-    if ((state.memory || []).length === 0) delete state.memory;
-    if (Object.keys(state.registers || {}).length === 0) delete state.registers;
+    // Backend requires these keys to exist even if empty
+    if (!state.flags) state.flags = {};
+    if (!state.memory) state.memory = {};
+    if (!state.register) state.register = {};
     return state;
   };
 
@@ -156,7 +178,7 @@ export default function CreateAssignmentPage() {
       Object.values(allInstructionsByCategory).forEach((instructions) => {
         instructions.forEach((inst) => {
           if (!formData.disallowedInstructions.includes(inst)) {
-            allowedInstructionsFlat[inst] = 1; // Keep uppercase
+            allowedInstructionsFlat[inst] = 1;
           }
         });
       });
@@ -169,10 +191,10 @@ export default function CreateAssignmentPage() {
             formData.gradingMode === "auto" && formData.efficiencyEnabled
               ? Number(formData.maxNodes) || null
               : null,
-          max_steps: null, // Add if needed
+          max_steps: null,
         },
         initial_state: {
-          registers: {}, // Can be populated from formData if needed
+          registers: {},
           memory: formData.initialMemory,
         },
       };
@@ -181,13 +203,12 @@ export default function CreateAssignmentPage() {
         fe_behavior: {
           allow_resubmit_after_due: formData.allowLateSubmissions,
           lock_after_submit: formData.lockAfterFinal,
-          show_register_view: true, // Add missing fields
+          show_register_view: true,
           show_memory_view: true,
         },
         grade_policy: {
           mode: formData.gradingMode,
           weight: {
-            // Use 0-100 scale, not 0-1
             test_case:
               formData.gradingMode === "auto"
                 ? 100 - (Number(formData.efficiencyWeight) || 0)
@@ -205,7 +226,7 @@ export default function CreateAssignmentPage() {
         title: formData.assignmentName,
         description: formData.description || null,
         due_date: formData.hasDueDate ? formData.dueDate : null,
-        max_attempts: formData.hasLimitAttempts
+        max_attempt: formData.hasLimitAttempts
           ? Number(formData.limitAttempts) || 0
           : 0,
         grade: score,
@@ -243,24 +264,24 @@ export default function CreateAssignmentPage() {
             for (const testCase of suite.testCases) {
               const testCasePayload = {
                 name: testCase.name || "Untitled Case",
-                hidden: testCase.hidden || false, // Add hidden field
-                init: transformConditionsToState(testCase.initialState || []),
+                init: transformConditionsToState(testCase.initialState || [], testCase.hidden),
                 assert: transformConditionsToState(testCase.expectedState || []),
               };
-              await addTestCase(id, newAssignmentId, suiteId, testCasePayload);
+
+              await addTestCase(id, newAssignmentId, suiteId, testCasePayload as any);
             }
           }
         }
       }
 
-      addToast("Assignment created successfully!", "success");
+      toast.success("Assignment created successfully!");
 
       setTimeout(() => {
         router.push(`/class/${id}`);
       }, 1500);
     } catch (error: any) {
       console.error("Submit Error:", error);
-      addToast(error.message || "An unexpected error occurred.", "error");
+      toast.error(error.message || "An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }
@@ -294,8 +315,11 @@ export default function CreateAssignmentPage() {
     </div>
   );
 
+
+  // ... existing imports ...
+
   if (isFetchingClass) {
-    return <div className="p-6 text-center">Loading class data...</div>;
+    return <FormSkeleton />;
   }
 
   return (
@@ -316,7 +340,7 @@ export default function CreateAssignmentPage() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-white/80 dark:bg-slate-900/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto flex justify-between items-center px-4 md:px-6 py-3">
+        <div className="max-w-7xl mx-auto flex justify-end gap-6 items-center px-4 md:px-6 py-3">
           <Button
             variant="outline"
             onClick={() => {

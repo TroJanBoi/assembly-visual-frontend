@@ -22,21 +22,8 @@ export default function AuthSuccessPage() {
                 // 1. Save token
                 localStorage.setItem(TOKEN_KEY, token);
 
-                // 2. Fetch User Profile
-
-                const userProfile = await apiFetch<UserProfile>("/api/v2/profile/", {
-                    method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
-
-                if (userProfile) {
-                    localStorage.setItem("me", JSON.stringify(userProfile));
-                    router.push("/home");
-                } else {
-                    throw new Error("Failed to load profile");
-                }
+                // 2. Hard Redirect (Skip Profile Fetch to avoid loop)
+                router.push("/home");
 
             } catch (err) {
                 console.error("OAuth Success Error:", err);
@@ -48,11 +35,11 @@ export default function AuthSuccessPage() {
     }, [token, router]);
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
             <div className="text-center space-y-4">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-                <h2 className="text-xl font-semibold text-slate-700">Completing sign in...</h2>
-                <p className="text-slate-500">Please wait while we redirect you.</p>
+                <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Completing sign in...</h2>
+                <p className="text-slate-500 dark:text-slate-400">Please wait while we redirect you.</p>
             </div>
         </div>
     );

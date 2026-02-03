@@ -34,14 +34,14 @@ interface AssignmentCondition {
 
 export interface Assignment {
   id: number;
-  classroom_id: number;
+  class_id: number;
   title: string;
   description: string;
   due_date: string | null;
   max_attempt: number;
   grade: number;
-  settings: AssignmentSettings;
-  condition: AssignmentCondition;
+  settings: AssignmentSettings | null; // Nullable based on incompleteness
+  condition: AssignmentCondition | null;
 }
 
 // --- Interfaces for API Payloads ---
@@ -50,10 +50,20 @@ export interface CreateMainAssignmentPayload {
   title: string;
   description: string | null;
   due_date: string | null;
-  max_attempts: number;
+  max_attempt: number;
   grade: number;
   condition: object;
   settings: object;
+}
+
+export interface UpdateAssignmentPayload {
+  title?: string;
+  description?: string | null;
+  due_date?: string | null;
+  max_attempt?: number;
+  grade?: number;
+  condition?: object;
+  setting?: object; // Note: Backend uses 'setting' (singular) for PUT
 }
 
 export interface AddTestSuitePayload {
@@ -62,12 +72,30 @@ export interface AddTestSuitePayload {
 
 interface TestCaseStatePayload {
   flags?: { [key: string]: number };
-  memory?: { address: number; value: number }[];
+  memory?: { [address: string]: number };
   register?: { [key: string]: number };
+  io_input?: { [key: string]: string };
+  io_output?: { [key: string]: string };
+  halted?: boolean;
+  _meta?: any;
 }
 
 export interface AddTestCasePayload {
   name: string;
+  init: TestCaseStatePayload;
+  assert: TestCaseStatePayload;
+}
+
+export interface TestSuiteResponse {
+  id: number;
+  assignment_id: number;
+  name: string;
+}
+
+export interface TestCaseResponse {
+  id: number;
+  name: string;
+  test_suite_id: number;
   init: TestCaseStatePayload;
   assert: TestCaseStatePayload;
 }
@@ -82,7 +110,41 @@ export async function getAssignmentsForClass(
 ): Promise<Assignment[]> {
   const pathClassId =
     typeof classId === "number" ? classId.toString() : classId;
-  return apiFetch<Assignment[]>(`/api/v2/classroom/${pathClassId}/assignment`);
+  return apiFetch<Assignment[]>(`/api/v2/classroom/${pathClassId}/assignment`).then(
+    (res) => res || [],
+  );
+}
+
+/**
+ * Fetches all test suites for a specific assignment.
+ */
+export async function getTestSuites(
+  classId: string | number,
+  assignmentId: string | number
+): Promise<TestSuiteResponse[]> {
+  const pathClassId = typeof classId === "number" ? classId.toString() : classId;
+  const pathAssignmentId =
+    typeof assignmentId === "number" ? assignmentId.toString() : assignmentId;
+  return apiFetch<TestSuiteResponse[]>(
+    `/api/v2/classroom/${pathClassId}/assignment/${pathAssignmentId}/test-suite`
+  );
+}
+
+/**
+ * Fetches all test cases for a specific test suite.
+ */
+export async function getTestCases(
+  classId: string | number,
+  assignmentId: string | number,
+  suiteId: string | number
+): Promise<TestCaseResponse[]> {
+  const pathClassId = typeof classId === "number" ? classId.toString() : classId;
+  const pathAssignmentId =
+    typeof assignmentId === "number" ? assignmentId.toString() : assignmentId;
+  const pathSuiteId = typeof suiteId === "number" ? suiteId.toString() : suiteId;
+  return apiFetch<TestCaseResponse[]>(
+    `/api/v2/classroom/${pathClassId}/assignment/${pathAssignmentId}/test-suite/${pathSuiteId}/test-case`
+  );
 }
 
 export async function getAssignmentById(
@@ -113,7 +175,10 @@ export async function createAssignment(
       method: "POST",
       body: JSON.stringify(data),
     },
-  );
+  ).then((res: any) => ({
+    ...res,
+    id: res.id || res.assignment_id // Handle backend returning assignment_id
+  }));
 }
 
 /**
@@ -129,7 +194,7 @@ export async function addTestSuite(
 ): Promise<{ id: number }> {
   const pathClassId =
     typeof classId === "number" ? classId.toString() : classId;
-  return apiFetch<{ id: number }>(
+  return apiFetch<{ id: number; assignment_id: number; name: string }>(
     `/api/v2/classroom/${pathClassId}/assignment/${assignmentId}/test-suite`,
     {
       method: "POST",
@@ -150,10 +215,30 @@ export async function addTestCase(
   const pathClassId =
     typeof classId === "number" ? classId.toString() : classId;
   return apiFetch<any>(
-    `/api/v2/classroom/${pathClassId}/assignment/${assignmentId}/test-suite/${suiteId}/test-case`,
+    `/api/v2/classroom/${pathClassId}/assignment/${assignmentId}/test-suite/${suiteId}/test-case/`,
     {
       method: "POST",
       body: JSON.stringify(data),
     },
+  );
+}
+
+/**
+ * Updates an assignment by ID.
+ */
+export async function updateAssignment(
+  classId: string | number,
+  assignmentId: string | number,
+  data: UpdateAssignmentPayload
+): Promise<{ message: string }> {
+  const pathClassId = typeof classId === "number" ? classId.toString() : classId;
+  const pathAssignmentId = typeof assignmentId === "number" ? assignmentId.toString() : assignmentId;
+
+  return apiFetch<{ message: string }>(
+    `/api/v2/classroom/${pathClassId}/assignment/${pathAssignmentId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }
   );
 }

@@ -25,9 +25,7 @@ export type IOState = {
     logs: LogEntry[];
     consoleBuffer: string; // Expose partial lines
     sevenSegment: number;
-    ledMatrix: Uint8Array;
-    ledSelectedRow: number;
-    gamepadState: number;
+
     keyBuffer: number[]; // For time travel: save input buffer state
     outputLines: string[]; // Dual-Channel: Clean Output separate from Logs
 };
@@ -40,17 +38,12 @@ export class VirtualIO implements IOHandler {
             logs: [],
             consoleBuffer: "",
             sevenSegment: 0,
-            ledMatrix: new Uint8Array(8),
-            ledSelectedRow: 0,
-            gamepadState: 0,
+
             keyBuffer: [], // Initialize key buffer
             outputLines: [], // Init Output
             ...initialState
         };
-        this.keyBuffer = initialState?.keyBuffer ? [...initialState.keyBuffer] : [];
     }
-
-    private keyBuffer: number[] = [];
 
     // Helper to add logs cleanly
     addLog(type: LogType, content: string) {
@@ -81,19 +74,22 @@ export class VirtualIO implements IOHandler {
 
         // Special Case: Backspace -> ASCII 8
         if (key === "Backspace") {
-            this.keyBuffer.push(8);
+            this.state.keyBuffer.push(8);
             return;
         }
 
         // Special Case: Enter -> ASCII 10 (Line Feed)
         if (key === "Enter") {
-            this.keyBuffer.push(10);
+            this.state.keyBuffer.push(10);
             return;
         }
 
         if (key.length === 1) {
             const ascii = key.charCodeAt(0);
-            this.keyBuffer.push(ascii);
+            // Strict ASCII Mode: Only accept standard ASCII (0-127)
+            if (ascii >= 0 && ascii <= 127) {
+                this.state.keyBuffer.push(ascii);
+            }
         }
     }
 
@@ -121,19 +117,26 @@ export class VirtualIO implements IOHandler {
         this.state.consoleBuffer += String.fromCharCode(val);
     }
 
+    private formatValue(val: number): string {
+        const v = val & 0xFF;
+        const hex = v.toString(16).toUpperCase().padStart(2, '0');
+
+        // Spaced binary nibbles (e.g. 0000 0000)
+        const binRaw = v.toString(2).padStart(8, '0');
+        const bin = `${binRaw.slice(0, 4)} ${binRaw.slice(4)}`;
+
+        // Hex-to-Char mapping (showing each hex digit as char)
+        const hexChars = hex.split('').map(c => `'${c}'`).join(', ');
+
+        return `${v} (0x${hex}, 0b${bin}, ${hexChars})`;
+    }
+
     onWrite(port: number, value: number): void {
         const val = value & 0xFF; // Ensure 8-bit
 
         switch (port) {
             case 0: // Console Output (ASCII)
-                // We need to buffer this char-by-char if we want to print words...
-                // OR adapt the standardized CPU to write whole strings? 
-                // The current CPU writes char by char (INT output).
-                // If we log every char as a new line, it will be spammy.
-                // WE NEED A BUFFER FOR PARTIAL OUTPUT lines.
 
-                // Hack: For now, let's treat every char as a potential append to the LAST log if it's OUTPUT type?
-                // Or perform internal buffering.
                 this.handleConsoleWrite(val);
                 break;
 
@@ -145,22 +148,17 @@ export class VirtualIO implements IOHandler {
 
             case 2: // 7-Segment Display
                 this.state.sevenSegment = val;
-                this.addLog('IO_VISUAL', `7-Seg Update: ${val}`);
                 break;
 
-            case 3: // LED Matrix Row Select
-                this.state.ledSelectedRow = val % 8;
-                // this.addLog('IO_VISUAL', `LED Row Select: ${this.state.ledSelectedRow}`); // Too verbose?
+            case 3: // LED Panel
+                // Port 3 is mapped to LED Panel
                 break;
 
-            case 4: // LED Matrix Row Data
-                this.state.ledMatrix[this.state.ledSelectedRow] = val;
-                this.addLog('IO_VISUAL', `LED Matrix Update Row ${this.state.ledSelectedRow}: ${val.toString(2).padStart(8, '0')}`);
-                break;
+
 
             default:
                 // Unknown port, ignore or log
-                this.addLog('SYSTEM', `Unmapped Port Write: ${port} -> ${val}`);
+                this.addLog('SYSTEM', `Unmapped Port Write: ${port} -> ${this.formatValue(val)}`);
                 break;
         }
     }
@@ -169,8 +167,8 @@ export class VirtualIO implements IOHandler {
     onRead(port: number): number | null {
         switch (port) {
             case 0: // Console Input (Keyboard)
-                if (this.keyBuffer.length > 0) {
-                    const k = this.keyBuffer.shift()!;
+                if (this.state.keyBuffer.length > 0) {
+                    const k = this.state.keyBuffer.shift()!;
                     // If we just read a newline, maybe log it as INPUT?
                     // For now, let the frontend handle input echoing to avoid dupes.
                     return k;
@@ -178,11 +176,7 @@ export class VirtualIO implements IOHandler {
                 // BUG FIX #6: Return null when buffer empty (blocking I/O)
                 return null;
 
-            case 4: // Gamepad (Mock)
-                return this.state.gamepadState;
 
-            case 5: // RNG
-                return Math.floor(Math.random() * 256);
 
             default:
                 return 0;
@@ -194,13 +188,10 @@ export class VirtualIO implements IOHandler {
             logs: [],
             consoleBuffer: "",
             sevenSegment: 0,
-            ledMatrix: new Uint8Array(8),
-            ledSelectedRow: 0,
-            gamepadState: 0,
+
             keyBuffer: [], // Reset key buffer
             outputLines: [],
         };
-        this.keyBuffer = []; // Clear the input buffer
         // Initial System Log
         this.addLog('SYSTEM', 'System Reset. Ready.');
     }
@@ -211,10 +202,8 @@ export class VirtualIO implements IOHandler {
             logs: [...this.state.logs],
             consoleBuffer: this.state.consoleBuffer,
             sevenSegment: this.state.sevenSegment,
-            ledMatrix: new Uint8Array(this.state.ledMatrix),
-            ledSelectedRow: this.state.ledSelectedRow,
-            gamepadState: this.state.gamepadState,
-            keyBuffer: [...this.keyBuffer], // Include input buffer for time travel
+
+            keyBuffer: [...this.state.keyBuffer], // Include input buffer for time travel
             outputLines: [...this.state.outputLines],
         };
     }
@@ -225,12 +214,9 @@ export class VirtualIO implements IOHandler {
             logs: [...snapshot.logs],
             consoleBuffer: snapshot.consoleBuffer,
             sevenSegment: snapshot.sevenSegment,
-            ledMatrix: new Uint8Array(snapshot.ledMatrix),
-            ledSelectedRow: snapshot.ledSelectedRow,
-            gamepadState: snapshot.gamepadState,
+
             keyBuffer: [...snapshot.keyBuffer],
             outputLines: [...(snapshot.outputLines || [])],
         };
-        this.keyBuffer = [...snapshot.keyBuffer]; // Restore input buffer
     }
 }

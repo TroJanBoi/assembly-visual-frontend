@@ -20,7 +20,15 @@ describe('CPU Core: Deep Dive & Reliability Tests', () => {
     });
 
     const run = (instruction: string, operands: Operand[]) => {
-        const item: ProgramItem = { id: 1, instruction, operands, type: 'instruction', position: { x: 0, y: 0 }, data: {} };
+        const item: ProgramItem = {
+            id: 1,
+            instruction,
+            operands,
+            label: '',
+            next: null,
+            next_true: null,
+            next_false: null
+        };
         instructionMap.set(1, item);
         executeInstruction(cpu, item, instructionMap, [], io);
     };
@@ -120,7 +128,7 @@ describe('CPU Core: Deep Dive & Reliability Tests', () => {
 
     describe('Vector C: Control Flow & Halting', () => {
         const createItem = (id: number, instruction: string, operands: any[], next: number | null): ProgramItem => ({
-            id, instruction, operands, next, type: 'instruction_node', position: { x: 0, y: 0 }, data: {},
+            id, instruction, operands, next, label: '', next_true: null, next_false: null,
         });
 
         it('Infinite Loop Detection (Max Steps)', async () => {
@@ -143,7 +151,7 @@ describe('CPU Core: Deep Dive & Reliability Tests', () => {
                 createItem(3, 'JMP', [{ type: 'Label', value: 'Loop' }], 2),
             ];
 
-            const result = await executeProgram(loopItems, cpu, 50, undefined, io); // Max 50 steps
+            const result = await executeProgram(loopItems, { registers: cpu.registers, flags: cpu.flags, memory: [] }, 50, undefined, io); // Max 50 steps
 
             expect(result.halted).toBe(true);
             expect(result.error).toMatch(/Maximum execution steps exceeded/);
@@ -176,7 +184,7 @@ describe('CPU Core: Deep Dive & Reliability Tests', () => {
                 createItem(8, 'HLT', [], null)
             ];
 
-            const result = await executeProgram(items, cpu, 100);
+            const result = await executeProgram(items, { registers: cpu.registers, flags: cpu.flags, memory: [] }, 100);
             expect(result.registers['R1']).toBe(1); // Failed jump, executed sequential
         });
     });

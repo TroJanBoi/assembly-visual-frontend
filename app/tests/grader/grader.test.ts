@@ -6,7 +6,7 @@ import { ProgramItem } from '@/lib/api/playground';
 describe('Grader System', () => {
 
     const helperCreate = (id: number, instruction: string, operands: any[], next: number | null): ProgramItem => ({
-        id, instruction, operands, next, type: 'instruction', position: { x: 0, y: 0 }, data: {}
+        id, instruction, operands, next, label: '', next_true: null, next_false: null
     });
 
     it('should validate a correct solution', async () => {

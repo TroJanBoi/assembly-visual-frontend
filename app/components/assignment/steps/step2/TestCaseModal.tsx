@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import ModernDropdown from "@/components/ui/ModernDropdown";
+import { Terminal, Hash, LayoutGrid, Cpu, Binary, Flag } from "lucide-react";
 
 import {
   AssignmentFormData,
@@ -110,8 +111,16 @@ export default function TestCaseModal({
         }
 
         if (field === "value") {
+          const isAsciiPort = (updated.type === "Input" || updated.type === "Output") && updated.location === "0";
+
           if (updated.type === "Flag") {
             updated.value = value === "1" ? "1" : "0";
+            return updated;
+          } else if (isAsciiPort) {
+            // Validate ASCII only (0-127)
+            if (/^[\x00-\x7F]*$/.test(value)) {
+              updated.value = value;
+            }
             return updated;
           } else {
             updated.value = sanitizeNumber(value);
@@ -137,14 +146,17 @@ export default function TestCaseModal({
   const handleSave = () => {
     const final = JSON.parse(JSON.stringify(localTestCase));
 
-    const normalizeCond = (cond: TestCondition) => ({
-      ...cond,
-      location:
-        cond.type === "Memory"
-          ? String(parseInt(cond.location as string, 10))
-          : cond.location,
-      value: String(parseInt(String(cond.value), 10)),
-    });
+    const normalizeCond = (cond: TestCondition) => {
+      const isAsciiPort = (cond.type === "Input" || cond.type === "Output") && cond.location === "0";
+      return {
+        ...cond,
+        location:
+          cond.type === "Memory"
+            ? String(parseInt(cond.location as string, 10))
+            : cond.location,
+        value: isAsciiPort ? cond.value : String(parseInt(String(cond.value), 10)),
+      };
+    };
 
     final.initialState = final.initialState.map(normalizeCond);
     final.expectedState = final.expectedState.map(normalizeCond);
@@ -177,6 +189,7 @@ export default function TestCaseModal({
       open={isOpen}
       onClose={onClose}
       title={`Edit Test Case: ${localTestCase.name}`}
+      maxWidth="max-w-5xl"
     >
       <div className="space-y-6">
         {/* name and type toggle */}
@@ -331,17 +344,14 @@ function ConditionRow({
   flagOptions: string[];
 }) {
   const OUT_PORTS = [
-    { label: '0: Console (ASCII)', value: '0' },
-    { label: '1: Console (Num)', value: '1' },
-    { label: '2: 7-Segment', value: '2' },
-    { label: '3: LED Select', value: '3' },
-    { label: '4: LED Data', value: '4' },
+    { label: '0: Console', value: '0', icon: Terminal },
+    { label: '2: 7-Segment', value: '2', icon: Hash },
+    { label: '3: LED Select', value: '3', icon: LayoutGrid },
+    { label: '4: LED Data', value: '4', icon: LayoutGrid },
   ];
 
   const IN_PORTS = [
-    { label: '0: Keyboard', value: '0' },
-    { label: '4: Gamepad', value: '4' },
-    { label: '5: RNG', value: '5' },
+    { label: '0: Keyboard', value: '0', icon: Terminal },
   ];
 
   const renderLocationInput = () => {
@@ -351,7 +361,7 @@ function ConditionRow({
           <ModernDropdown
             value={condition.location}
             onChange={(v) => onChange("location", String(v))}
-            options={availableRegisters.map(r => ({ label: r, value: r }))}
+            options={availableRegisters.map(r => ({ label: r, value: r, icon: Cpu }))}
             placeholder="Register"
           />
         );
@@ -360,7 +370,7 @@ function ConditionRow({
           <ModernDropdown
             value={condition.location}
             onChange={(v) => onChange("location", String(v))}
-            options={flagOptions.map(f => ({ label: f, value: f }))}
+            options={flagOptions.map(f => ({ label: f, value: f, icon: Flag }))}
             placeholder="Flag"
           />
         );
@@ -437,11 +447,11 @@ function ConditionRow({
           value={condition.type}
           onChange={(v) => onChange("type", v as any)}
           options={[
-            { label: "Register", value: "Register" },
-            { label: "Memory", value: "Memory" },
-            { label: "Flag", value: "Flag" },
-            { label: "Output", value: "Output" },
-            { label: "Input", value: "Input" },
+            { label: "Register", value: "Register", icon: Cpu },
+            { label: "Memory", value: "Memory", icon: Hash },
+            { label: "Flag", value: "Flag", icon: Flag },
+            { label: "Output", value: "Output", icon: Terminal },
+            { label: "Input", value: "Input", icon: Terminal },
           ]}
           placeholder="Type"
         />

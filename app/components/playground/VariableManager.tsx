@@ -64,11 +64,11 @@ export default function VariableManager({
     return (
         <section className="my-6">
             <div className="flex justify-between items-center mb-2">
-                <h3 className="text-base font-semibold text-gray-700">Variables</h3>
+                <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200">Variables</h3>
                 {!isAdding && (
                     <button
                         onClick={() => setIsAdding(true)}
-                        className="p-1 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                        className="p-1 rounded-md bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
                         title="Add Variable"
                     >
                         <HiPlus className="w-4 h-4" />
@@ -79,7 +79,7 @@ export default function VariableManager({
             {isAdding && (
                 <form
                     onSubmit={handleAddSubmit}
-                    className="bg-gray-50 border border-indigo-100 rounded-lg p-2 mb-2 space-y-2"
+                    className="bg-gray-50 dark:bg-slate-800 border border-indigo-100 dark:border-slate-700 rounded-lg p-2 mb-2 space-y-2"
                 >
                     <div>
                         <label className="text-xs text-gray-500 font-semibold uppercase">
@@ -122,14 +122,14 @@ export default function VariableManager({
                 </form>
             )}
 
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 space-y-1">
+            <div className="bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-800 rounded-lg p-2 space-y-1">
                 {variables.length === 0 && !isAdding && (
                     <p className="text-sm text-gray-400 italic text-center py-2">No variables</p>
                 )}
                 {variables.map((v) => (
                     <div
                         key={v.id}
-                        className="group flex items-center justify-between p-2 rounded hover:bg-white/60 hover:shadow-sm border border-transparent transition-all text-sm"
+                        className="group flex items-center justify-between p-2 rounded hover:bg-white/60 dark:hover:bg-slate-800 hover:shadow-sm border border-transparent transition-all text-sm"
                     >
                         {editingId === v.id ? (
                             <div className="flex-1 flex gap-1 items-center">
@@ -154,11 +154,11 @@ export default function VariableManager({
                         ) : (
                             <>
                                 <div className="flex flex-col">
-                                    <span className="font-bold text-gray-800">{v.name}</span>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200">{v.name}</span>
                                     <span className="text-[10px] text-gray-400 font-mono">#{v.address} (0x{v.address.toString(16).toUpperCase()})</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="font-mono text-gray-700 font-semibold bg-white/50 px-1.5 rounded">{v.value}</span>
+                                    <span className="font-mono text-gray-700 dark:text-gray-300 font-semibold bg-white/50 dark:bg-black/30 px-1.5 rounded">{v.value}</span>
                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => startEdit(v)}

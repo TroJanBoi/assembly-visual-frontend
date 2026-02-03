@@ -64,18 +64,18 @@ export default function ModernDropdown({
                 disabled={disabled}
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 text-sm bg-white border rounded-xl transition-all duration-200 outline-none",
+                    "w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-slate-900 border rounded-xl transition-all duration-200 outline-none",
                     // Default Border
-                    !isOpen && "border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/10",
+                    !isOpen && "border-gray-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50/10 dark:hover:bg-slate-800",
                     // Open State
-                    isOpen && "border-indigo-500 ring-4 ring-indigo-500/10 shadow-sm",
+                    isOpen && "border-indigo-500 dark:border-indigo-400 ring-4 ring-indigo-500/10 shadow-sm",
                     // Disabled
-                    disabled && "opacity-50 cursor-not-allowed bg-gray-50",
+                    disabled && "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-slate-800",
                     // Selected Value styling
-                    !selectedOption && "text-gray-400"
+                    !selectedOption && "text-gray-400 dark:text-gray-500"
                 )}
             >
-                <span className="flex items-center gap-2 truncate font-medium text-gray-700">
+                <span className="flex items-center gap-2 truncate font-medium text-gray-700 dark:text-gray-200">
                     {selectedOption?.icon && (
                         <selectedOption.icon className="w-4 h-4 text-gray-400" />
                     )}
@@ -91,7 +91,7 @@ export default function ModernDropdown({
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 p-1">
+                <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 p-1">
                     <div className="max-h-60 overflow-y-auto custom-scrollbar">
                         {options.map((option) => {
                             const isSelected = option.value === value;
@@ -104,11 +104,11 @@ export default function ModernDropdown({
                                     className={cn(
                                         "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg transition-colors text-left mb-0.5 last:mb-0",
                                         // Interactive states
-                                        "hover:bg-indigo-50 hover:text-indigo-700",
+                                        "hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-indigo-300",
                                         // Active State
-                                        isSelected && "bg-indigo-50 text-indigo-700 font-semibold",
+                                        isSelected && "bg-indigo-50 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 font-semibold",
                                         // Disabled
-                                        option.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent text-gray-400"
+                                        option.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent text-gray-400 dark:text-gray-600"
                                     )}
                                 >
                                     <span className="flex items-center gap-2 truncate">

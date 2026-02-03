@@ -137,12 +137,6 @@ export async function runTestCase(
             for (const char of processedStr) {
                 io.state.keyBuffer.push(char.charCodeAt(0));
             }
-        } else if (port === 4) {
-            // Port 4: Gamepad state (numeric)
-            const val = parseValue(cond.value);
-            io.state.gamepadState = val;
-        } else if (port === 5) {
-            // Port 5: RNG seed (numeric)
         }
     });
 
@@ -185,14 +179,14 @@ export async function runTestCase(
             case 'Register':
                 const regVal = finalState.registers[cond.location];
                 actual = regVal !== undefined ? regVal.toString() : "Undefined";
-                passed = regVal === parseValue(cond.value);
+                passed = checkCondition(regVal || 0, cond.value);
                 break;
 
             case 'Memory':
                 const addr = parseInt(cond.location);
                 const memVal = finalState.memory.find(m => m.address === addr)?.value ?? 0;
                 actual = memVal.toString();
-                passed = memVal === parseValue(cond.value);
+                passed = checkCondition(memVal, cond.value);
                 break;
 
             case 'Flag':
@@ -206,19 +200,20 @@ export async function runTestCase(
                 const port = parseInt(cond.location);
                 const expectedVal = cond.value;
 
-                // Get all output logs from the IO handler
-                const allLogs = io.getSnapshot().logs.filter(l => l.type === 'OUTPUT');
-
-                // For port-specific validation, we need to track which port each output came from
-                // For now, we'll check if the output content matches (simplified)
-                // TODO: Track port info in IO logs for precise validation
-                const outputContents = allLogs.map(l => l.content);
+                // Get all output content: committed lines + pending buffer
+                const snapshot = io.getSnapshot();
+                const actualOutputs = [...snapshot.outputLines];
+                if (snapshot.consoleBuffer) {
+                    actualOutputs.push(snapshot.consoleBuffer);
+                }
 
                 // Try exact match first, then trimmed match
-                passed = outputContents.some(out =>
+                passed = actualOutputs.some(out =>
                     out === expectedVal || out.trim() === expectedVal.trim()
                 );
-                actual = outputContents.length > 0 ? outputContents.join(', ') : '(no output)';
+
+                // Construct actual value string for feedback
+                actual = actualOutputs.length > 0 ? actualOutputs.join(', ') : '(no output)';
                 break;
         }
 
@@ -236,6 +231,21 @@ export async function runTestCase(
         actualState: finalState,
         failedConditions
     };
+}
+
+function checkCondition(actual: number, expectedStr: string): boolean {
+    const cleanExp = expectedStr.trim();
+
+    // Check for operators
+    if (cleanExp.startsWith('>=')) return actual >= parseValue(cleanExp.substring(2));
+    if (cleanExp.startsWith('<=')) return actual <= parseValue(cleanExp.substring(2));
+    if (cleanExp.startsWith('>')) return actual > parseValue(cleanExp.substring(1));
+    if (cleanExp.startsWith('<')) return actual < parseValue(cleanExp.substring(1));
+    if (cleanExp.startsWith('!=')) return actual !== parseValue(cleanExp.substring(2));
+    if (cleanExp.startsWith('=')) return actual === parseValue(cleanExp.substring(1));
+
+    // Default: Exact match
+    return actual === parseValue(cleanExp);
 }
 
 /**

@@ -25,7 +25,6 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [tel, setTel] = useState("");
 
   // form state (password)
   // const [curPwd, setCurPwd]   = useState("");
@@ -51,7 +50,6 @@ export default function ProfilePage() {
         setMe(data);
         setName(data.name ?? "");
         setEmail(data.email ?? "");
-        setTel(data.tel ?? "");
 
         if (!me?.picture_path) {
           const s = randomSeed();
@@ -83,7 +81,7 @@ export default function ProfilePage() {
 
   async function onSaveProfile() {
     try {
-      const updated = await updateProfile({ name, email, tel });
+      const updated = await updateProfile({ name, email });
       setMe(updated);
       setEditing(false);
       toastOK("Saved successfully");
@@ -361,7 +359,6 @@ export default function ProfilePage() {
                           // รีเซ็ตค่าเป็นข้อมูลล่าสุดจาก me
                           setName(me?.name ?? "");
                           setEmail(me?.email ?? "");
-                          setTel(me?.tel ?? "");
                         }}
                         className="text-sm px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
                       >
@@ -381,7 +378,7 @@ export default function ProfilePage() {
                   <div className="md:col-span-2">
                     <label className="block text-sm text-gray-500 mb-1">Name</label>
                     <input
-                      className="w-full px-3 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 rounded border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       disabled={!editing}
@@ -391,18 +388,9 @@ export default function ProfilePage() {
                     <label className="block text-sm text-gray-500 mb-1">Email</label>
                     <input
                       type="email"
-                      className="w-full px-3 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 rounded border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      disabled={!editing}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">Phone</label>
-                    <input
-                      className="w-full px-3 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={tel}
-                      onChange={(e) => setTel(e.target.value)}
                       disabled={!editing}
                     />
                   </div>
@@ -420,7 +408,7 @@ export default function ProfilePage() {
                     <label className="block text-sm text-gray-500 mb-1">New password</label>
                     <input
                       type={showNewPwd ? "text" : "password"}
-                      className="w-full px-3 py-2 rounded border border-gray-200 pr-10"
+                      className="w-full px-3 py-2 rounded border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white pr-10"
                       value={newPwd}
                       onChange={(e) => setNewPwd(e.target.value)}
                     />
@@ -453,7 +441,7 @@ export default function ProfilePage() {
                     <label className="block text-sm text-gray-500 mb-1">Confirm new password</label>
                     <input
                       type={showConfPwd ? "text" : "password"}
-                      className="w-full px-3 py-2 rounded border border-gray-200 pr-10"
+                      className="w-full px-3 py-2 rounded border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white pr-10"
                       value={confPwd}
                       onChange={(e) => setConfPwd(e.target.value)}
                     />

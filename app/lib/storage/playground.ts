@@ -19,6 +19,8 @@ export interface PlaygroundLocalData {
     };
 }
 
+const CURRENT_VERSION = '1.1'; // Bumped to invalidate empty memory bug (v1.0)
+
 /**
  * Save playground state to LocalStorage (real-time)
  */
@@ -34,7 +36,7 @@ export function saveToLocalStorage(
             meta: {
                 ...data.meta,
                 last_saved: new Date().toISOString(),
-                version: '1.0',
+                version: CURRENT_VERSION,
             },
         };
         localStorage.setItem(key, JSON.stringify(payload));
@@ -57,6 +59,13 @@ export function loadFromLocalStorage(
         if (!str) return null;
 
         const data = JSON.parse(str) as PlaygroundLocalData;
+
+        // Version Check: Invalidate if version mismatch (forces clean start)
+        if (data.meta?.version !== CURRENT_VERSION) {
+            console.log(`[LocalStorage] Version mismatch (Got ${data.meta?.version}, Expected ${CURRENT_VERSION}). Ignoring cache.`);
+            return null;
+        }
+
         console.log(`[LocalStorage] Loaded playground ${assignmentId} for user ${userId}`);
         return data;
     } catch (e) {

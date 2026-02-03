@@ -2,8 +2,8 @@
 import { getToken, clearToken } from "../auth/token";
 import type { Playground } from "@/lib/api/playground";
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:9090";
+// If no environment variable is set, default to empty string to use relative path (Next.js proxy)
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 const DEBUG_API =
   process.env.NEXT_PUBLIC_DEBUG_API === "1" ||
@@ -34,7 +34,6 @@ export async function apiFetch<T>(
   const reqInit: RequestInit = {
     ...init,
     headers,
-    credentials: 'include',
   };
 
   if (DEBUG_API) {

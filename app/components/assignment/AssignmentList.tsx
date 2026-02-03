@@ -14,6 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { isAssignmentIncomplete } from "@/lib/utils/assignment";
 
 // Helper to format date and check status
 const formatDate = (dateString: string | null) => {
@@ -53,8 +54,8 @@ const AssignmentListItem = ({
 
   // Placeholder functions for edit/delete
   const handleEdit = () => {
-    console.log("Edit assignment:", assignment.id);
-    // router.push(`/class/${assignment.classroom_id}/assignments/${assignment.id}/edit`);
+    // console.log("Edit assignment:", assignment.id);
+    router.push(`/class/${assignment.class_id}/assignments/${assignment.id}/edit`);
   };
 
   const handleDelete = () => {
@@ -83,14 +84,24 @@ const AssignmentListItem = ({
           <HiOutlineCalendar className="w-5 h-5 text-gray-400" />
           <span>{dueDateText}</span>
         </div>
-        <span
+
+        {isAssignmentIncomplete(assignment) ? (<span
           className={cn(
-            "px-2 py-1 text-xs font-medium rounded-full",
-            isPast ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
+            "px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800"
           )}
         >
-          {status}
+          Setup Required
         </span>
+        ) : (
+          <span
+            className={cn(
+              "px-2 py-1 text-xs font-medium rounded-full",
+              isPast ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
+            )}
+          >
+            {status}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2 flex-shrink-0 w-auto min-w-[7rem] justify-end">
@@ -100,7 +111,7 @@ const AssignmentListItem = ({
               aria-label="Play assignment"
               onClick={() =>
                 router.push(
-                  `/class/${assignment.classroom_id}/assignment/${assignment.id}/playground`,
+                  `/class/${assignment.class_id}/assignment/${assignment.id}/playground`,
                 )
               }
               className="p-2 text-gray-500 hover:text-green-600 hover:bg-gray-100 rounded-md"
@@ -124,18 +135,29 @@ const AssignmentListItem = ({
             </button>
           </>
         ) : canAccess ? (
-          <Button
-            className="inline-flex items-center justify-center gap-2"
-            disabled={isPast}
-            onClick={() =>
-              router.push(
-                `/class/${assignment.classroom_id}/assignment/${assignment.id}/playground`,
-              )
-            }
-          >
-            <HiOutlinePlay className="w-5 h-5" />
-            Start
-          </Button>
+          isAssignmentIncomplete(assignment) ? (
+            <Button
+              className="inline-flex items-center justify-center gap-2 cursor-not-allowed opacity-70"
+              disabled
+              variant="secondary"
+            >
+              <HiExclamationCircle className="w-5 h-5" />
+              Not Ready
+            </Button>
+          ) : (
+            <Button
+              className="inline-flex items-center justify-center gap-2"
+              disabled={isPast}
+              onClick={() =>
+                router.push(
+                  `/class/${assignment.class_id}/assignment/${assignment.id}/playground`,
+                )
+              }
+            >
+              <HiOutlinePlay className="w-5 h-5" />
+              Start
+            </Button>
+          )
         ) : (
           <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg">
             <HiOutlineLockClosed className="w-5 h-5" />

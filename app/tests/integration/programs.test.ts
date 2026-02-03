@@ -12,9 +12,9 @@ describe('Headless Program Execution', () => {
         instruction,
         operands,
         next,
-        type: 'instruction',
-        position: { x: 0, y: 0 },
-        data: {}
+        label: '',
+        next_true: null,
+        next_false: null
     });
 
     it('Scenario A: Math Sequence (5 + 5)', async () => {

@@ -52,7 +52,7 @@ describe('Real Educational Programs Scenarios', () => {
 
     // Item Factory
     const create = (id: number, instruction: string, operands: any[], next: number | null, label?: string): ProgramItem => ({
-        id, instruction, operands, next, label, type: 'instruction', position: { x: 0, y: 0 }, data: {}
+        id, instruction, operands, next, label: label || '', next_true: null, next_false: null
     });
 
     it('Scenario 1: Hello Input (Input/Output Basics)', async () => {

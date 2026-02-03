@@ -58,10 +58,10 @@ export default function TestSuiteList({
 }: Props) {
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 border-r border-gray-200">
+        <div className="flex flex-col h-full bg-gray-50 dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800">
             {/* Header */}
-            <div className="h-14 px-4 flex items-center justify-between border-b border-gray-200 bg-white">
-                <h2 className="font-semibold text-gray-800">Test Cases</h2>
+            <div className="h-14 px-4 flex items-center justify-between border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <h2 className="font-semibold text-gray-800 dark:text-gray-100">Test Cases</h2>
             </div>
 
             {/* List */}
@@ -85,12 +85,14 @@ export default function TestSuiteList({
                     />
                 ))}
 
-                <button
-                    onClick={onAddSuite}
-                    className="w-full py-2 flex items-center justify-center gap-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg dashed border-2 transition-colors"
-                >
-                    <Plus size={16} /> Add Test Suite
-                </button>
+                {isOwner && (
+                    <button
+                        onClick={onAddSuite}
+                        className="w-full py-2 flex items-center justify-center gap-2 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 border-green-200 dark:border-green-800 rounded-lg dashed border-2 transition-colors"
+                    >
+                        <Plus size={16} /> Add Test Suite
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -144,10 +146,10 @@ function SuiteItem({
     const isIndeterminate = someCasesSelected && !allCasesSelected;
 
     return (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden group/suite">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden group/suite">
             {/* Suite Header */}
             <div
-                className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
                 onClick={() => !isEditing && setIsOpen(!isOpen)}
             >
                 <div className="flex items-center gap-2 overflow-hidden flex-1">
@@ -182,16 +184,16 @@ function SuiteItem({
                             onBlur={handleSaveRename}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveRename()}
                             autoFocus
-                            className="text-sm font-medium border border-indigo-300 rounded px-1 w-full focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="text-sm font-medium border border-indigo-300 dark:border-indigo-500 rounded px-1 w-full focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100"
                             onClick={(e) => e.stopPropagation()}
                         />
                     ) : (
-                        <span className="text-sm font-medium text-gray-700 truncate">{suite.name}</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{suite.name}</span>
                     )}
                 </div>
 
                 <div className="flex items-center gap-1">
-                    {!suite.locked && !isEditing && (
+                    {!suite.locked && !isEditing && isOwner && (
                         <div className="hidden group-hover/suite:flex items-center gap-1 mr-2">
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
@@ -200,8 +202,12 @@ function SuiteItem({
                                 <Edit2 size={12} />
                             </button>
                             <button
-                                onClick={(e) => { e.stopPropagation(); onDeleteSuite(suite.id); }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteSuite(suite.id);
+                                }}
                                 className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
+                                title={suite.cases.some(c => c.isHidden) ? "Cannot delete suite with hidden test cases" : "Delete suite"}
                             >
                                 <Trash2 size={12} />
                             </button>
@@ -233,13 +239,13 @@ function SuiteItem({
                             />
                         ))}
 
-                    {!suite.locked && (
+                    {!suite.locked && isOwner && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onAddCase();
                             }}
-                            className="w-full mt-1 py-1.5 flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors border border-transparent hover:border-green-200 border-dashed"
+                            className="w-full mt-1 py-1.5 flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors border border-transparent hover:border-green-200 dark:hover:border-green-800 border-dashed"
                         >
                             <Plus size={12} /> Add Case
                         </button>
@@ -294,8 +300,8 @@ function CaseItem({
             className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-all text-sm group/case relative border-l-2",
                 isSelected
-                    ? "bg-indigo-50 text-indigo-700 font-medium border-indigo-600 shadow-sm"
-                    : "text-gray-600 hover:bg-gray-100 bg-transparent border-transparent"
+                    ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium border-indigo-600 dark:border-indigo-500 shadow-sm"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 bg-transparent border-transparent"
             )}
         >
             {/* Checkbox for Case */}
@@ -323,7 +329,7 @@ function CaseItem({
                     onBlur={handleSave}
                     onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                     autoFocus
-                    className="text-xs font-medium border border-indigo-300 rounded px-1 w-full focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="text-xs font-medium border border-indigo-300 dark:border-indigo-500 rounded px-1 w-full focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100"
                     onClick={(e) => e.stopPropagation()}
                 />
             ) : (

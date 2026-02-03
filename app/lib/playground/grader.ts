@@ -57,7 +57,7 @@ export async function validateSubmission(
 
             // Override receiveInput or just use onRead?
             // CPU calls onRead(0).
-            onRead(port: number): number {
+            onRead(port: number): number | null {
                 if (port === 0) {
                     if (this.inputQueue.length > 0) {
                         const char = this.inputQueue.shift()!;

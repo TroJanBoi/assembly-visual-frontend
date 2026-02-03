@@ -2,12 +2,13 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronRight, ChevronDown, Cpu, Flag, HardDrive } from "lucide-react";
+import { ChevronRight, ChevronDown, Cpu, Flag, HardDrive, Calendar, AlignLeft, RotateCcw } from "lucide-react";
 import ProcessorDashboard from "../ProcessorDashboard";
 
 import EmbeddedPropertyPanel from "./EmbeddedPropertyPanel";
 
 import { Variable } from "../VariableManager";
+import { Assignment } from "@/lib/api/assignment";
 
 type Props = {
     registers: { [key: string]: number };
@@ -25,6 +26,9 @@ type Props = {
     onAddVariable?: (name: string, value: number) => void;
     onEditVariable?: (id: string, name: string, value: number) => void;
     onDeleteVariable?: (id: string) => void;
+
+    // Assignment Props
+    assignment?: Assignment | null;
 };
 
 export default function RightInspector({
@@ -39,11 +43,22 @@ export default function RightInspector({
     variables,
     onAddVariable,
     onEditVariable,
-    onDeleteVariable
+    onDeleteVariable,
+    assignment
 }: Props) {
     const [isOpen, setIsOpen] = useState(true);
+    const [taskExpanded, setTaskExpanded] = useState(true);
 
     const isInspecting = !!selectedNode;
+
+    const formatDate = (dateStr?: string | null) => {
+        if (!dateStr) return "No due date";
+        return new Date(dateStr).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
 
     return (
         <aside
@@ -85,7 +100,55 @@ export default function RightInspector({
                     "absolute inset-0 transition-transform duration-300 ease-in-out bg-white",
                     isInspecting ? "-translate-x-full" : "translate-x-0"
                 )}>
-                    <div className="h-full w-full overflow-y-auto">
+                    <div className="h-full w-full overflow-y-auto custom-scrollbar">
+
+                        {/* TASK SECTION */}
+                        {assignment && (
+                            <div className="border-b border-gray-200 bg-gray-50/50">
+                                <div
+                                    className="p-3 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                                    onClick={() => setTaskExpanded(!taskExpanded)}
+                                >
+                                    <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        <AlignLeft size={14} /> Task
+                                    </div>
+                                    <div className={cn("transition-transform duration-200", !taskExpanded && "-rotate-90")}>
+                                        <ChevronDown size={14} className="text-gray-400" />
+                                    </div>
+                                </div>
+
+                                {taskExpanded && (
+                                    <div className="px-4 pb-4 space-y-3">
+                                        <div>
+                                            <h3 className="font-semibold text-gray-900 text-sm">{assignment.title}</h3>
+                                            <p className="text-xs text-gray-600 mt-1 leading-relaxed max-h-24 overflow-y-auto custom-scrollbar">
+                                                {assignment.description || "No description provided."}
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="bg-white p-2 rounded border border-gray-200">
+                                                <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+                                                    <Calendar size={12} /> Due Date
+                                                </div>
+                                                <div className="text-xs font-medium text-gray-900 truncate" title={formatDate(assignment.due_date)}>
+                                                    {formatDate(assignment.due_date)}
+                                                </div>
+                                            </div>
+                                            <div className="bg-white p-2 rounded border border-gray-200">
+                                                <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+                                                    <RotateCcw size={12} /> Attempts
+                                                </div>
+                                                <div className="text-xs font-medium text-gray-900">
+                                                    {assignment.max_attempt === 0 ? "Unlimited" : `Max ${assignment.max_attempt}`}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <div className="processor-dashboard-wrapper">
                             <ProcessorDashboard
                                 registers={registers}

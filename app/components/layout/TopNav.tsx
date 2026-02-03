@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HiOutlineBell, HiOutlineSearch, HiOutlineUser } from "react-icons/hi";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function TopNav() {
   const [isHidden, setIsHidden] = useState(false);
@@ -13,15 +14,15 @@ export default function TopNav() {
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     if (!isLanding) return;
-    
+
     // Hide if scrolled past 80% of the viewport height (approx end of section 1)
     if (typeof window !== "undefined") {
-        const threshold = window.innerHeight * 0.8;
-        if (latest > threshold) {
-            setIsHidden(true);
-        } else {
-            setIsHidden(false);
-        }
+      const threshold = window.innerHeight * 0.8;
+      if (latest > threshold) {
+        setIsHidden(true);
+      } else {
+        setIsHidden(false);
+      }
     }
   });
 
@@ -37,41 +38,42 @@ export default function TopNav() {
 
   if (isLanding) {
     return (
-        <motion.header
-            variants={{
-                visible: { y: 0, opacity: 1 },
-                hidden: { y: -100, opacity: 0 }
-            }}
-            animate={isHidden ? "hidden" : "visible"}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="fixed top-6 left-0 right-0 z-50 flex justify-center pointer-events-none"
-        >
-            <nav className="pointer-events-auto bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-white/20 dark:border-slate-800/50 shadow-xl rounded-full px-6 py-3 flex items-center gap-12 transition-all">
-                
-                {/* Logo */}
-                <Link href="/" className="flex items-center gap-1 group">
-                    <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">BLYLAB</span>
-                    <span className="text-indigo-500 font-bold text-xl">.</span>
-                </Link>
+      <motion.header
+        variants={{
+          visible: { y: 0, opacity: 1 },
+          hidden: { y: -100, opacity: 0 }
+        }}
+        animate={isHidden ? "hidden" : "visible"}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className="fixed top-6 left-0 right-0 z-50 flex justify-center pointer-events-none"
+      >
+        <nav className="pointer-events-auto bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-white/20 dark:border-slate-800/50 shadow-xl rounded-full px-6 py-3 flex items-center gap-12 transition-all">
 
-                {/* Links */}
-                <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
-                    <Link href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Features</Link>
-                    <Link href="#demo" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Demo</Link>
-                    <Link href="#team" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Team</Link>
-                </div>
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-1 group">
+            <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">BLYLAB</span>
+            <span className="text-indigo-500 font-bold text-xl">.</span>
+          </Link>
 
-                {/* Auth Actions */}
-                <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-slate-700">
-                    <Link href="/signin" className="text-sm font-semibold text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-white transition-colors">
-                        Log in
-                    </Link>
-                    <Link href="/signup" className="text-sm font-semibold bg-slate-900 text-white hover:bg-indigo-600 px-4 py-2 rounded-full transition-all shadow-lg shadow-indigo-500/20">
-                        Get Started
-                    </Link>
-                </div>
-            </nav>
-        </motion.header>
+          {/* Links */}
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
+            <Link href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Features</Link>
+            <Link href="#demo" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Demo</Link>
+            <Link href="#team" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Team</Link>
+          </div>
+
+          {/* Auth Actions */}
+          <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-slate-700">
+            <ThemeToggle />
+            <Link href="/signin" className="text-sm font-semibold text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-white transition-colors">
+              Log in
+            </Link>
+            <Link href="/signup" className="text-sm font-semibold bg-slate-900 text-white hover:bg-indigo-600 px-4 py-2 rounded-full transition-all shadow-lg shadow-indigo-500/20">
+              Get Started
+            </Link>
+          </div>
+        </nav>
+      </motion.header>
     );
   }
 
@@ -82,19 +84,20 @@ export default function TopNav() {
       style={{ left: "var(--sidebar-width, 240px)", right: 0, height: "64px" }}
     >
       <div className="px-4 h-full flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-700 dark:text-gray-200 font-medium">{dateStr}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-gray-700 dark:text-gray-200 font-medium">{dateStr}</div>
+        </div>
+        <div className="flex-1">
+          <div className="max-w-lg mx-auto relative">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><HiOutlineSearch /></span>
+            <input className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm" placeholder="Search..." />
           </div>
-          <div className="flex-1">
-            <div className="max-w-lg mx-auto relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><HiOutlineSearch /></span>
-                <input className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm" placeholder="Search..." />
-            </div>
-          </div>
-          <nav className="flex items-center gap-3">
-            <button className="p-2 rounded-md hover:bg-gray-100"><HiOutlineBell size={20}/></button>
-            <Link href="/profile" className="p-2 rounded-md hover:bg-gray-100"><HiOutlineUser size={20}/></Link>
-          </nav>
+        </div>
+        <nav className="flex items-center gap-3">
+          <ThemeToggle />
+          <button className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-gray-200"><HiOutlineBell size={20} /></button>
+          <Link href="/profile" className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-gray-200"><HiOutlineUser size={20} /></Link>
+        </nav>
       </div>
     </header>
   );

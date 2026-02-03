@@ -1,44 +1,64 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import {
-  HiOutlineGlobeAlt,
-  HiOutlineLockClosed,
-  HiOutlineUserCircle,
-} from "react-icons/hi";
+import { useState } from "react";
+import { HiOutlineGlobeAlt, HiOutlineLockClosed, HiOutlineUserCircle, HiHeart, HiOutlineHeart, HiOutlineExternalLink, HiOutlineUsers, HiBookmark, HiOutlineBookmark } from "react-icons/hi";
 import { cn } from "@/lib/utils";
-import { Class } from "@/lib/api/class";
+import { Class, toggleBookmark } from "@/lib/api/class";
+import { CLASS_BANNERS } from "@/lib/constants/banners";
+import { toast } from "sonner";
 
 interface ClassCardProps {
   item: Class;
 }
 
 export default function ClassCard({ item }: ClassCardProps) {
+  const [isFavorite, setIsFavorite] = useState(item.favorite === 1);
+  const [loading, setLoading] = useState(false);
+
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (loading) return;
+
+    // Optimistic update
+    const newStatus = !isFavorite;
+    setIsFavorite(newStatus);
+    setLoading(true);
+
+    try {
+      await toggleBookmark(item.id);
+      // Success - state already updated
+    } catch (err) {
+      // Revert on error
+      setIsFavorite(!newStatus);
+      toast.error("Failed to update bookmark");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Link
       href={`/class/${item.id}`}
-      className="group flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-indigo-200"
+      className="group flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-indigo-200 relative"
       aria-label={`View class: ${item.topic}`}
     >
-      {/* --- Card Image --- */}
-      <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
-        <Image
-          src={"/images/p1.png"} // Placeholder
-          alt={item.topic}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-60" />
+      {/* --- Card Image (Banner) --- */}
+      <div
+        className="relative h-48 w-full overflow-hidden transition-all duration-300"
+        style={CLASS_BANNERS[item.banner_id || 0]?.style || CLASS_BANNERS[0].style}
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60" />
 
-        {/* Status Badge */}
-        <div className="absolute top-3 right-3">
+        {/* Status Badge - Left Top now */}
+        <div className="absolute top-3 left-3 z-10">
           <span
             className={cn(
               "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm",
               item.status === 0
-                ? "bg-green-500/90 text-white"
+                ? "bg-emerald-500/90 text-white"
                 : "bg-slate-800/90 text-slate-200",
             )}
           >
@@ -49,6 +69,27 @@ export default function ClassCard({ item }: ClassCardProps) {
             )}
             {item.status === 0 ? "Public" : "Private"}
           </span>
+        </div>
+
+        {/* Favorite Button - Right Top */}
+        <button
+          onClick={handleToggleFavorite}
+          className="absolute top-3 right-3 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all transform hover:scale-110 active:scale-95"
+          title={isFavorite ? "Remove from bookmarks" : "Add to bookmarks"}
+        >
+          {isFavorite ? (
+            <HiBookmark className="w-5 h-5 text-indigo-400 fill-indigo-400" />
+          ) : (
+            <HiOutlineBookmark className="w-5 h-5" />
+          )}
+        </button>
+
+        {/* Hover Overlay with Open Icon */}
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
+          <div className="bg-white/90 text-slate-900 px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 shadow-xl">
+            <HiOutlineExternalLink className="w-5 h-5" />
+            <span>Open Class</span>
+          </div>
         </div>
       </div>
 
@@ -79,12 +120,13 @@ export default function ClassCard({ item }: ClassCardProps) {
           </div>
 
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 group-hover:text-indigo-600 transition-colors">
-            <HiOutlineUserCircle className="w-4 h-4" />
-            <span>{item.member_count || 0}</span>
+            <HiOutlineUsers className="w-4 h-4" />
+            <span>{item.member_amount || 0}</span>
           </div>
 
-          <div className="text-xs font-semibold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
-            View Class
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 group-hover:text-rose-500 transition-colors pl-2 border-l border-slate-200 ml-2">
+            <HiOutlineHeart className="w-4 h-4" />
+            <span>{item.favorite || 0}</span>
           </div>
         </div>
       </div>

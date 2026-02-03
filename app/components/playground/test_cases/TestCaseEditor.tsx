@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Plus, Trash2, Lock } from "lucide-react";
+import { Plus, Trash2, Lock, Eye, EyeOff, Terminal, Hash, LayoutGrid, Cpu, Binary, Flag } from "lucide-react";
 import { TestCase, TestCondition, TestLocationType } from "@/lib/playground/test_runner";
 import { cn, generateUUID } from "@/lib/utils";
 import ModernDropdown from "@/components/ui/ModernDropdown";
@@ -23,8 +23,8 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
         );
     }
 
-    const isHidden = testCase.isHidden && !isOwner;
-    const canEdit = isOwner && !testCase.isHidden;
+    const isHidden = !!testCase.isHidden;
+    const canEdit = isOwner; // Owners can edit even if hidden for graded tests management
 
     const addCondition = (target: "initialState" | "expectedState") => {
         const newCond: TestCondition = {
@@ -61,12 +61,29 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
     };
 
     return (
-        <div className="flex flex-col h-full bg-white p-6 overflow-hidden">
+        <div className="flex flex-col h-full bg-white dark:bg-slate-900 p-6 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900">{testCase.name}</h2>
-                    <p className="text-sm text-gray-500 mt-1">Configure inputs and expected outputs.</p>
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{testCase.name}</h2>
+                        {isOwner && (
+                            <button
+                                onClick={() => onUpdate({ ...testCase, isHidden: !isHidden })}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border transition-all",
+                                    isHidden
+                                        ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
+                                        : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                                )}
+                                title={isHidden ? "Click to make visible to students" : "Click to hide from students (Graded)"}
+                            >
+                                {isHidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                                {isHidden ? "Hidden" : "Visible"}
+                            </button>
+                        )}
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configure inputs and expected outputs.</p>
                 </div>
             </div>
 
@@ -78,7 +95,7 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
                         {canEdit && (
                             <button
                                 onClick={() => addCondition("initialState")}
-                                className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
+                                className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-dashed border-gray-300 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 rounded-md transition-colors bg-white dark:bg-slate-800"
                             >
                                 <Plus size={14} /> Add Value
                             </button>
@@ -138,7 +155,7 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
                         {canEdit && (
                             <button
                                 onClick={() => addCondition("expectedState")}
-                                className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-indigo-600 border border-dashed border-gray-300 hover:border-indigo-300 rounded-md transition-colors bg-white"
+                                className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-dashed border-gray-300 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 rounded-md transition-colors bg-white dark:bg-slate-800"
                             >
                                 <Plus size={14} /> Add Expectation
                             </button>
@@ -190,8 +207,8 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
             </div>
 
             {/* Footer Actions */}
-            <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
-                <button className="px-6 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-slate-800 flex items-center justify-end gap-3">
+                <button className="px-6 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
                     Reset
                 </button>
                 <button
@@ -225,16 +242,13 @@ function ConditionRow({
     // --- Helpers for Options ---
     const FLAGS = ['Z', 'C', 'V', 'O'];
     const OUT_PORTS = [
-        { id: '0', name: '0: Console (ASCII)' },
-        { id: '1', name: '1: Console (Num)' },
-        { id: '2', name: '2: 7-Segment' },
-        { id: '3', name: '3: LED Select' },
-        { id: '4', name: '4: LED Data' },
+        { id: '0', name: '0: Console', icon: Terminal },
+        { id: '2', name: '2: 7-Segment', icon: Hash },
+        { id: '3', name: '3: LED Select', icon: LayoutGrid },
+        { id: '4', name: '4: LED Data', icon: LayoutGrid },
     ];
     const IN_PORTS = [
-        { id: '0', name: '0: Keyboard' },
-        { id: '4', name: '4: Gamepad' },
-        { id: '5', name: '5: RNG' },
+        { id: '0', name: '0: Keyboard', icon: Terminal },
     ];
 
     const renderLocationInput = () => {
@@ -245,8 +259,9 @@ function ConditionRow({
                         <ModernDropdown
                             value={condition.location}
                             onChange={(v) => onChange("location", String(v))}
-                            options={availableRegisters.map(r => ({ label: r, value: r }))}
+                            options={availableRegisters.map(r => ({ label: r, value: r, icon: Cpu }))}
                             placeholder="Register"
+                            disabled={readOnly}
                         />
                     </div>
                 );
@@ -256,8 +271,9 @@ function ConditionRow({
                         <ModernDropdown
                             value={condition.location}
                             onChange={(v) => onChange("location", String(v))}
-                            options={FLAGS.map(f => ({ label: f, value: f }))}
+                            options={FLAGS.map(f => ({ label: f, value: f, icon: Flag }))}
                             placeholder="Flag"
+                            disabled={readOnly}
                         />
                     </div>
                 );
@@ -267,8 +283,9 @@ function ConditionRow({
                         <ModernDropdown
                             value={condition.location}
                             onChange={(v) => onChange("location", String(v))}
-                            options={OUT_PORTS.map(p => ({ label: p.name, value: p.id }))}
+                            options={OUT_PORTS.map(p => ({ label: p.name, value: p.id, icon: p.icon }))}
                             placeholder="Port"
+                            disabled={readOnly}
                         />
                     </div>
                 );
@@ -278,8 +295,9 @@ function ConditionRow({
                         <ModernDropdown
                             value={condition.location}
                             onChange={(v) => onChange("location", String(v))}
-                            options={IN_PORTS.map(p => ({ label: p.name, value: p.id }))}
+                            options={IN_PORTS.map(p => ({ label: p.name, value: p.id, icon: p.icon }))}
                             placeholder="Port"
+                            disabled={readOnly}
                         />
                     </div>
                 );
@@ -293,14 +311,22 @@ function ConditionRow({
                         value={condition.location}
                         onChange={(e) => onChange("location", e.target.value)}
                         placeholder="Addr"
-                        className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                        readOnly={readOnly}
+                        disabled={readOnly}
+                        className={cn(
+                            "w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-colors",
+                            readOnly
+                                ? "bg-gray-100 dark:bg-slate-800/50 text-gray-500 border-gray-200 dark:border-slate-700 cursor-not-allowed"
+                                : "bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-slate-700"
+                        )}
                     />
                 );
         }
     };
 
     return (
-        <div className="grid grid-cols-12 gap-4 items-center p-2 rounded-lg hover:bg-gray-50 group border border-transparent hover:border-gray-200 transition-colors">
+
+        <div className="grid grid-cols-12 gap-4 items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/50 group border border-transparent hover:border-gray-200 dark:hover:border-slate-700 transition-colors">
             {/* Index */}
             <div className="col-span-1 text-xs text-gray-400 font-mono text-center">
                 {index}
@@ -312,13 +338,14 @@ function ConditionRow({
                     value={condition.type}
                     onChange={(v) => onChange("type", v as any)}
                     options={[
-                        { label: "Register", value: "Register" },
-                        { label: "Memory", value: "Memory" },
-                        { label: "Flag", value: "Flag" },
-                        { label: "Output", value: "Output" },
-                        { label: "Input", value: "Input" },
+                        { label: "Register", value: "Register", icon: Cpu },
+                        { label: "Memory", value: "Memory", icon: Hash },
+                        { label: "Flag", value: "Flag", icon: Flag },
+                        { label: "Output", value: "Output", icon: Terminal },
+                        { label: "Input", value: "Input", icon: Terminal },
                     ]}
                     placeholder="Type"
+                    disabled={readOnly}
                 />
             </div>
 
@@ -334,19 +361,28 @@ function ConditionRow({
                     value={condition.value}
                     onChange={(e) => onChange("value", e.target.value)}
                     placeholder="Value"
-                    className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                    readOnly={readOnly}
+                    disabled={readOnly}
+                    className={cn(
+                        "w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-colors",
+                        readOnly
+                            ? "bg-gray-100 dark:bg-slate-800/50 text-gray-500 border-gray-200 dark:border-slate-700 cursor-not-allowed"
+                            : "bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-slate-700"
+                    )}
                 />
             </div>
 
             {/* Actions */}
             <div className="col-span-1 flex justify-center">
-                <button
-                    onClick={onRemove}
-                    className="p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                    title="Remove Condition"
-                >
-                    <Trash2 size={16} />
-                </button>
+                {!readOnly && (
+                    <button
+                        onClick={onRemove}
+                        className="p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                        title="Remove Condition"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                )}
             </div>
         </div>
     );

@@ -1,41 +1,42 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { LogEntry } from '@/lib/playground/io';
 import { cn } from '@/lib/utils';
-import { Terminal as TerminalIcon } from 'lucide-react';
+import { Terminal as TerminalIcon, Search } from 'lucide-react';
 
 type TerminalOutputProps = {
     logs: LogEntry[];
     consoleBuffer?: string;
     onInput?: (key: string) => void;
+    variant?: 'input' | 'filter'; // Default: 'input' if onInput provided, else 'filter'
 };
 
-export function TerminalOutput({ logs, consoleBuffer, onInput }: TerminalOutputProps) {
+export function TerminalOutput({ logs, consoleBuffer, onInput, variant = 'filter' }: TerminalOutputProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const [inputValue, setInputValue] = useState("");
 
     // Auto-scroll to bottom when logs or buffer changes
     useEffect(() => {
+        // Only auto-scroll if NOT filtering (or if new logs arrive and we are at bottom? simplistic for now)
+        // Actually, if filtering, we might want to stay put or scroll top? 
+        // Let's keep auto-scroll behavior for now as it's a "tail -f" style view usually.
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs, consoleBuffer]);
 
+    // Handle Input (Enter key)
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         e.stopPropagation(); // Stop global hotkeys
 
-        if (e.key === 'Enter') {
+        if (variant === 'input' && e.key === 'Enter') {
             e.preventDefault();
             if (!onInput) return;
 
             // Send each char to the buffer
-            // Since our IO system consumes char by char, we'll send the string + Enter
             const text = inputValue;
-
-            // Loop send chars
             for (const char of text) {
                 onInput(char);
             }
             onInput('Enter'); // Commit line
-
             setInputValue("");
         }
     };
@@ -44,6 +45,34 @@ export function TerminalOutput({ logs, consoleBuffer, onInput }: TerminalOutputP
     const handleContainerClick = () => {
         inputRef.current?.focus();
     };
+
+    const getInstructionColor = (content: string) => {
+        const upper = content.toUpperCase();
+        // 1. System & Control
+        if (/\b(START|HLT|NOP)\b/.test(upper)) return "text-green-400";
+        // 2. I/O
+        if (/\b(IN|OUT)\b/.test(upper)) return "text-slate-400";
+        // 3. Data Movement
+        if (/\b(MOV|LOAD|STORE|PUSH|POP)\b/.test(upper)) return "text-sky-400";
+        // 4. MATH
+        if (/\b(ADD|SUB|INC|DEC|MUL|DIV|CMP)\b/.test(upper)) return "text-orange-400";
+        // 5. Control Flow
+        if (/\b(JMP|JZ|JNZ|JC|JNC|JN|CALL|RET)\b/.test(upper)) return "text-indigo-400";
+        // 6. Logic Gates
+        if (/\b(AND|OR|XOR|NOT|SHL|SHR|NAND|NOR|XNOR)\b/.test(upper)) return "text-pink-400";
+
+        return null;
+    };
+
+    // Filter Logic
+    const filteredLogs = useMemo(() => {
+        if (variant === 'input' || !inputValue) return logs;
+        const lowerSearch = inputValue.toLowerCase();
+        return logs.filter(log =>
+            log.content.toLowerCase().includes(lowerSearch) ||
+            log.type.toLowerCase().includes(lowerSearch)
+        );
+    }, [logs, inputValue, variant]);
 
     return (
         <div
@@ -54,11 +83,10 @@ export function TerminalOutput({ logs, consoleBuffer, onInput }: TerminalOutputP
             <div className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
                 {/* Intro Message */}
                 <div className="text-gray-500 mb-4 text-xs">
-                    Assembly Visualizer v2.0 <br />
-                    Type 'help' for available commands.
+                    BLYLAB Assembly Visualizer v1.0
                 </div>
 
-                {logs.map((log) => (
+                {filteredLogs.map((log) => (
                     <div key={log.id} className="break-words leading-tight">
                         <span className="text-gray-600 text-[10px] mr-3 select-none">
                             {new Date(log.timestamp).toLocaleTimeString([], { hour12: false })}
@@ -88,7 +116,9 @@ export function TerminalOutput({ logs, consoleBuffer, onInput }: TerminalOutputP
                         {log.type === 'CPU_INTERNAL' && (
                             <>
                                 <span className="text-emerald-500 font-bold mr-2 select-none">[CPU]</span>
-                                <span className="text-emerald-400/80 font-normal">{log.content}</span>
+                                <span className={cn("font-normal", getInstructionColor(log.content) || "text-emerald-400/80")}>
+                                    {log.content}
+                                </span>
                             </>
                         )}
 
@@ -109,14 +139,16 @@ export function TerminalOutput({ logs, consoleBuffer, onInput }: TerminalOutputP
                         {log.type === 'SYSTEM' && (
                             <>
                                 <span className="text-gray-500 font-bold mr-2 select-none">[SYS]</span>
-                                <span className="text-gray-500 italic">{log.content}</span>
+                                <span className="text-gray-500 italic opacity-85">
+                                    {log.content}
+                                </span>
                             </>
                         )}
                     </div>
                 ))}
 
-                {/* Pending Output Buffer */}
-                {consoleBuffer && (
+                {/* Pending Output Buffer (Only relevant in input mode or raw view, usually system handles this outside logs) */}
+                {consoleBuffer && variant === 'input' && (
                     <div className="break-words leading-tight animate-pulse">
                         <span className="text-gray-600 text-[10px] mr-3 select-none">...</span>
                         <span className="text-green-500 font-bold mr-2 select-none">&gt;&gt;</span>
@@ -128,14 +160,19 @@ export function TerminalOutput({ logs, consoleBuffer, onInput }: TerminalOutputP
                 <div ref={bottomRef} className="h-2" />
             </div>
 
-            {/* Sticky Input Line */}
+            {/* Sticky Input/Search Line */}
             <div className="shrink-0 flex items-center px-4 py-2 bg-[#252525] border-t border-gray-800 focus-within:border-gray-600 transition-colors">
-                <span className="text-green-500 font-bold mr-2 select-none animate-pulse">&gt;</span>
+                {variant === 'input' ? (
+                    <span className="text-green-500 font-bold mr-2 select-none animate-pulse">&gt;</span>
+                ) : (
+                    <Search size={14} className="text-gray-500 mr-2" />
+                )}
+
                 <input
                     ref={inputRef}
                     type="text"
-                    className="flex-1 bg-transparent border-none outline-none text-gray-200 placeholder-gray-600 font-mono h-6"
-                    placeholder="Type here..."
+                    className="flex-1 bg-transparent border-none outline-none text-gray-200 placeholder-gray-600 font-mono h-5 text-xs"
+                    placeholder={variant === 'input' ? "Input command..." : "Filter logs..."}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}

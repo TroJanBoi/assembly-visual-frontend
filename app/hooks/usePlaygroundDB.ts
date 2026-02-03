@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { updateMyPlayground, getMyPlayground } from '@/lib/api/playground';
+import { createPlayground, updatePlayground, getMyPlayground } from '@/lib/api/playground';
 
 interface PlaygroundDBOptions {
     delay?: number;  // Debounce delay (default: 3000ms)
@@ -39,14 +39,44 @@ export function usePlaygroundDBSave(
         try {
             isSavingRef.current = true;
             console.log('[DB] Immediate save triggered');
-            const result = await updateMyPlayground({
+
+            // Check if playground exists
+            const payload = {
                 assignment_id: assignmentId,
                 item: data,
                 status: 'in_progress',
-            });
-            lastSavedRef.current = currentData;
-            if (options.onSave) options.onSave(result);
-            console.log('[DB] ✓ Immediate save complete');
+            };
+
+            try {
+                // Try to get existing playground
+                const existing = await getMyPlayground(assignmentId);
+                if (existing) {
+                    // Update existing
+                    console.log('[DB] Updating existing playground');
+                    const result = await updatePlayground(payload);
+                    lastSavedRef.current = currentData;
+                    if (options.onSave) options.onSave(result);
+                    console.log('[DB] ✓ Immediate save complete (updated)');
+                } else {
+                    // Create new
+                    console.log('[DB] Creating new playground');
+                    const result = await createPlayground(payload);
+                    lastSavedRef.current = currentData;
+                    if (options.onSave) options.onSave(result);
+                    console.log('[DB] ✓ Immediate save complete (created)');
+                }
+            } catch (fetchErr: any) {
+                // If 404, create new playground
+                if (fetchErr.message?.includes('404') || fetchErr.message?.includes('not found')) {
+                    console.log('[DB] Playground not found, creating new');
+                    const result = await createPlayground(payload);
+                    lastSavedRef.current = currentData;
+                    if (options.onSave) options.onSave(result);
+                    console.log('[DB] ✓ Immediate save complete (created)');
+                } else {
+                    throw fetchErr;
+                }
+            }
         } catch (e) {
             console.error('[DB] ✗ Immediate save failed:', e);
         } finally {
@@ -73,14 +103,40 @@ export function usePlaygroundDBSave(
             try {
                 isSavingRef.current = true;
                 console.log('[DB AutoSave] Saving...');
-                const result = await updateMyPlayground({
+
+                const payload = {
                     assignment_id: assignmentId,
                     item: data,
                     status: 'in_progress',
-                });
-                lastSavedRef.current = currentData;
-                if (options.onSave) options.onSave(result);
-                console.log('[DB AutoSave] ✓ Saved');
+                };
+
+                try {
+                    // Try to get existing playground
+                    const existing = await getMyPlayground(assignmentId);
+                    if (existing) {
+                        // Update existing
+                        const result = await updatePlayground(payload);
+                        lastSavedRef.current = currentData;
+                        if (options.onSave) options.onSave(result);
+                        console.log('[DB AutoSave] ✓ Saved (updated)');
+                    } else {
+                        // Create new
+                        const result = await createPlayground(payload);
+                        lastSavedRef.current = currentData;
+                        if (options.onSave) options.onSave(result);
+                        console.log('[DB AutoSave] ✓ Saved (created)');
+                    }
+                } catch (fetchErr: any) {
+                    // If 404, create new playground
+                    if (fetchErr.message?.includes('404') || fetchErr.message?.includes('not found')) {
+                        const result = await createPlayground(payload);
+                        lastSavedRef.current = currentData;
+                        if (options.onSave) options.onSave(result);
+                        console.log('[DB AutoSave] ✓ Saved (created after 404)');
+                    } else {
+                        throw fetchErr;
+                    }
+                }
             } catch (e) {
                 console.error('[DB AutoSave] ✗ Failed:', e);
             } finally {

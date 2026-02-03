@@ -18,7 +18,7 @@ interface ProcessorDashboardProps {
 
 const StateCell = ({ label, value }: { label: string; value: number }) => (
   <div className="flex-1 text-center">
-    <div className="text-sm font-semibold text-gray-500 border-b pb-1">
+    <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-1">
       {label}
     </div>
     <div className="pt-1 font-mono text-lg">{value}</div>
@@ -36,8 +36,10 @@ const MemoryListItem = ({
   variableName?: string;
   isHighlighted?: boolean;
 }) => {
-  const percentage = (value / 255) * 100;
+  const isStack = address >= 224;
   const hexAddress = address.toString(16).toUpperCase().padStart(2, "0");
+  const displayAddress = `${address} (0x${hexAddress})`;
+  const percentage = (value / 255) * 100;
 
   return (
     <div
@@ -47,12 +49,14 @@ const MemoryListItem = ({
       )}
       id={`mem-list-item-${address}`}
     >
-      <span className="font-mono text-gray-500 w-12">0x{hexAddress}</span>
-      <div className="flex-1 h-6 bg-gray-100 rounded-md overflow-hidden border relative group">
+      <span className={cn("font-mono w-24", isStack ? "text-orange-500 font-bold" : "text-gray-500 dark:text-gray-400")}>
+        {displayAddress}
+      </span>
+      <div className="flex-1 h-6 bg-gray-100 dark:bg-slate-800 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 relative group">
         <div
           className={cn(
             "h-full transition-all duration-300",
-            variableName ? "bg-green-300" : "bg-indigo-300"
+            variableName ? "bg-green-300" : (isStack ? "bg-orange-300" : "bg-indigo-300")
           )}
           style={{ width: `${percentage}%` }}
         />
@@ -87,14 +91,14 @@ const AddressTooltip = ({
 
   return (
     <div
-      className="absolute z-10 p-3 bg-gray-800 text-white rounded-lg shadow-lg text-xs font-mono w-48 pointer-events-none"
+      className="absolute z-10 p-3 bg-white text-gray-900 border border-gray-200 rounded-lg shadow-xl text-xs font-mono w-48 pointer-events-none"
       style={{
         left: x,
         top: y,
       }}
     >
-      <div className="font-bold text-base mb-2 border-b border-gray-600 pb-1 flex justify-between">
-        <span>{hexAddress}</span>
+      <div className="font-bold text-base mb-2 border-b border-gray-200 pb-1 flex justify-between">
+        <span>{address} ({hexAddress})</span>
         {variableName && <span className="text-green-400 text-xs ml-2 self-center">{variableName}</span>}
       </div>
       <div className="grid grid-cols-[auto_1fr] gap-x-2">
@@ -241,7 +245,7 @@ export default React.memo(function ProcessorDashboard({
   const regCols = Math.min(4, Math.max(1, regNames.length));
 
   return (
-    <div ref={rootRef} className="w-full p-6 h-full overflow-y-auto bg-white relative">
+    <div ref={rootRef} className="w-full p-6 h-full overflow-y-auto bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 relative">
       {hoveredInfo && (
         <AddressTooltip
           address={hoveredInfo.address}
@@ -256,11 +260,11 @@ export default React.memo(function ProcessorDashboard({
 
       {/* Registers */}
       <section>
-        <h3 className="text-base font-semibold text-gray-700 mb-2">
+        <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-2">
           Registers
         </h3>
         <div
-          className="bg-gray-50 border border-gray-200 rounded-lg p-2 gap-2"
+          className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-2 gap-2"
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${regCols}, minmax(0, 1fr))`,
@@ -278,8 +282,8 @@ export default React.memo(function ProcessorDashboard({
 
       {/* Flags */}
       <section className="mt-6">
-        <h3 className="text-base font-semibold text-gray-700 mb-2">Flags</h3>
-        <div className="flex flex-wrap gap-2 bg-gray-50 border border-gray-200 rounded-lg p-2">
+        <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-2">Flags</h3>
+        <div className="flex flex-wrap gap-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-2">
           {Object.keys(flags).length === 0 ? (
             <p className="text-sm text-gray-400">No flags</p>
           ) : (
@@ -305,7 +309,7 @@ export default React.memo(function ProcessorDashboard({
       {/* Memory */}
       <section className="mt-6">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-base font-semibold text-gray-700">Memory</h3>
+          <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300">Memory</h3>
           <div className="flex items-center gap-1 text-gray-400">
             <button
               onClick={() => setViewMode("grid")}
@@ -341,7 +345,7 @@ export default React.memo(function ProcessorDashboard({
         </div>
 
         {viewMode === "grid" && (
-          <div className="mt-4 grid grid-cols-16 border-t border-l border-gray-300 rounded-lg overflow-hidden">
+          <div className="mt-4 grid grid-cols-16 border-t border-l border-gray-300 dark:border-slate-700 rounded-lg overflow-hidden">
             {Array.from({ length: 256 }).map((_, i) => {
               const variable = variables.find(v => v.address === i);
               const val = getEffectiveValue(i);
@@ -358,7 +362,7 @@ export default React.memo(function ProcessorDashboard({
                   onMouseMove={(e) => handleMouseMove(e, i)}
                   onMouseLeave={handleMouseLeave}
                   className={cn(
-                    "aspect-square text-[9px] flex items-center justify-center border-r border-b border-gray-200 cursor-pointer transition-colors relative",
+                    "aspect-square text-[9px] flex items-center justify-center border-r border-b border-gray-200 dark:border-slate-700 cursor-pointer transition-colors relative",
                     // Search Highlighting (Highest Priority)
                     isHighlighted && "bg-yellow-300 animate-pulse z-10 ring-2 ring-yellow-500",
 
@@ -372,13 +376,17 @@ export default React.memo(function ProcessorDashboard({
                             ? "bg-amber-200 font-bold text-amber-900" // Stack Value
                             : "bg-indigo-200 font-bold text-indigo-800" // Heap/Code Value
                           : isStack
-                            ? "bg-slate-100 text-slate-400 hover:bg-slate-200" // Stack Empty (Gray Zone)
-                            : "text-gray-400 hover:bg-gray-100" // Heap/Code Empty
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700" // Stack Empty (Gray Zone)
+                            : "text-gray-400 dark:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800" // Heap/Code Empty
                     )
                   )}
                   title={variable ? `Var: ${variable.name}` : undefined}
                 >
-                  {displayVal}
+                  {hasValue ? (
+                    val
+                  ) : (
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-600" />
+                  )}
                 </div>
               );
             })}

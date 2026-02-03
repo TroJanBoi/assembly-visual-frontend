@@ -71,7 +71,7 @@ export default function AuthDemo() {
   }, [setNodes]);
 
   return (
-    <div className="w-full h-full min-h-screen bg-slate-50 backdrop-blur-sm overflow-hidden relative group">
+    <div className="w-full h-full min-h-screen bg-slate-50 dark:bg-slate-900 backdrop-blur-sm overflow-hidden relative group">
       {/* Decorative Glows */}
       <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
@@ -96,13 +96,13 @@ export default function AuthDemo() {
       {/* Overlay Text */}
       <div className="absolute bottom-8 left-8 right-8 z-10 pointer-events-none">
         <div className="backdrop-blur-md bg-white/10 border border-white/20 p-4 rounded-xl shadow-2xl inline-block">
-             <div className="flex items-center gap-3 mb-1">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)] animate-pulse" />
-                <span className="text-xs font-mono font-bold text-slate-200 tracking-wider">LIVE PREVIEW</span>
-            </div>
-            <p className="text-sm text-slate-300 font-medium">
-                Visual Assembly Programming. <br/><span className="text-slate-400 text-xs">No more black box execution.</span>
-            </p>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)] animate-pulse" />
+            <span className="text-xs font-mono font-bold text-slate-200 tracking-wider">LIVE PREVIEW</span>
+          </div>
+          <p className="text-sm text-slate-300 font-medium">
+            Visual Assembly Programming. <br /><span className="text-slate-400 text-xs">No more black box execution.</span>
+          </p>
         </div>
       </div>
     </div>

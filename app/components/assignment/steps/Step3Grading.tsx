@@ -1,8 +1,11 @@
-"use client";
-
 import React from "react";
 import { Input } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/Label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/RadioGroup";
+import { Slider } from "@/components/ui/slider";
+
 import { AssignmentFormData } from "@/types/assignment";
 import { cn } from "@/lib/utils";
 import {
@@ -32,20 +35,10 @@ export default function Step3Grading({
   const handleNumberChange = (
     field: "maxScore" | "maxNodes" | "efficiencyWeight",
     value: string,
-    min: number = 0,
-    max?: number,
   ) => {
-    // Allow empty string
-    if (value === "") {
-      handleChange(field, "");
-      return;
-    }
-
-    // Allow only digits
-    if (/^\d+$/.test(value)) {
+    if (value === "" || /^\d+$/.test(value)) {
       handleChange(field, value);
     }
-    // If not valid digits, ignore the input
   };
 
   const validateAndClampNumber = (
@@ -58,21 +51,17 @@ export default function Step3Grading({
       handleChange(field, min.toString());
       return;
     }
-
     const num = parseInt(value, 10);
     if (isNaN(num)) {
       handleChange(field, min.toString());
       return;
     }
-
     if (num < min) {
       handleChange(field, min.toString());
     } else if (max !== undefined && num > max) {
       handleChange(field, max.toString());
     }
   };
-
-  const weightOptions = Array.from({ length: 11 }, (_, i) => `${i * 10}`);
 
   const calculateCorrectnessWeight = (): string => {
     if (formData.gradingMode === "manual" || !formData.efficiencyEnabled) {
@@ -83,161 +72,125 @@ export default function Step3Grading({
     return correctnessW.toString();
   };
 
-  const handleEfficiencyWeightChange = (value: string) => {
-    const efficiencyW = parseInt(value, 10) || 0;
-
-    if (100 - efficiencyW < 0) {
-      console.warn(
-        "Efficiency weight too high, correctness would be negative.",
-      );
-      return;
-    }
-
-    const validWeight = Math.min(100, Math.max(0, efficiencyW)).toString();
-    handleChange("efficiencyWeight", validWeight);
-  };
-
   const isManualMode = formData.gradingMode === "manual";
 
   return (
     <div className="space-y-6">
-      {/* Max Score Card */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4">
+      {/* Max Score */}
+      <Card>
+        <CardHeader className="bg-gray-50/50 border-b pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
               <HiOutlineAcademicCap className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Maximum Score</h3>
-              <p className="text-sm text-gray-600">Total points for this assignment</p>
+              <CardTitle className="text-lg">Maximum Score</CardTitle>
+              <CardDescription>Total points for this assignment</CardDescription>
             </div>
           </div>
-        </div>
-        <div className="p-6">
-          <label htmlFor="maxScore" className="block text-sm font-medium text-gray-700 mb-2">
-            Max Score
-          </label>
-          <div className="flex items-center gap-3">
-            <Input
-              id="maxScore"
-              type="text"
-              inputMode="numeric"
-              placeholder="Enter max score"
-              value={formData.maxScore}
-              onChange={(e) =>
-                handleNumberChange("maxScore", e.target.value, 0, 100)
-              }
-              onBlur={(e) =>
-                validateAndClampNumber("maxScore", e.target.value, 0, 100)
-              }
-              className="flex-1"
-            />
-            <div className="px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold text-sm rounded-lg">
-              / 100 pts
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4 max-w-sm">
+            <div className="grid gap-2 w-full">
+              <Label htmlFor="maxScore">Max Score</Label>
+              <div className="relative">
+                <Input
+                  id="maxScore"
+                  inputMode="numeric"
+                  placeholder="100"
+                  value={formData.maxScore}
+                  onChange={(e) => handleNumberChange("maxScore", e.target.value)}
+                  onBlur={(e) => validateAndClampNumber("maxScore", e.target.value, 0, 100)}
+                  className="pr-16"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-muted-foreground text-sm">
+                  pts
+                </div>
+              </div>
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            The final grade will be calculated proportionally based on this maximum score.
-          </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Grading Mode Card */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50 px-6 py-4">
+      {/* Grading Mode */}
+      <Card>
+        <CardHeader className="bg-gray-50/50 border-b pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
               <HiOutlineChartBar className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Grading Mode</h3>
-              <p className="text-sm text-gray-600">Choose how to calculate student grades</p>
+              <CardTitle className="text-lg">Grading Mode</CardTitle>
+              <CardDescription>Choose how to calculate student grades</CardDescription>
             </div>
           </div>
-        </div>
-        <div className="p-6">
-          <label htmlFor="gradingMode" className="block text-sm font-medium text-gray-700 mb-2">
-            Mode
-          </label>
-          <div className="grid grid-cols-2 gap-3 mb-2">
-            <button
-              type="button"
-              onClick={() => {
-                handleChange("gradingMode", "auto");
-              }}
-              className={cn(
-                "px-4 py-3 rounded-lg border-2 text-sm font-semibold transition-all flex items-center justify-center gap-2",
-                formData.gradingMode === "auto"
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-              )}
-            >
-              <HiOutlineCheck className="w-5 h-5" /> Auto
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                handleChange("gradingMode", "manual");
+        </CardHeader>
+        <CardContent className="pt-6">
+          <RadioGroup
+            value={formData.gradingMode}
+            onValueChange={(val) => {
+              handleChange("gradingMode", val);
+              if (val === "manual") {
                 handleChange("efficiencyEnabled", false);
                 handleChange("efficiencyWeight", "0");
                 handleChange("maxNodes", "");
-              }}
-              className={cn(
-                "px-4 py-3 rounded-lg border-2 text-sm font-semibold transition-all flex items-center justify-center gap-2",
-                formData.gradingMode === "manual"
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-              )}
-            >
-              <HiOutlineHand className="w-5 h-5" /> Manual
-            </button>
-          </div>
-          <p className="text-xs text-gray-500">
-            {formData.gradingMode === "auto"
-              ? "System will automatically grade based on test results and weights."
-              : "You will manually review and grade each submission."}
-          </p>
-        </div>
-      </div>
+              }
+            }}
+            className="grid grid-cols-2 gap-4"
+          >
+            <div>
+              <RadioGroupItem value="auto" id="mode-auto" className="peer sr-only" />
+              <Label
+                htmlFor="mode-auto"
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-white p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary/50 peer-data-[state=checked]:bg-blue-50 peer-data-[state=checked]:text-primary cursor-pointer transition-all h-full"
+              >
+                <HiOutlineCheck className="mb-3 h-6 w-6" />
+                <span className="text-sm font-semibold">Auto Grading</span>
+              </Label>
+            </div>
+            <div>
+              <RadioGroupItem value="manual" id="mode-manual" className="peer sr-only" />
+              <Label
+                htmlFor="mode-manual"
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-white p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary/50 peer-data-[state=checked]:bg-blue-50 peer-data-[state=checked]:text-primary cursor-pointer transition-all h-full"
+              >
+                <HiOutlineHand className="mb-3 h-6 w-6" />
+                <span className="text-sm font-semibold">Manual Review</span>
+              </Label>
+            </div>
+          </RadioGroup>
+        </CardContent>
+      </Card>
 
-      {/* Grading Weight Card */}
-      <div
-        className={cn(
-          "bg-white rounded-xl border border-gray-200 overflow-hidden transition-opacity",
-          isManualMode && "opacity-50 pointer-events-none"
-        )}
-      >
-        <div className="border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4">
+      {/* Grading Criteria */}
+      <Card className={cn("transition-opacity duration-200", isManualMode && "opacity-50 pointer-events-none")}>
+        <CardHeader className="bg-gray-50/50 border-b pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
               <HiOutlineLightningBolt className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Grading Criteria</h3>
-              <p className="text-sm text-gray-600">Configure test and efficiency weights</p>
+              <CardTitle className="text-lg">Grading Criteria</CardTitle>
+              <CardDescription>Configure auto-grading weights</CardDescription>
             </div>
           </div>
-        </div>
-        <div className="p-6 space-y-4">
-          {/* Test Case Correctness */}
-          <div className="p-4 border-2 border-blue-200 rounded-lg bg-blue-50">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-blue-900">
-                Test Case Correctness
-              </label>
-              <div className="px-3 py-1 bg-blue-200 text-blue-900 font-bold text-sm rounded-md">
+        </CardHeader>
+        <CardContent className="space-y-6 pt-6">
+          {/* Test Case Weight Display */}
+          <div className="rounded-lg border bg-blue-50/50 p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="font-semibold text-blue-900">Test Case Correctness</div>
+                <div className="text-xs text-blue-700">Percentage of passed test cases</div>
+              </div>
+              <div className="text-2xl font-bold text-blue-600">
                 {calculateCorrectnessWeight()}%
               </div>
             </div>
-            <p className="text-xs text-blue-700">
-              Grade based on percentage of test cases passed (visible + hidden).
-            </p>
           </div>
 
-          {/* Efficiency */}
-          <div className="p-4 border-2 border-gray-200 rounded-lg">
-            <div className="flex items-start gap-3 mb-3">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
               <Checkbox
                 id="efficiencyEnabled"
                 checked={formData.efficiencyEnabled}
@@ -250,104 +203,54 @@ export default function Step3Grading({
                     handleChange("maxNodes", "");
                   }
                 }}
-                className="mt-1"
               />
-              <div className="flex-1">
-                <label
-                  htmlFor="efficiencyEnabled"
-                  className={cn(
-                    "text-sm font-semibold text-gray-900",
-                    !isManualMode && "cursor-pointer"
-                  )}
-                >
-                  Efficiency (Node Budget)
-                </label>
-                <p className="text-xs text-gray-600 mt-1">
-                  Grade based on whether solution meets resource constraints (max nodes).
+              <div className="grid gap-1.5 leading-none">
+                <Label htmlFor="efficiencyEnabled" className="text-base font-medium">
+                  Enable Efficiency Grading
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Deduct points if solution uses too many nodes.
                 </p>
               </div>
-              {formData.efficiencyEnabled && (
-                <div className="px-3 py-1 bg-amber-100 text-amber-900 font-bold text-sm rounded-md">
-                  {formData.efficiencyWeight}%
-                </div>
-              )}
             </div>
 
             {formData.efficiencyEnabled && (
-              <div className="pl-7 space-y-3 pt-3 border-t border-gray-200">
-                <div>
-                  <label
-                    htmlFor="maxNodes"
-                    className="block text-xs font-medium text-gray-700 mb-1"
-                  >
-                    Maximum Nodes Allowed
-                  </label>
+              <div className="ml-6 space-y-6 pt-2">
+                <div className="grid gap-2 max-w-sm">
+                  <Label htmlFor="maxNodes">Maximum Nodes Allowed</Label>
                   <Input
                     id="maxNodes"
-                    type="text"
                     inputMode="numeric"
                     placeholder="e.g., 10"
                     value={formData.maxNodes}
-                    onChange={(e) =>
-                      handleNumberChange("maxNodes", e.target.value)
-                    }
-                    onBlur={(e) =>
-                      validateAndClampNumber("maxNodes", e.target.value, 1)
-                    }
-                    disabled={isManualMode}
+                    onChange={(e) => handleNumberChange("maxNodes", e.target.value)}
+                    onBlur={(e) => validateAndClampNumber("maxNodes", e.target.value, 1)}
                   />
                 </div>
-                <div>
-                  <label
-                    htmlFor="efficiencyWeight"
-                    className="block text-xs font-medium text-gray-700 mb-1"
-                  >
-                    Efficiency Weight
-                  </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {weightOptions.map((w) => (
-                      <button
-                        key={w}
-                        type="button"
-                        onClick={() => handleEfficiencyWeightChange(w)}
-                        disabled={isManualMode}
-                        className={cn(
-                          "px-3 py-2 rounded-md text-xs font-semibold transition-all border-2",
-                          formData.efficiencyWeight === w
-                            ? "border-amber-500 bg-amber-100 text-amber-900"
-                            : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-                        )}
-                      >
-                        {w}%
-                      </button>
-                    ))}
+
+                <div className="grid gap-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="efficiencyWeight">Efficiency Weight</Label>
+                    <span className="text-sm font-bold text-amber-600">{formData.efficiencyWeight}%</span>
                   </div>
+                  <Slider
+                    defaultValue={[parseInt(formData.efficiencyWeight) || 0]}
+                    max={100}
+                    step={10}
+                    className="w-full"
+                    onValueChange={(vals) => {
+                      handleChange("efficiencyWeight", vals[0].toString());
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Adjust the impact of efficiency on the final grade. Correctness will account for the remaining {calculateCorrectnessWeight()}%.
+                  </p>
                 </div>
               </div>
             )}
           </div>
-
-          {/* Summary */}
-          {formData.gradingMode === "auto" && (
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="text-xs text-gray-600 space-y-1">
-                <div className="flex justify-between">
-                  <span>Test Case Weight:</span>
-                  <span className="font-semibold">{calculateCorrectnessWeight()}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Efficiency Weight:</span>
-                  <span className="font-semibold">{formData.efficiencyEnabled ? formData.efficiencyWeight : 0}%</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-gray-300 font-semibold text-gray-900">
-                  <span>Total:</span>
-                  <span>100%</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -8,6 +8,8 @@ import {
   type InstructionDef,
 } from "@/lib/playground/instructionDefs";
 import { VIRTUAL_PORTS, VirtualPort } from "@/lib/playground/ports";
+import ModernDropdown from "@/components/ui/ModernDropdown";
+import { Cpu, Terminal, Hash, LayoutGrid, Binary, Tag } from "lucide-react";
 
 type AddressMode = "imm" | "reg";
 type SrcMode = "imm" | "reg";
@@ -73,23 +75,23 @@ export default React.memo(function PropertyPanel({
     value?: string;
     onChange: (v: string) => void;
     disabledOption?: string;
-  }) => (
-    <select
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full h-10 rounded-md border px-2 bg-white"
-    >
-      <option value="" disabled>
-        Select Register
-      </option>
-      {registers.map((r) => (
-        <option key={r} value={r} disabled={disabledOption === r}>
-          {r}
-          {disabledOption === r ? " (in use)" : ""}
-        </option>
-      ))}
-    </select>
-  );
+  }) => {
+    const options = registers.map((r) => ({
+      label: r + (disabledOption === r ? " (in use)" : ""),
+      value: r,
+      disabled: disabledOption === r,
+      icon: Cpu
+    }));
+
+    return (
+      <ModernDropdown
+        value={value}
+        onChange={onChange}
+        options={options}
+        placeholder="Select Register"
+      />
+    );
+  };
 
   const InputByte = ({
     value,
@@ -167,7 +169,7 @@ export default React.memo(function PropertyPanel({
           onBlur={handleBlur}
           aria-invalid={!!error}
           className={cn(
-            "w-full h-10 rounded-md border px-2 bg-white",
+            "w-full h-10 rounded-md border border-gray-200 dark:border-slate-700 px-2 bg-white dark:bg-slate-900 dark:text-white",
             error ? "border-red-500 focus:outline-red-500" : "",
           )}
         />
@@ -194,10 +196,10 @@ export default React.memo(function PropertyPanel({
         type="button"
         onClick={onLeft}
         className={cn(
-          "px-3 h-8 rounded-full border text-xs",
+          "px-3 h-8 rounded-full border text-xs transition-colors",
           active === "left"
             ? "bg-violet-600 text-white border-violet-600"
-            : "bg-white",
+            : "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700",
         )}
       >
         {left}
@@ -206,10 +208,10 @@ export default React.memo(function PropertyPanel({
         type="button"
         onClick={onRight}
         className={cn(
-          "px-3 h-8 rounded-full border text-xs",
+          "px-3 h-8 rounded-full border text-xs transition-colors",
           active === "right"
             ? "bg-violet-600 text-white border-violet-600"
-            : "bg-white",
+            : "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700",
         )}
       >
         {right}
@@ -245,28 +247,38 @@ export default React.memo(function PropertyPanel({
     value?: number;
     onChange: (v: number) => void;
     type: "INPUT" | "OUTPUT";
-  }) => (
-    <select
-      value={value ?? ""}
-      onChange={(e) => {
-        const val = e.target.value;
-        if (val === "") return;
-        onChange(Number(val));
-      }}
-      className="w-full h-10 rounded-md border px-2 bg-white"
-    >
-      <option value="" disabled>
-        Select Port
-      </option>
-      {VIRTUAL_PORTS.filter((p) => p.type === type || p.type === "INOUT").map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
-        </option>
-      ))}
-      <option disabled>──────────</option>
-      <option value="-1">Custom (Type in...)</option>
-    </select>
-  );
+  }) => {
+    const getPortIcon = (id: number) => {
+      if (id === 0 || id === 1) return Terminal;
+      if (id === 2) return Hash;
+      if (id === 3) return LayoutGrid;
+      return Binary;
+    };
+
+    const options = VIRTUAL_PORTS.filter(
+      (p) => p.type === type || p.type === "INOUT"
+    ).map((p) => ({
+      label: p.name,
+      value: p.id,
+      icon: getPortIcon(p.id)
+    }));
+
+    // Add Custom option
+    options.push({
+      label: "Custom (Type in...)",
+      value: -1,
+      icon: Binary
+    });
+
+    return (
+      <ModernDropdown
+        value={value}
+        onChange={(v) => onChange(Number(v))}
+        options={options}
+        placeholder="Select Port"
+      />
+    );
+  };
 
   // Pattern routing -----------------------------------------------------------
   const NAME = def.name;
@@ -276,8 +288,8 @@ export default React.memo(function PropertyPanel({
   const isLoad = NAME === "LOAD";
   const isStore = NAME === "STORE";
   const isCmp = NAME === "CMP";
-  const isUnary = ["INC", "DEC", "NOT", "SHL", "SHR", "PUSH", "POP"].includes(NAME);
-  const hasSrcValueOrReg = ["MOV", "ADD", "SUB", "MUL", "DIV", "AND", "OR", "XOR"].includes(NAME); // DST <- (Value|Reg)
+  const isUnary = ["INC", "DEC", "NOT", "PUSH", "POP"].includes(NAME);
+  const hasSrcValueOrReg = ["MOV", "ADD", "SUB", "MUL", "DIV", "AND", "OR", "XOR", "NAND", "NOR", "XNOR", "SHL", "SHR"].includes(NAME); // DST <- (Value|Reg)
   const isIn = NAME === "IN";   // REG <- PORT
   const isOut = NAME === "OUT"; // PORT <- (Value|Reg)
 
@@ -291,10 +303,10 @@ export default React.memo(function PropertyPanel({
 
   // Render -----------------------------------------------------------
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 ">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 backdrop-blur-sm">
       <div
         ref={panelRef}
-        className="w-[320px] relative top-48 rounded-2xl bg-white shadow-xl p-5"
+        className="w-[320px] relative top-48 rounded-2xl bg-white dark:bg-slate-900 dark:border dark:border-slate-700 shadow-xl p-5 text-gray-900 dark:text-white"
         role="dialog"
         aria-modal="true"
       >
@@ -302,7 +314,7 @@ export default React.memo(function PropertyPanel({
           <h2 className="text-lg font-bold">Properties</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             aria-label="Close"
           >
             ✕
@@ -311,12 +323,14 @@ export default React.memo(function PropertyPanel({
 
         <div className="mb-4">
           <div className="text-xl font-extrabold">{NAME}</div>
-          <div className="text-gray-500">Instruction Description</div>
+          <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium leading-tight mt-1">
+            {def.description}
+          </div>
         </div>
 
         {/* 6) Zero-operand */}
         {isZero && (
-          <div className="text-gray-600">
+          <div className="text-gray-600 dark:text-gray-300">
             This instruction does not require any input.
           </div>
         )}
@@ -326,7 +340,7 @@ export default React.memo(function PropertyPanel({
           <div className="space-y-1">
             <L>Label Name</L>
             <input
-              className="w-full h-10 rounded-md border px-2 bg-white"
+              className="w-full h-10 rounded-md border border-gray-200 dark:border-slate-700 px-2 bg-white dark:bg-slate-900 dark:text-white"
               placeholder="Label name..."
               value={data.label ?? ""}
               onChange={(e) => patch({ label: e.target.value })}
@@ -338,20 +352,16 @@ export default React.memo(function PropertyPanel({
         {isJump && (
           <div className="space-y-1">
             <L>Jump to Label</L>
-            <select
-              className="w-full h-10 rounded-md border px-2 bg-white"
+            <ModernDropdown
               value={data.label ?? ""}
-              onChange={(e) => patch({ label: e.target.value })}
-            >
-              <option value="" disabled>
-                Select Label
-              </option>
-              {labels.map((lb) => (
-                <option key={lb} value={lb}>
-                  {lb}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => patch({ label: v })}
+              options={labels.map((lb) => ({
+                label: lb,
+                value: lb,
+                icon: Tag
+              }))}
+              placeholder="Select Label"
+            />
           </div>
         )}
 

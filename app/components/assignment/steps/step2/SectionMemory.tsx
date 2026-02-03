@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { HiPlus, HiSearch, HiOutlineChip } from "react-icons/hi";
 import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/Label";
 
 import { AssignmentFormData } from "@/types/assignment";
 import { MEMORY_CONFIG } from "@/lib/constants/playground";
@@ -74,42 +76,41 @@ export default function SectionMemory({
     .padStart(2, "0");
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4">
+    <Card>
+      <CardHeader className="bg-gray-50/50 border-b pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
             <HiOutlineChip className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Memory Initialization</h3>
-            <p className="text-sm text-gray-600">Set initial values for memory addresses</p>
+            <CardTitle className="text-lg">Memory Initialization</CardTitle>
+            <CardDescription>Set initial values for memory addresses</CardDescription>
           </div>
         </div>
-      </div>
-
-      <div className="p-6">
-        <p className="text-sm text-gray-600 mb-6">
-          Define initial memory values for specific addresses. Essential for providing input data like arrays or variables.
+      </CardHeader>
+      <CardContent className="pt-6">
+        <p className="text-sm text-muted-foreground mb-6">
+          Define initial memory values data inputs.
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Memory Grid */}
           <div className="lg:col-span-2">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Memory Map</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Memory Map</span>
               <div className="flex items-center gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 bg-green-200 border border-green-300 rounded"></div>
-                  <span className="text-gray-600">Set Value</span>
+                  <span className="text-muted-foreground">Set</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 bg-gray-100 border border-gray-300 rounded"></div>
-                  <span className="text-gray-600">Stack Reserved</span>
+                  <span className="text-muted-foreground">Stack</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-16 border-2 border-gray-300 rounded-xl overflow-hidden shadow-sm">
+            <div className="grid grid-cols-16 border rounded-xl overflow-hidden shadow-sm">
               {Array.from({ length: 256 }).map((_, i) => {
                 const isStack = i >= MEMORY_CONFIG.STACK_START;
                 const isSet = formData.initialMemory.some((m) => m.address === i);
@@ -121,7 +122,7 @@ export default function SectionMemory({
                     disabled={isStack}
                     onClick={() => setSelectedAddress(i)}
                     className={cn(
-                      "w-full aspect-square text-[9px] font-medium border-r border-b border-gray-200 transition-all duration-150",
+                      "w-full aspect-square text-[9px] font-medium border-r border-b transition-all duration-150",
                       isStack
                         ? "bg-gray-100 text-gray-300 cursor-not-allowed"
                         : "text-gray-500 hover:bg-blue-50 cursor-pointer",
@@ -150,10 +151,10 @@ export default function SectionMemory({
 
           {/* Control Panel */}
           <div className="lg:col-span-1">
-            <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl border-2 border-gray-200 p-5 space-y-4 sticky top-4">
-              <div className="text-center pb-3 border-b border-gray-200">
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Selected Address</div>
-                <div className="text-3xl font-bold text-indigo-600">0x{hexAddress}</div>
+            <div className="bg-muted/30 rounded-xl border p-5 space-y-4 sticky top-4">
+              <div className="text-center pb-3 border-b">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Selected Address</div>
+                <div className="text-3xl font-bold text-primary">0x{hexAddress}</div>
                 {selectedAddress >= MEMORY_CONFIG.STACK_START && (
                   <span className="inline-block mt-2 text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full font-medium">
                     Stack Reserved
@@ -162,61 +163,52 @@ export default function SectionMemory({
               </div>
 
               <form onSubmit={handleSetValue} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
-                    Jump to Address
-                  </label>
+                <div className="space-y-2">
+                  <Label>Jump to Address</Label>
                   <div className="relative">
-                    <input
+                    <Input
                       type="number"
                       min="0"
                       max="223"
                       placeholder="0-223"
                       value={searchValue}
                       onChange={handleSearchChange}
-                      className="block w-full pl-10 pr-4 py-2.5 text-sm font-medium text-gray-900 bg-white border-2 border-gray-300 rounded-lg
-                               hover:border-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 
-                               transition-all duration-200 outline-none"
+                      className="pl-10"
                     />
-                    <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
 
-                <div className="space-y-2 py-3 px-3 bg-white rounded-lg border border-gray-200">
+                <div className="space-y-2 py-3 px-3 bg-white rounded-lg border">
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Current Value (DEC):</span>
-                    <span className="font-bold text-gray-900">
+                    <span className="text-muted-foreground">Current Value (DEC):</span>
+                    <span className="font-bold text-foreground">
                       {currentMemoryEntry ? currentMemoryEntry.value : "Empty"}
                     </span>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
-                    Set Value (0-255)
-                  </label>
-                  <input
+                <div className="space-y-2">
+                  <Label>Set Value (0-255)</Label>
+                  <Input
                     type="number"
                     min="0"
                     max="255"
-                    placeholder="Enter value or leave empty"
+                    placeholder="Enter value"
                     value={currentValue}
                     onChange={(e) => setCurrentValue(e.target.value)}
-                    className="block w-full px-4 py-2.5 text-sm font-medium text-gray-900 bg-white border-2 border-gray-300 rounded-lg
-                             hover:border-gray-400 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 
-                             transition-all duration-200 outline-none"
                   />
                 </div>
 
-                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2">
-                  <HiPlus className="w-4 h-4" />
+                <Button type="submit" className="w-full">
+                  <HiPlus className="w-4 h-4 mr-2" />
                   Set Value
                 </Button>
               </form>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

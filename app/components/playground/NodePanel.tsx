@@ -54,17 +54,17 @@ export default React.memo(function NodePanel({
   }, [allow, hideStart, hideHlt]);
 
   return (
-    <div className="max-w-64 p-4 h-full overflow-y-auto bg-white border-r border-gray-200">
+    <div className="max-w-64 p-4 h-full overflow-y-auto bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800">
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-gray-400 dark:text-gray-500">
           No instructions allowed for this assignment.
         </p>
       ) : (
         <div className="space-y-4">
           {filtered.map((category) => (
             <div key={category.title}>
-              <h3 className="text-sm font-semibold text-gray-500 mb-2 px-2">
+              <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 px-2">
                 {category.title}
               </h3>
               <div className="space-y-2">
@@ -100,7 +100,15 @@ export default React.memo(function NodePanel({
                       >
                         {renderIcon()}
                       </span>
-                      <span className="font-semibold">{inst.name}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-semibold text-sm leading-none">{inst.name}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">
+                          {inst.arity === 0 ? "No operands" : `${inst.arity} operand${inst.arity > 1 ? "s" : ""}`}
+                        </span>
+                        <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight mt-1 truncate group-hover:whitespace-normal">
+                          {inst.description}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}

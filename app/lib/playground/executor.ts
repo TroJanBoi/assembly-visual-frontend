@@ -7,6 +7,7 @@
 import { ProgramItem, Operand } from '@/lib/api/playground';
 import { CPU, CPUState } from './cpu';
 import { IOHandler, VirtualIO, IOState } from './io';
+import { VIRTUAL_PORTS } from './ports';
 
 // --- Constants ---
 const UINT8_MASK = 0xFF;
@@ -31,6 +32,37 @@ function formatOperand(op: Operand): string {
     }
 }
 
+// Helper for educational value formatting
+function formatFullValue(val: number): string {
+    const v = val & 0xFF;
+    const hex = v.toString(16).toUpperCase().padStart(2, '0');
+
+    // Spaced binary nibbles (e.g. 0000 0000)
+    const binRaw = v.toString(2).padStart(8, '0');
+    const bin = `${binRaw.slice(0, 4)} ${binRaw.slice(4)}`;
+
+    // Hex-to-Char mapping (showing each hex digit as char)
+    const hexChars = hex.split('').map(c => `'${c}'`).join(', ');
+
+    // ASCII (32-126) - Only show if unique from hex chars
+    let ascii = '';
+
+    // Check if the hex chars already explain the output to avoid "doubled" confusion
+    // E.g. 55 -> 0x37 -> '3', '7'. ASCII for 55 is '7'. This is confusing.
+    // E.g. 65 -> 0x41 -> '4', '1'. ASCII for 65 is 'A'. This is useful.
+    if (v >= 32 && v <= 126) {
+        const char = String.fromCharCode(v);
+        // Only show ASCII if it provides NEW information (not just repeating a hex digit)
+        // AND it's not a common confusing overlap.
+        // Simple heuristic: If the ASCII char is exactly one of the hex digits, skip it.
+        if (!hexChars.includes(`'${char}'`)) {
+            ascii = `, '${char}'`;
+        }
+    }
+
+    return `${v} (0x${hex}, 0b${bin}, ${hexChars}${ascii})`;
+}
+
 export type ExecutionResult = {
     registers: Record<string, number>;
     flags: Record<string, number>;
@@ -43,8 +75,6 @@ export type ExecutionResult = {
         logs: import('./io').LogEntry[];
         consoleBuffer: string;
         sevenSegment: number;
-        ledMatrix: number[];
-        ledSelectedRow: number;
         outputLines: string[];
     };
 };
@@ -74,7 +104,7 @@ export async function executeProgram(
 
         // Validate START exists
         if (startId === null) {
-            console.error("❌ [executeProgram] NO START INSTRUCTION FOUND!");
+            console.error("[executeProgram] NO START INSTRUCTION FOUND!");
             return {
                 registers: initialState.registers,
                 flags: { Z: 0, C: 0, V: 0, O: 0 },
@@ -88,8 +118,8 @@ export async function executeProgram(
         // Initialize CPU
         const cpu = new CPU(initialState);
         cpu.pc = startId;
-        console.log("✅ [executeProgram] Found START at ID:", startId);
-        console.log("🔄 [executeProgram] Starting execution loop...");
+        console.log("[executeProgram] Found START at ID:", startId);
+        console.log("[executeProgram] Starting execution loop...");
         logs.push(`Starting execution at instruction ID ${startId}`);
 
         // Execution loop
@@ -144,8 +174,7 @@ export async function executeProgram(
             error: cpu.error,
             logs,
             io_state: {
-                ...snapshot,
-                ledMatrix: Array.from(snapshot.ledMatrix)
+                ...snapshot
             }
         };
 
@@ -194,11 +223,14 @@ export function executeInstruction(
     // 🔥 DEBUG LOG REQUESTED BY USER
     // console.log('🔥 EXECUTE:', instruction, 'ARGS:', JSON.stringify(operands));
 
-    // LOG TYPE: CPU_INTERNAL
-    // Format: [PC:xx] Instruction OP1, OP2
     const pcStr = `[0x${cpu.pc.toString(16).toUpperCase().padStart(2, '0')}]`;
     const argsStr = operands.map(formatOperand).join(', ');
-    ioHandler.addLog('CPU_INTERNAL', `${pcStr} ${instruction} ${argsStr}`);
+    const rawInstruction = `${instruction} ${argsStr}`;
+
+    // Initial log of raw instruction
+    ioHandler.addLog('CPU_INTERNAL', `${pcStr} ${rawInstruction}`);
+
+    let narrative = "";
 
     switch (instruction) {
         case 'START':
@@ -211,30 +243,33 @@ export function executeInstruction(
             cpu.halt();
             break;
 
-        case 'MOV': executeMOV(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'ADD': executeADD(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'SUB': executeSUB(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'INC': executeINC(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'DEC': executeDEC(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'MUL': executeMUL(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'DIV': executeDIV(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'AND': executeAND(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'OR': executeOR(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'XOR': executeXOR(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'NOT': executeNOT(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'SHL': executeSHL(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'SHR': executeSHR(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'MOV': narrative = executeMOV(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'ADD': narrative = executeADD(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'SUB': narrative = executeSUB(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'INC': narrative = executeINC(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'DEC': narrative = executeDEC(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'MUL': narrative = executeMUL(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'DIV': narrative = executeDIV(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'AND': narrative = executeAND(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'OR': narrative = executeOR(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'XOR': narrative = executeXOR(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'NAND': narrative = executeNAND(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'NOR': narrative = executeNOR(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'XNOR': narrative = executeXNOR(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'NOT': narrative = executeNOT(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'SHL': narrative = executeSHL(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'SHR': narrative = executeSHR(cpu, operands); cpu.pc = item.next || 0; break;
 
-        case 'LOAD': executeLOAD(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'STORE': executeSTORE(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'PUSH': executePUSH(cpu, operands); cpu.pc = item.next || 0; break;
-        case 'POP': executePOP(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'LOAD': narrative = executeLOAD(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'STORE': narrative = executeSTORE(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'PUSH': narrative = executePUSH(cpu, operands); cpu.pc = item.next || 0; break;
+        case 'POP': narrative = executePOP(cpu, operands); cpu.pc = item.next || 0; break;
 
-        case 'IN': executeIN(cpu, operands, logs, ioHandler); cpu.pc = item.next || 0; break;
-        case 'OUT': executeOUT(cpu, operands, logs, ioHandler); cpu.pc = item.next || 0; break;
+        case 'IN': narrative = executeIN(cpu, operands, logs, ioHandler); cpu.pc = item.next || 0; break;
+        case 'OUT': narrative = executeOUT(cpu, operands, logs, ioHandler); cpu.pc = item.next || 0; break;
 
         case 'CMP':
-            executeCMP(cpu, operands);
+            narrative = executeCMP(cpu, operands);
             if (cpu.flags.Z === 1) {
                 cpu.pc = (item as any).next_true || 0;
             } else {
@@ -243,46 +278,81 @@ export function executeInstruction(
             break;
 
         case 'JMP':
-            cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
+            const targetJmp = resolveJumpTarget(operands, instructionMap);
+            cpu.pc = targetJmp || (item.next || 0);
+            narrative = `Jumping to ${operands[0].value}`;
             break;
 
         case 'JZ':
-            cpu.pc = cpu.flags.Z === 1
-                ? (resolveJumpTarget(operands, instructionMap) || (item.next || 0))
-                : getNextNonJump(item, instructionMap);
+            if (cpu.flags.Z === 1) {
+                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
+                narrative = `Zero flag is set (Z=1). Jumping to ${operands[0].value}`;
+            } else {
+                cpu.pc = getNextNonJump(item, instructionMap);
+                narrative = `Zero flag is not set (Z=0). No jump.`;
+            }
             break;
 
         case 'JNZ':
-            cpu.pc = cpu.flags.Z === 0
-                ? (resolveJumpTarget(operands, instructionMap) || (item.next || 0))
-                : getNextNonJump(item, instructionMap);
+            if (cpu.flags.Z === 0) {
+                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
+                narrative = `Zero flag is clear (Z=0). Jumping to ${operands[0].value}`;
+            } else {
+                cpu.pc = getNextNonJump(item, instructionMap);
+                narrative = `Zero flag is set (Z=1). No jump.`;
+            }
             break;
 
         case 'JC':
-            cpu.pc = cpu.flags.C === 1 ? (item.next || 0) : getNextNonJump(item, instructionMap);
+            if (cpu.flags.C === 1) {
+                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
+                narrative = `Carry flag is set (C=1). Jumping to ${operands[0].value}`;
+            } else {
+                cpu.pc = getNextNonJump(item, instructionMap);
+                narrative = `Carry flag is not set (C=0). No jump.`;
+            }
             break;
 
         case 'JNC':
-            cpu.pc = cpu.flags.C === 0 ? (item.next || 0) : getNextNonJump(item, instructionMap);
+            if (cpu.flags.C === 0) {
+                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
+                narrative = `Carry flag is clear (C=0). Jumping to ${operands[0].value}`;
+            } else {
+                cpu.pc = getNextNonJump(item, instructionMap);
+                narrative = `Carry flag is set (C=1). No jump.`;
+            }
             break;
 
         case 'JN':
-            cpu.pc = cpu.flags.N === 1 ? (item.next || 0) : getNextNonJump(item, instructionMap);
+            if (cpu.flags.N === 1) {
+                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
+                narrative = `Negative flag is set (N=1). Jumping to ${operands[0].value}`;
+            } else {
+                cpu.pc = getNextNonJump(item, instructionMap);
+                narrative = `Negative flag is not set (N=0). No jump.`;
+            }
             break;
 
         case 'CALL':
             const returnAddress = item.next ?? 0;
             cpu.push(returnAddress);
             cpu.pc = resolveJumpTarget(operands, instructionMap) || 0;
+            narrative = `Calling subroutine at ${operands[0].value}. Return address ${returnAddress} pushed to stack.`;
             break;
 
         case 'RET':
             const retAddr = cpu.pop();
             cpu.pc = retAddr;
+            narrative = `Returning from subroutine to address ${retAddr}.`;
             break;
 
         default:
             throw new Error(`Unknown instruction: ${instruction}`);
+    }
+
+    // Log the narrative if available
+    if (narrative) {
+        ioHandler.addLog('SYSTEM', `↳ ${narrative}`);
     }
 }
 
@@ -354,15 +424,16 @@ function getOperandValue(cpu: CPU, operand: Operand): number {
 
 // ===== Operation Handlers =====
 
-function executeMOV(cpu: CPU, operands: Operand[]) {
+function executeMOV(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 2) throw new Error('MOV requires 2 operands');
     const [dest, src] = operands;
-    // Note: getOperandValue works for Src. Dest must be validated.
     if (dest.type !== 'Register') throw new Error('MOV destination must be a register');
-    cpu.setRegister(dest.value, getOperandValue(cpu, src));
+    const val = getOperandValue(cpu, src);
+    cpu.setRegister(dest.value, val);
+    return `${dest.value} <- ${formatFullValue(val)} (Copy ${val} to ${dest.value})`;
 }
 
-function executeADD(cpu: CPU, operands: Operand[]) {
+function executeADD(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 2) throw new Error('ADD requires 2 operands');
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('ADD destination must be a register');
@@ -373,9 +444,10 @@ function executeADD(cpu: CPU, operands: Operand[]) {
 
     cpu.setRegister(dest.value, result);
     cpu.setFlags(result, result > MAX_UINT8, calculateOverflow(destValue, srcValue, result, false));
+    return `Add ${srcValue} to ${destValue}, result ${formatFullValue(result)} stored in ${dest.value}`;
 }
 
-function executeSUB(cpu: CPU, operands: Operand[]) {
+function executeSUB(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 2) throw new Error('SUB requires 2 operands');
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('SUB destination must be a register');
@@ -386,9 +458,10 @@ function executeSUB(cpu: CPU, operands: Operand[]) {
 
     cpu.setRegister(dest.value, result);
     cpu.setFlags(result, result < 0, calculateOverflow(destValue, srcValue, result, true));
+    return `Subtract ${srcValue} from ${destValue}, result ${formatFullValue(result)} stored in ${dest.value}`;
 }
 
-function executeINC(cpu: CPU, operands: Operand[]) {
+function executeINC(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 1) throw new Error('INC requires 1 operand');
     const [dest] = operands;
     if (dest.type !== 'Register') throw new Error('INC operand must be a register');
@@ -397,9 +470,10 @@ function executeINC(cpu: CPU, operands: Operand[]) {
     const result = value + 1;
     cpu.setRegister(dest.value, result);
     cpu.setFlags(result, result > MAX_UINT8);
+    return `Increment ${dest.value} by 1, result is ${formatFullValue(result)}`;
 }
 
-function executeDEC(cpu: CPU, operands: Operand[]) {
+function executeDEC(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 1) throw new Error('DEC requires 1 operand');
     const [dest] = operands;
     if (dest.type !== 'Register') throw new Error('DEC operand must be a register');
@@ -408,19 +482,25 @@ function executeDEC(cpu: CPU, operands: Operand[]) {
     const result = value - 1;
     cpu.setRegister(dest.value, result);
     cpu.setFlags(result, result < 0);
+    return `Decrement ${dest.value} by 1, result is ${formatFullValue(result)}`;
 }
 
-function executeCMP(cpu: CPU, operands: Operand[]) {
+function executeCMP(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 2) throw new Error('CMP requires 2 operands');
     const [op1, op2] = operands;
     const val1 = getOperandValue(cpu, op1);
     const val2 = getOperandValue(cpu, op2);
     const result = val1 - val2;
-    // CMP acts like SUB but discards result. Preserve V flag logic.
     cpu.setFlags(result, result < 0, calculateOverflow(val1, val2, result, true));
+
+    let relation = "equal to";
+    if (val1 > val2) relation = "greater than";
+    if (val1 < val2) relation = "less than";
+
+    return `Comparing ${val1} and ${val2}: ${val1} is ${relation} ${val2}. (Z=${cpu.flags.Z}, C=${cpu.flags.C})`;
 }
 
-function executeMUL(cpu: CPU, operands: Operand[]) {
+function executeMUL(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 2) throw new Error('MUL requires 2 operands');
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('MUL destination must be a register');
@@ -431,9 +511,10 @@ function executeMUL(cpu: CPU, operands: Operand[]) {
 
     cpu.setRegister(dest.value, result & UINT8_MASK);
     cpu.setFlags(result & UINT8_MASK, result > MAX_UINT8);
+    return `Multiply ${val1} by ${val2}, result ${formatFullValue(result)} stored in ${dest.value}`;
 }
 
-function executeDIV(cpu: CPU, operands: Operand[]) {
+function executeDIV(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 2) throw new Error('DIV requires 2 operands');
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('DIV destination must be a register');
@@ -445,19 +526,29 @@ function executeDIV(cpu: CPU, operands: Operand[]) {
     const result = Math.floor(val1 / val2);
     cpu.setRegister(dest.value, result);
     cpu.setFlags(result, false);
+    return `Divide ${val1} by ${val2}, result ${formatFullValue(result)} stored in ${dest.value}`;
 }
 
-function executeAND(cpu: CPU, operands: Operand[]) {
-    bitwiseOp(cpu, operands, (a, b) => a & b);
+function executeAND(cpu: CPU, operands: Operand[]): string {
+    return bitwiseOp(cpu, operands, (a, b) => a & b, 'AND');
 }
-function executeOR(cpu: CPU, operands: Operand[]) {
-    bitwiseOp(cpu, operands, (a, b) => a | b);
+function executeOR(cpu: CPU, operands: Operand[]): string {
+    return bitwiseOp(cpu, operands, (a, b) => a | b, 'OR');
 }
-function executeXOR(cpu: CPU, operands: Operand[]) {
-    bitwiseOp(cpu, operands, (a, b) => a ^ b);
+function executeXOR(cpu: CPU, operands: Operand[]): string {
+    return bitwiseOp(cpu, operands, (a, b) => a ^ b, 'XOR');
 }
-function bitwiseOp(cpu: CPU, operands: Operand[], op: (a: number, b: number) => number) {
-    if (operands.length !== 2) throw new Error('Bitwise Op requires 2 operands');
+function executeNAND(cpu: CPU, operands: Operand[]): string {
+    return bitwiseOp(cpu, operands, (a, b) => ~(a & b) & UINT8_MASK, 'NAND');
+}
+function executeNOR(cpu: CPU, operands: Operand[]): string {
+    return bitwiseOp(cpu, operands, (a, b) => ~(a | b) & UINT8_MASK, 'NOR');
+}
+function executeXNOR(cpu: CPU, operands: Operand[]): string {
+    return bitwiseOp(cpu, operands, (a, b) => ~(a ^ b) & UINT8_MASK, 'XNOR');
+}
+function bitwiseOp(cpu: CPU, operands: Operand[], op: (a: number, b: number) => number, name: string): string {
+    if (operands.length !== 2) throw new Error(`${name} requires 2 operands`);
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('Destination must be register');
     const val1 = cpu.getRegister(dest.value);
@@ -465,9 +556,10 @@ function bitwiseOp(cpu: CPU, operands: Operand[], op: (a: number, b: number) => 
     const res = op(val1, val2);
     cpu.setRegister(dest.value, res);
     cpu.setFlags(res, false);
+    return `Perform ${name} on ${val1} and ${val2}, result ${formatFullValue(res)} stored in ${dest.value}`;
 }
 
-function executeNOT(cpu: CPU, operands: Operand[]) {
+function executeNOT(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 1) throw new Error('NOT requires 1 operand');
     const [dest] = operands;
     if (dest.type !== 'Register') throw new Error('NOT operand must be register');
@@ -475,16 +567,17 @@ function executeNOT(cpu: CPU, operands: Operand[]) {
     const res = (~val) & UINT8_MASK;
     cpu.setRegister(dest.value, res);
     cpu.setFlags(res, false);
+    return `Invert bits of ${val} (NOT), result ${formatFullValue(res)} stored in ${dest.value}`;
 }
 
-function executeSHL(cpu: CPU, operands: Operand[]) {
-    shiftOp(cpu, operands, (a, b) => (a << b) & UINT8_MASK);
+function executeSHL(cpu: CPU, operands: Operand[]): string {
+    return shiftOp(cpu, operands, (a, b) => (a << b) & UINT8_MASK, 'SHL');
 }
-function executeSHR(cpu: CPU, operands: Operand[]) {
-    shiftOp(cpu, operands, (a, b) => (a >>> b) & UINT8_MASK);
+function executeSHR(cpu: CPU, operands: Operand[]): string {
+    return shiftOp(cpu, operands, (a, b) => (a >>> b) & UINT8_MASK, 'SHR');
 }
-function shiftOp(cpu: CPU, operands: Operand[], op: (a: number, b: number) => number) {
-    if (operands.length !== 2) throw new Error('Shift Op requires 2 operands');
+function shiftOp(cpu: CPU, operands: Operand[], op: (a: number, b: number) => number, name: string): string {
+    if (operands.length !== 2) throw new Error(`${name} requires 2 operands`);
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('Destination must be register');
     const val = cpu.getRegister(dest.value);
@@ -492,9 +585,10 @@ function shiftOp(cpu: CPU, operands: Operand[], op: (a: number, b: number) => nu
     const res = op(val, shift);
     cpu.setRegister(dest.value, res);
     cpu.setFlags(res, false);
+    return `Shift ${val} ${name === 'SHL' ? 'left' : 'right'} by ${shift} bits, result ${formatFullValue(res)} stored in ${dest.value}`;
 }
 
-function executeLOAD(cpu: CPU, operands: Operand[]) {
+function executeLOAD(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 2) throw new Error('LOAD requires 2 operands');
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('LOAD destination must be a register');
@@ -504,10 +598,12 @@ function executeLOAD(cpu: CPU, operands: Operand[]) {
         throw new Error(`Access Violation: Cannot read from Stack Memory (${address})`);
     }
 
-    cpu.setRegister(dest.value, cpu.readMemory(address));
+    const val = cpu.readMemory(address);
+    cpu.setRegister(dest.value, val);
+    return `Load value from Memory Address ${address} into ${dest.value}. Value is ${formatFullValue(val)}`;
 }
 
-function executeSTORE(cpu: CPU, operands: Operand[]) {
+function executeSTORE(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 2) throw new Error('STORE requires 2 operands');
     const [dest, src] = operands;
     if (src.type !== 'Register') throw new Error('STORE source must be a register');
@@ -517,49 +613,58 @@ function executeSTORE(cpu: CPU, operands: Operand[]) {
         throw new Error(`Access Violation: Cannot write to Stack Memory (${address})`);
     }
 
-    cpu.writeMemory(address, cpu.getRegister(src.value));
+    const val = cpu.getRegister(src.value);
+    cpu.writeMemory(address, val);
+    return `Store value from ${src.value} (${formatFullValue(val)}) into Memory Address ${address}`;
 }
 
-function executePUSH(cpu: CPU, operands: Operand[]) {
+function executePUSH(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 1) throw new Error('PUSH requires 1 operand');
-    cpu.push(getOperandValue(cpu, operands[0]));
+    const val = getOperandValue(cpu, operands[0]);
+    cpu.push(val);
+    return `Pushed ${formatFullValue(val)} to stack. SP is now ${cpu.sp}`;
 }
 
-function executePOP(cpu: CPU, operands: Operand[]) {
+function executePOP(cpu: CPU, operands: Operand[]): string {
     if (operands.length !== 1) throw new Error('POP requires 1 operand');
     const [dest] = operands;
     if (dest.type !== 'Register') throw new Error('POP destination must be a register');
-    cpu.setRegister(dest.value, cpu.pop());
+    const val = cpu.pop();
+    cpu.setRegister(dest.value, val);
+    return `Popped ${formatFullValue(val)} from stack into ${dest.value}. SP is now ${cpu.sp}`;
 }
 
-function executeIN(cpu: CPU, operands: Operand[], logs: string[], io: IOHandler) {
+function executeIN(cpu: CPU, operands: Operand[], logs: string[], io: IOHandler): string {
     if (operands.length !== 2) throw new Error('IN requires 2 operands');
     const [dest, src] = operands;
     if (dest.type !== 'Register') throw new Error('IN destination must be a register');
     const port = getOperandValue(cpu, src);
     const value = io.onRead(port);
 
-    // BUG FIX #6: Blocking I/O - throw exception if no input available
     if (value === null) {
         throw new Error('INPUT_REQUIRED');
     }
 
     if (logs) logs.push(`> Input from port ${port}: ${value}`);
     cpu.setRegister(dest.value, value);
+
+    const portName = VIRTUAL_PORTS.find(p => p.id === port)?.name || `Port ${port}`;
+    return `Read value from ${portName} into ${dest.value}. Value is ${formatFullValue(value)}`;
 }
 
-function executeOUT(cpu: CPU, operands: Operand[], logs: string[], io: IOHandler) {
+function executeOUT(cpu: CPU, operands: Operand[], logs: string[], io: IOHandler): string {
     if (operands.length !== 2) throw new Error('OUT requires 2 operands');
     const [portOp, valOp] = operands;
     const portVal = getOperandValue(cpu, portOp);
     const value = getOperandValue(cpu, valOp);
 
-    // 1. Virtual IO (Side Effects like Console)
     io.onWrite(portVal, value);
 
-    // 2. Port State Update (Persistent Hardware State)
     if (!cpu.ports) cpu.ports = {};
-    cpu.ports[portVal] = value & 0xFF; // Ensure 8-bit
+    cpu.ports[portVal] = value & 0xFF;
 
     if (logs) logs.push(`> OUT Port ${portVal}: ${value}`);
+
+    const portName = VIRTUAL_PORTS.find(p => p.id === portVal)?.name || `Port ${portVal}`;
+    return `Output ${formatFullValue(value)} to ${portName}`;
 }

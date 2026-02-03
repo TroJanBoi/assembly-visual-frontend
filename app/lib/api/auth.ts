@@ -34,8 +34,6 @@ export interface SigninResponse {
     id?: string | number;
     email?: string;
     name?: string;
-    role?: string;
-    tel?: string;
     picture_path?: string | null;
   };
   token?: string;

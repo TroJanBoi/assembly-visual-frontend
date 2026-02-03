@@ -1,20 +1,16 @@
-// app/class/create/page.tsx
+
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClass } from "@/lib/api/class";
-import { AssignmentFormData } from "@/types/assignment";
-import { decodeToken, getToken } from "@/lib/auth/token";
-
-// import Swal from "sweetalert2";
-// import withReactContent from "sweetalert2-react-content";
-// import "sweetalert2/dist/sweetalert2.min.css";
+import { getToken, decodeToken } from "@/lib/auth/token";
 import { toast } from "sonner";
-
-// const MySwal = withReactContent(Swal);
+import { CLASS_BANNERS } from "@/lib/constants/banners";
+import BannerSelectionModal from "@/components/class/BannerSelectionModal";
+import { Plus } from "lucide-react";
 
 type Privacy = "public" | "private";
 
@@ -23,40 +19,15 @@ export default function CreateClassPage() {
   const [privacy, setPrivacy] = useState<Privacy>("public");
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
-  const [syncGC, setSyncGC] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
-  const [banner, setBanner] = useState<File | null>(null);
+
+  // Default to first banner (or 0) if desired, or null to force selection
+  const [bannerId, setBannerId] = useState<number>(0);
+  const [showBannerModal, setShowBannerModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  const previewUrl = useMemo(() => {
-    if (!banner) return "";
-    return URL.createObjectURL(banner);
-  }, [banner]);
-
-  const onPick = () => inputRef.current?.click();
-
-  const onDrop: React.DragEventHandler<HTMLDivElement> = (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) validateAndSet(file);
-  };
-
-  const validateAndSet = (file: File) => {
-    const okType = /image\/(png|jpeg)/.test(file.type);
-    const okSize = file.size <= 4 * 1024 * 1024; // 4MB
-    if (!okType)
-      return toast.warning("Only JPG or PNG is supported.");
-    if (!okSize)
-      return toast.warning("Max file size is 4MB.");
-    setBanner(file);
-  };
-
-  const onFileChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    const f = e.target.files?.[0];
-    if (f) validateAndSet(f);
-  };
+  const selectedBanner = useMemo(() => {
+    return CLASS_BANNERS.find((b) => b.id === bannerId);
+  }, [bannerId]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,21 +38,11 @@ export default function CreateClassPage() {
     try {
       setSubmitting(true);
 
-      const token = getToken();
-      const decoded = token ? decodeToken(token) : null;
-      const userId = decoded?.user_id;
-
       const classData = {
-        owner: userId,
         topic: name.trim(),
         description: desc.trim(),
         status: privacy === "public" ? 0 : 1,
-        google_course_id:
-          syncGC && inviteCode.trim() ? inviteCode.trim() : undefined,
-        google_course_link:
-          syncGC && inviteCode.trim()
-            ? `https://classroom.google.com/c/${inviteCode.trim()}`
-            : undefined,
+        banner_id: bannerId,
       };
 
       console.log(classData);
@@ -148,63 +109,44 @@ export default function CreateClassPage() {
 
       {/* Form */}
       <form onSubmit={onSubmit} className="mt-6 space-y-6 pb-28">
-        {/* Banner uploader – ทั้งกรอบคลิกได้ */}
-        <div
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={onDrop}
-          className="relative rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700
-                    bg-white dark:bg-slate-900 p-8 cursor-pointer focus-within:ring-2
-                    focus-within:ring-[color:rgba(104,127,229,0.35)]"
-        >
-          {/* input ทับทั้งกรอบ */}
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/png,image/jpeg"
-            onChange={onFileChange}
-            aria-label="Upload class banner"
-            className="absolute inset-0 z-10 opacity-0 cursor-pointer"
-          />
-
-          {previewUrl ? (
-            <div className="relative w-full h-40 sm:h-56 lg:h-64 rounded-xl overflow-hidden ring-1 ring-gray-200 pointer-events-none">
-              <Image
-                src={previewUrl}
-                alt="Banner preview"
-                fill
-                className="object-cover"
+        {/* Banner Selector */}
+        <div>
+          <label className="text-sm font-medium mb-2 block">Class Banner</label>
+          <div
+            onClick={() => setShowBannerModal(true)}
+            className="group relative w-full h-40 sm:h-56 lg:h-64 rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-indigo-600 transition-all ring-offset-2 hover:shadow-lg"
+          >
+            {selectedBanner ? (
+              <div
+                className="w-full h-full transition-transform duration-500 group-hover:scale-105"
+                style={selectedBanner.style}
               />
-              <div className="absolute inset-0 bg-black/20" />
-            </div>
-          ) : (
-            <div className="text-center text-gray-500 pointer-events-none">
-              <div className="mx-auto w-14 h-14 rounded-xl grid place-items-center text-indigo-600 bg-indigo-50 mb-3">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  fill="none"
-                  strokeWidth="1.8"
-                >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+            ) : (
+              <div className="w-full h-full bg-gray-100 dark:bg-slate-800 flex flex-col items-center justify-center text-gray-400">
+                <div className="p-4 rounded-full bg-white dark:bg-slate-700 shadow-sm mb-2">
+                  <Plus size={24} />
+                </div>
+                <span className="font-medium">Select a banner</span>
               </div>
-              <div className="font-medium">
-                Upload your banner class,{" "}
-                <span className="text-indigo-600 underline underline-offset-4">
-                  Browse
-                </span>
-              </div>
-              <p className="text-xs mt-1">
-                Image files must be a maximum of 4MB in size.
-              </p>
-              <div className="mt-3 text-xs text-gray-400 flex items-center justify-center gap-6">
-                <span>*Supported jpg, png</span>
-                <span>*Recommended size 1200×400</span>
+            )}
+
+            {/* Overlay hint */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+              <div className="bg-white/90 dark:bg-slate-900/90 text-gray-900 dark:text-white px-4 py-2 rounded-lg text-sm font-medium opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all shadow-lg">
+                Change Banner
               </div>
             </div>
-          )}
+
+            {/* Selected Name Badge */}
+            {selectedBanner && (
+              <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm text-gray-700 dark:text-gray-200 pointer-events-none">
+                {selectedBanner.name}
+              </div>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Choose a visual theme for your class from our gallery.
+          </p>
         </div>
 
         {/* Class name */}
@@ -240,41 +182,11 @@ export default function CreateClassPage() {
                        focus:ring-[color:rgba(104,127,229,0.18)]"
           />
         </div>
-
-        {/* Google Classroom sync */}
-        <div className="space-y-2">
-          <label className="inline-flex items-start gap-3 select-none">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 rounded accent-indigo-600"
-              checked={syncGC}
-              onChange={(e) => setSyncGC(e.target.checked)}
-            />
-            <div>
-              <div className="font-medium">Sync with Google Classroom</div>
-              <p className="text-xs text-gray-500">
-                You can connect Google Classroom with Blylab Classroom to add
-                assignments and submit grades to Google Classroom.
-              </p>
-            </div>
-          </label>
-
-          <input
-            disabled={!syncGC}
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            placeholder="Enter your class invitation code"
-            className="mt-2 h-11 w-full rounded-lg border border-gray-200 dark:border-slate-700 px-3 text-sm
-                       disabled:opacity-60 disabled:cursor-not-allowed
-                       outline-none focus:border-indigo-600 focus:ring-4
-                       focus:ring-[color:rgba(104,127,229,0.18)]"
-          />
-        </div>
       </form>
 
       {/* Sticky action bar */}
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-white/80 dark:bg-slate-900/80 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-6 py-3 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-6 py-3 flex items-center justify-end gap-6">
           <Link
             href="/class"
             className="h-10 px-4 rounded-lg border inline-flex items-center justify-center text-sm hover:bg-gray-50 dark:hover:bg-slate-800"
@@ -291,6 +203,13 @@ export default function CreateClassPage() {
           </button>
         </div>
       </div>
+
+      <BannerSelectionModal
+        open={showBannerModal}
+        onClose={() => setShowBannerModal(false)}
+        onSelect={setBannerId}
+        selectedId={bannerId}
+      />
     </div>
   );
 }

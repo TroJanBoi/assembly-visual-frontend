@@ -25,9 +25,10 @@ describe('CPU Core Logic', () => {
             id: 1,
             instruction,
             operands,
-            type: 'instruction',
-            position: { x: 0, y: 0 },
-            data: {}
+            label: '',
+            next: null,
+            next_true: null,
+            next_false: null
         };
         instructionMap.set(1, item);
         executeInstruction(cpu, item, instructionMap, [], io);
