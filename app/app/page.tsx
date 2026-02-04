@@ -270,12 +270,12 @@ export default function Overview() {
                         {/* Profile 2 */}
                         <div className="flex justify-center">
                             <ProfileCard
-                                name="xx"
+                                name="Peerapol Srisawat"
                                 title="Backend Devoloper"
-                                handle="Perapon"
+                                handle="Peerapol"
                                 status="Building"
                                 contactText="Portfolio"
-                                avatarUrl="https://ui-avatars.com/api/?name=Perapon+pil&background=random"
+                                avatarUrl="https://ui-avatars.com/api/?name=Peerapol+Srisawatw&background=random"
                                 showUserInfo={true}
                                 enableTilt={true}
                                 enableMobileTilt={false}
@@ -285,12 +285,12 @@ export default function Overview() {
                         {/* Profile 3 */}
                         <div className="flex justify-center">
                             <ProfileCard
-                                name="xx"
-                                title="Fullstack Devoloper"
-                                handle="xx"
+                                name="Patipan"
+                                title="CEO & Product Manager"
+                                handle="Patipan"
                                 status="Online"
                                 contactText="Connect"
-                                avatarUrl="https://ui-avatars.com/api/?name=xx&background=random" // Different mock ID
+                                avatarUrl="https://ui-avatars.com/api/?name=Patipan&background=random" // Different mock ID
                                 showUserInfo={true}
                                 enableTilt={true}
                                 enableMobileTilt={false}
