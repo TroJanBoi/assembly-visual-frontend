@@ -32,8 +32,6 @@ const SevenSegmentDigit = ({ char }: { char: string }) => {
     // Decode char to segments
     const active = SEGMENT_MAP[char.toUpperCase()] || SEGMENT_MAP['0']; // Default to 0 if invalid
 
-    // SVG Paths (Approximate geometry for slanted segments)
-    // ViewBox 0 0 50 80
 
     const poly = {
         a: "12,2 40,2 36,10 8,10",

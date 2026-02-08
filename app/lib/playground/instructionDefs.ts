@@ -35,8 +35,8 @@ export type InstructionDef = {
   description: string;
   color: keyof typeof colorStyles;
   icon: IconDef;
-  size: NodeSize; // Controls quantized width
-  arity: 0 | 1 | 2; // Number of operands (for layout variant)
+  size: NodeSize;
+  arity: 0 | 1 | 2;
   layout: NodeLayout;
   operands?: OperandKind[];
 };

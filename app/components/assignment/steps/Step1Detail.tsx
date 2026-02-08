@@ -5,7 +5,7 @@ import {
   HiOutlineClock,
   HiOutlineRefresh
 } from "react-icons/hi";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/Input";
@@ -127,7 +127,7 @@ export default function Step1Detail({
                           !formData.dueDate && "text-muted-foreground"
                         )}
                       >
-                        {formData.dueDate ? (
+                        {formData.dueDate && isValid(new Date(formData.dueDate.split('T')[0] + "T00:00:00")) ? (
                           /* Parse YYYY-MM-DD from the stored string to avoid TZ shifts */
                           format(new Date(formData.dueDate.split('T')[0] + "T00:00:00"), "PPP")
                         ) : (
@@ -140,7 +140,7 @@ export default function Step1Detail({
                       <Calendar
                         mode="single"
                         selected={
-                          formData.dueDate
+                          formData.dueDate && isValid(new Date(formData.dueDate.split('T')[0] + "T00:00:00"))
                             ? new Date(formData.dueDate.split('T')[0] + "T00:00:00")
                             : undefined
                         }

@@ -265,16 +265,7 @@ function executeInstructionStep(
 
         case 'JC':
             if (cpu.flags.C === 1) {
-                cpu.pc = (item.next || 0); // Assuming next contains jump target? 
-                // Wait, resolveJumpTarget isn't used here in original code? 
-                // Original code: cpu.pc = cpu.flags.C === 1 ? (item.next || 0) : getNextNonJump(item); 
-                // Using item.next for Jumps seems wrong if it's a Label Jump. 
-                // But let's stick to existing logic for correctness of flow, just add narrative.
-                // Actually, for Jump instructions in this AST, usually `operands[0]` is label, 
-                // and `resolveJumpTarget` finds the ID. 
-                // The original code `item.next` might be relying on the parser pre-resolving?
-                // StepExecutor JMP uses `resolveJumpTarget`. JC uses `item.next`. consistency issue?
-                // Let's use `resolveJumpTarget` for safety if operands exist.
+                cpu.pc = (item.next || 0);
                 const target = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
                 cpu.pc = target;
                 return `Carry flag is set (C=1). Jumping to ${operands[0].value}`;

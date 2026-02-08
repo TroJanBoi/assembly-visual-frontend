@@ -31,22 +31,12 @@ export async function validateSubmission(
     let totalPassed = 0;
 
     for (const testCase of testCases) {
-        // Setup IO with pre-fed input
-        // Since VirtualIO receives input char-by-char or string, checks implementation.
-        // VirtualIO.receiveInput(key) -> buffers it.
-        // We need a custom IO handler or just preload the buffer?
-        // VirtualIO doesn't support preloading input queue easily in current implementation.
-        // Let's modify VirtualIO or subclass it for testing.
 
         class TestIO extends VirtualIO {
             private inputQueue: string[] = [];
 
             constructor(inputs: string[]) {
                 super();
-                // Split inputs into characters or keep as lines?
-                // The current IN instruction reads char code.
-                // If input is ["10"], it likely means user typed "1", "0", "Enter".
-                // We should simulate that.
                 for (const line of inputs) {
                     for (const char of line) {
                         this.inputQueue.push(char);
@@ -55,8 +45,6 @@ export async function validateSubmission(
                 }
             }
 
-            // Override receiveInput or just use onRead?
-            // CPU calls onRead(0).
             onRead(port: number): number | null {
                 if (port === 0) {
                     if (this.inputQueue.length > 0) {
@@ -84,11 +72,7 @@ export async function validateSubmission(
             io
         );
 
-        // Collect OUTPUT logs
-        // result.logs is mixed system/debug/io.
-        // We want strict user output.
-        // Let's filter result.logs for lines starting with "> OUT Port 0:" (from executor.ts)
-        // Or better, check io.getSnapshot().logs with type 'OUTPUT'.
+
 
         // Wait, VirtualIO adds to logs array.
         const snapshot = io.getSnapshot();
@@ -101,9 +85,7 @@ export async function validateSubmission(
             actualOutput.push(snapshot.consoleBuffer);
         }
 
-        // Verify
-        // Loose equality check (ignoring whitespace) or strict?
-        // Let's do strict equality of lines.
+
 
         // The expectedOutput is array of strings.
         const passed = JSON.stringify(actualOutput) === JSON.stringify(testCase.expectedOutput);
