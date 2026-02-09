@@ -80,10 +80,54 @@ export default React.memo(function PlaygroundCanvas({
         defaultEdgeOptions={{
           type: 'default',
           animated: false,
+          markerEnd: {
+            type: 'arrowclosed',
+            width: 20,
+            height: 20,
+            color: '#64748b',
+          },
         }}
         connectionLineType={ConnectionLineType.Bezier}
         fitView
       >
+        <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+          <defs>
+            {/* Modern arrow marker for regular edges */}
+            <marker
+              id="arrow-default"
+              markerWidth="20"
+              markerHeight="20"
+              refX="10"
+              refY="10"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path
+                d="M 0 0 L 20 10 L 0 20 L 5 10 z"
+                fill="#64748b"
+                strokeWidth="0"
+              />
+            </marker>
+
+            {/* Modern arrow marker for circuit loop edges */}
+            <marker
+              id="arrow-loop"
+              markerWidth="20"
+              markerHeight="20"
+              refX="10"
+              refY="10"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path
+                d="M 0 0 L 20 10 L 0 20 L 5 10 z"
+                fill="#818CF8"
+                strokeWidth="0"
+              />
+            </marker>
+          </defs>
+        </svg>
+
         <Background
           gap={16}
           size={1}

@@ -151,12 +151,91 @@ const CategoryItem = ({
     );
 };
 
+// Sub-component for expanded category with toggle
+const ExpandedCategoryItem = ({
+    cat,
+    onDragStart,
+}: {
+    cat: { title: string; instructions: InstructionDef[] };
+    onDragStart: (event: React.DragEvent, nodeType: string) => void;
+}) => {
+    const [isOpen, setIsOpen] = useState(true);
+    const Icon = CATEGORY_ICONS[cat.title] || MoreHorizontal;
+
+    return (
+        <div className="border-b border-gray-100 last:border-0 pb-2">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1 hover:text-gray-600 transition-colors py-2"
+            >
+                <div className="flex items-center gap-2">
+                    <Icon size={14} className="text-gray-400" />
+                    <span>{cat.title}</span>
+                </div>
+                {isOpen ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                )}
+            </button>
+
+            {isOpen && (
+                <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                    {cat.instructions.map((inst) => {
+                        const styles = colorStyles[inst.color] || colorStyles["gray"];
+                        const renderIcon = () => {
+                            if (typeof inst.icon === "string") {
+                                return <span>{inst.icon}</span>;
+                            }
+                            const IconComp = inst.icon as React.ElementType;
+                            return <IconComp size={16} />;
+                        };
+
+                        return (
+                            <div
+                                key={inst.name}
+                                className={cn(
+                                    "flex items-center gap-3 p-2 rounded-lg border cursor-grab transition-all select-none hover:shadow-sm hover:border-gray-300 bg-white",
+                                    styles.button
+                                )}
+                                onDragStart={(event) => onDragStart(event, inst.name)}
+                                draggable
+                            >
+                                <span
+                                    className={cn(
+                                        "w-8 h-8 grid place-items-center rounded-md border shrink-0 text-xs font-bold shadow-sm",
+                                        styles.iconBox
+                                    )}
+                                >
+                                    {renderIcon()}
+                                </span>
+                                <div className="flex flex-col min-w-0 text-left">
+                                    <span className="font-semibold text-sm leading-none text-gray-700">
+                                        {inst.name}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 mt-0.5 font-medium">
+                                        {inst.arity === 0 ? "No operands" : `${inst.arity} operand${inst.arity > 1 ? "s" : ""}`}
+                                    </span>
+                                    <p className="text-[10px] text-gray-500 leading-tight mt-1 line-clamp-2 text-left">
+                                        {inst.description}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export default React.memo(function SlimToolbar({
     allowedInstructions,
     hideStart,
     hideHlt,
 }: Props) {
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
+    const [isExpanded, setIsExpanded] = useState(true); // NEW: Expanded state
 
     const allow = useMemo(() => {
         const s = new Set<string>(
@@ -189,24 +268,68 @@ export default React.memo(function SlimToolbar({
     }, [allow, hideStart, hideHlt]);
 
     return (
-        <aside className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-4 z-40 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] relative">
+        <aside
+            className={cn(
+                "bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out z-40 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] relative",
+                isExpanded ? "w-64" : "w-16"
+            )}
+        >
+            {/* Context-Aware Header (Toggle) */}
+            <div
+                className={cn(
+                    "h-10 flex items-center justify-between px-3 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors",
+                    isExpanded ? "bg-gray-50" : "justify-center"
+                )}
+                onClick={() => setIsExpanded(!isExpanded)}
+                title={isExpanded ? "Collapse Toolbar" : "Expand Toolbar"}
+            >
+                {isExpanded ? (
+                    <>
+                        <div className="flex items-center gap-2 text-gray-700">
+                            <MoreHorizontal size={18} />
+                            <span className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                                Components
+                            </span>
+                        </div>
+                        <div className="rotate-180"><ArrowRightLeft size={14} /></div>
+                    </>
+                ) : (
+                    <ArrowRightLeft size={18} className="text-gray-500" />
+                )}
+            </div>
 
-
-            <nav className="flex flex-col gap-3 w-full">
-                {filteredCategories.map((cat) => (
-                    <CategoryItem
-                        key={cat.title}
-                        cat={cat}
-                        isActive={activeCategory === cat.title}
-                        onHover={setActiveCategory}
-                        onLeave={() => {
-                            // Only clear if this specific category is still trying to close itself
-                            // (Though with React state, setting null is enough)
-                            setActiveCategory((prev) => (prev === cat.title ? null : prev));
-                        }}
-                    />
-                ))}
-            </nav>
+            {/* Content Container */}
+            <div className={cn("flex-1 w-full custom-scrollbar",
+                isExpanded ? "overflow-y-auto overflow-x-hidden" : "visible items-center flex flex-col"
+            )}>
+                {isExpanded ? (
+                    /* EXPANDED VIEW: Full list grouped by category */
+                    <div className="px-4 pb-4 space-y-4 animate-in fade-in duration-300 pt-3">
+                        {filteredCategories.map((cat) => (
+                            <ExpandedCategoryItem
+                                key={cat.title}
+                                cat={cat}
+                                onDragStart={onDragStart}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    /* COLLAPSED VIEW: Icons only with Hover Flyouts */
+                    <nav className="flex flex-col gap-3 w-full items-center py-4">
+                        {filteredCategories.map((cat) => (
+                            <CategoryItem
+                                key={cat.title}
+                                cat={cat}
+                                isActive={activeCategory === cat.title}
+                                onHover={setActiveCategory}
+                                onLeave={() => {
+                                    setActiveCategory((prev) => (prev === cat.title ? null : prev));
+                                }}
+                            />
+                        ))}
+                    </nav>
+                )}
+            </div>
         </aside>
     );
 });

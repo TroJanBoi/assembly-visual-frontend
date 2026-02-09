@@ -68,7 +68,7 @@ export default function CircuitLoopEdge({
     return (
         <BaseEdge
             path={edgePath}
-            markerEnd={markerEnd}
+            markerEnd={markerEnd || 'url(#arrow-loop)'}
             style={{
                 ...style,
                 strokeWidth: 2,
