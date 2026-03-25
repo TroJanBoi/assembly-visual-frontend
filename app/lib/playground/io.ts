@@ -151,7 +151,8 @@ export class VirtualIO implements IOHandler {
                 break;
 
             case 3: // LED Panel
-                // Port 3 is mapped to LED Panel
+                // Store value for state capture (cpu.ports is also updated by executor)
+                this.addLog('IO_VISUAL', `LED Panel: ${this.formatValue(val)}`);
                 break;
 
 

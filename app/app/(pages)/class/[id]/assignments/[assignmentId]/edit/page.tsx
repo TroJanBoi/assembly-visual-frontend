@@ -14,7 +14,7 @@ import {
 } from "@/types/assignment";
 
 // Import APIs
-import { getClassById, Class } from "@/lib/api/class";
+import { Class } from "@/lib/api/class";
 import {
     getAssignmentById,
     updateAssignment,
@@ -62,7 +62,7 @@ export default function EditAssignmentPage() {
     const assignmentId = params.assignmentId as string;
 
     const [currentStep, setCurrentStep] = useState<Step>("detail");
-    const [classData, setClassData] = useState<Class | null>(null);
+    // const [classData, setClassData] = useState<Class | null>(null); // Unused
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
 
@@ -105,12 +105,12 @@ export default function EditAssignmentPage() {
         const fetchData = async () => {
             try {
                 setIsFetching(true);
-                const [cls, assignment, suites] = await Promise.all([
-                    getClassById(classId),
+                const [assignment, suites] = await Promise.all([
                     getAssignmentById(classId, assignmentId),
                     getTestSuitesForAssignment(parseInt(classId), parseInt(assignmentId)),
                 ]);
-                setClassData(cls);
+
+                // classData was unused, removed.
 
                 // Map existing assignment data to form data
                 // NOTE: This mapping logic needs to be robust to handle potentially null/missing fields 

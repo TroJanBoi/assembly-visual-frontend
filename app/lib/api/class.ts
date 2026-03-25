@@ -109,14 +109,32 @@ export async function joinClass(
   );
 }
 
-export async function toggleBookmark(
-  classId: string | number
-): Promise<{ bookmarked: boolean; message: string }> {
-  const pathId = typeof classId === "number" ? classId.toString() : classId;
-  return apiFetch<{ bookmarked: boolean; message: string }>(
-    `/api/v2/classroom/${pathId}/bookmark`,
-    { method: "POST" }
+export async function joinClassWithCode(
+  code: string,
+): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(
+    `/api/v2/classroom/join-with-code/${code}`,
+    {
+      method: "POST",
+    },
   );
+}
+
+export async function toggleBookmark(
+  classId: string | number,
+  isRemoving: boolean = false
+): Promise<{ bookmarked: boolean; message: string }> {
+  const pathId = typeof classId === "number" ? classId : Number(classId);
+
+  return apiFetch<{ bookmarked: boolean; message: string }>("/api/v2/bookmark/", {
+    method: isRemoving ? "DELETE" : "POST",
+    body: JSON.stringify({ class_id: pathId }),
+  });
+}
+
+export async function getBookmarks(): Promise<Class[]> {
+  const data = await apiFetch<{ bookmarks: Class[] }>("/api/v2/bookmark/");
+  return data.bookmarks || [];
 }
 export async function updateClass(
   classId: string | number,

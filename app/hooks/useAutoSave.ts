@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Node, Edge } from 'reactflow';
 
-const STORAGE_KEY = 'cpu-sim-playground-v1';
-
 export function useAutoSave(
   nodes: Node[],
   edges: Edge[],
@@ -14,7 +12,7 @@ export function useAutoSave(
 
   // Load on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const { nodes: savedNodes, edges: savedEdges, memory: savedMemory } = JSON.parse(saved);
@@ -27,7 +25,7 @@ export function useAutoSave(
       }
     }
     setLoaded(true);
-  }, []); // Empty dependency array -> Run once on mount
+  }, [storageKey]); // Add storageKey to deps
 
   // Save on change (debounced)
   useEffect(() => {
@@ -40,16 +38,16 @@ export function useAutoSave(
       // 'loaded' flag protects us from saving the initial [] before we tried to load.
 
       const data = JSON.stringify({ nodes, edges, memory });
-      localStorage.setItem(STORAGE_KEY, data);
+      localStorage.setItem(storageKey, data);
     }, 1000); // 1s debounce
 
     return () => clearTimeout(timer);
-  }, [nodes, edges, memory, loaded]);
+  }, [nodes, edges, memory, loaded, storageKey]); // Add storageKey to deps
 
   const resetSave = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey);
     window.location.reload(); // Simple reload to reset state as requested
-  }, []);
+  }, [storageKey]); // Add storageKey to deps
 
   return { loaded, resetSave };
 }

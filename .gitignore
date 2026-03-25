@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+app/.next/
+app/out/
+app/build/
+
+# Production
+build/
+dist/
+
+# Debug / Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+app/build_log.txt
+app/ts_errors.txt
+app/ts_errors_utf8.txt
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+app/next-env.d.ts
+
+# Testing output
+app/playwright-report/
+app/test-results/
+
+# Temp / Editor files
+HEAD_page.tsx.txt
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/settings.json
+
+# Package manager
+package-lock.json

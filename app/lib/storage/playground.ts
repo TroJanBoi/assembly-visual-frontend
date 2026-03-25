@@ -41,8 +41,14 @@ export function saveToLocalStorage(
         };
         localStorage.setItem(key, JSON.stringify(payload));
         console.log(`[LocalStorage] Saved playground ${assignmentId} for user ${userId}`);
-    } catch (e) {
-        console.error('[LocalStorage] Save failed:', e);
+    } catch (e: any) {
+        if (e.name === 'QuotaExceededError') {
+            console.error('[LocalStorage] Quota exceeded! Storage is full. Consider clearing old data.');
+        } else {
+            console.error('[LocalStorage] Save failed:', e);
+        }
+        // Re-throw to let caller know save failed
+        throw e;
     }
 }
 
@@ -66,11 +72,17 @@ export function loadFromLocalStorage(
             return null;
         }
 
+        // Schema Validation: Ensure required fields exist
+        if (!data.react_flow && !data.cpu_state) {
+            console.warn('[LocalStorage] Invalid schema - missing required fields (react_flow or cpu_state)');
+            return null;
+        }
+
         console.log(`[LocalStorage] Loaded playground ${assignmentId} for user ${userId}`);
         return data;
     } catch (e) {
         console.error('[LocalStorage] Load failed:', e);
-        return null;
+        return null; // Safe fallback
     }
 }
 

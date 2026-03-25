@@ -200,20 +200,34 @@ export async function runTestCase(
                 const port = parseInt(cond.location);
                 const expectedVal = cond.value;
 
-                // Get all output content: committed lines + pending buffer
-                const snapshot = io.getSnapshot();
-                const actualOutputs = [...snapshot.outputLines];
-                if (snapshot.consoleBuffer) {
-                    actualOutputs.push(snapshot.consoleBuffer);
+                if (port === 0 || port === 1) {
+                    // Get all output content: committed lines + pending buffer
+                    const snapshot = io.getSnapshot();
+                    const actualOutputs = [...snapshot.outputLines];
+                    if (snapshot.consoleBuffer) {
+                        actualOutputs.push(snapshot.consoleBuffer);
+                    }
+
+                    // Try exact match first, then trimmed match
+                    passed = actualOutputs.some(out =>
+                        out === expectedVal || out.trim() === expectedVal.trim()
+                    );
+                    
+                    actual = actualOutputs.length > 0 ? actualOutputs.join(', ') : '(no output)';
+                } else if (port === 2) {
+                    // 7-segment
+                    const val = finalState.ports?.[2] ?? 0;
+                    actual = val.toString();
+                    passed = checkCondition(val, expectedVal);
+                } else if (port === 3) {
+                    // LED panel
+                    const val = finalState.ports?.[3] ?? 0;
+                    actual = val.toString();
+                    passed = checkCondition(val, expectedVal);
+                } else {
+                    actual = `Port ${port} unsupported`;
+                    passed = false;
                 }
-
-                // Try exact match first, then trimmed match
-                passed = actualOutputs.some(out =>
-                    out === expectedVal || out.trim() === expectedVal.trim()
-                );
-
-                // Construct actual value string for feedback
-                actual = actualOutputs.length > 0 ? actualOutputs.join(', ') : '(no output)';
                 break;
         }
 

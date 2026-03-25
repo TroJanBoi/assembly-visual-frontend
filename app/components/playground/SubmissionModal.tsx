@@ -19,6 +19,7 @@ interface SubmissionModalProps {
     userId: number;
     playgroundId?: number;
     onSubmissionComplete: () => void;
+    rawPlaygroundData?: any;
 }
 
 type Step = "running" | "calculating" | "graded" | "submitting" | "completed" | "error";
@@ -33,6 +34,7 @@ export default function SubmissionModal({
     userId,
     playgroundId,
     onSubmissionComplete,
+    rawPlaygroundData,
 }: SubmissionModalProps) {
     const [step, setStep] = useState<Step>("running");
     const [progress, setProgress] = useState(0);
@@ -150,7 +152,11 @@ export default function SubmissionModal({
                 assignment_id: assignment.id,
                 playground_id: playgroundId,
                 attempt_no: attemptNo,
-                item_snapshot: { items: program, cpu_state: defaultCpuState },
+                item_snapshot: { 
+                    items: program, 
+                    cpu_state: defaultCpuState,
+                    react_flow: rawPlaygroundData?.react_flow
+                },
                 client_result: {
                     test_results: results[0] || { suiteId: "none", results: [], timestamp: Date.now() },
                     passed_count: passedTests,

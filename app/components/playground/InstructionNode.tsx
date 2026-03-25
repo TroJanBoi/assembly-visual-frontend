@@ -202,7 +202,7 @@ export default memo(function InstructionNode({
     <div
       style={{ width: nodeWidth }}
       className={cn(
-        "rounded-2xl border-2 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group overflow-hidden",
+        "rounded-2xl border-2 transition-all duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] group overflow-hidden",
         "flex flex-row items-center h-14",
         // getBorderColorClass(), // Use style border by default, override on active
         styles.borderColor,

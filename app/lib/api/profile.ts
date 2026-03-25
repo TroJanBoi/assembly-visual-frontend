@@ -11,6 +11,7 @@ export type Profile = {
 
 export type EditProfilePayload = {
   name?: string;
+  email?: string;
   username?: string;
   picture_path?: string;
 };

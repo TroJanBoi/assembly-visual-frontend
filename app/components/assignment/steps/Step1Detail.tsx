@@ -127,9 +127,9 @@ export default function Step1Detail({
                           !formData.dueDate && "text-muted-foreground"
                         )}
                       >
-                        {formData.dueDate && isValid(new Date(formData.dueDate.split('T')[0] + "T00:00:00")) ? (
-                          /* Parse YYYY-MM-DD from the stored string to avoid TZ shifts */
-                          format(new Date(formData.dueDate.split('T')[0] + "T00:00:00"), "PPP")
+                        {formData.dueDate && isValid(new Date(formData.dueDate)) ? (
+                          /* Display in local time */
+                          format(new Date(formData.dueDate), "PPP")
                         ) : (
                           <span>Pick a date</span>
                         )}
@@ -140,16 +140,18 @@ export default function Step1Detail({
                       <Calendar
                         mode="single"
                         selected={
-                          formData.dueDate && isValid(new Date(formData.dueDate.split('T')[0] + "T00:00:00"))
-                            ? new Date(formData.dueDate.split('T')[0] + "T00:00:00")
+                          formData.dueDate && isValid(new Date(formData.dueDate))
+                            ? new Date(formData.dueDate)
                             : undefined
                         }
                         onSelect={(date) => {
                           if (date) {
-                            // Format as YYYY-MM-DD Local
-                            const dateString = format(date, "yyyy-MM-dd");
-                            // Append fixed UTC deadline time meant for the End of Day
-                            handleChange("dueDate", `${dateString}T23:59:59Z`);
+                            // Create a new date object for the selected day
+                            const selectedDate = new Date(date);
+                            // Set time to end of day in LOCAL time (23:59:59)
+                            selectedDate.setHours(23, 59, 59, 999);
+                            // Convert to UTC ISO string for storage/backend
+                            handleChange("dueDate", selectedDate.toISOString());
                           }
                         }}
                         disabled={(date) =>
@@ -161,7 +163,7 @@ export default function Step1Detail({
                   </Popover>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Students can submit until 23:59 on this date.
+                  Students can submit until 23:59 (Local Time) on this date.
                 </p>
               </div>
             </div>

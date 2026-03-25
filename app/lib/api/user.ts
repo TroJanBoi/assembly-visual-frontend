@@ -32,7 +32,8 @@ export type UserClassroom = {
  * Backend: GET /api/v2/user
  */
 export async function getAllUsers(): Promise<User[]> {
-    return apiFetch<User[]>("/api/v2/user", { method: "GET" });
+    const data = await apiFetch<User[] | null>("/api/v2/user/", { method: "GET" });
+    return Array.isArray(data) ? data : [];
 }
 
 /**
@@ -72,3 +73,25 @@ export async function updateUser(id: number, payload: UpdateUserPayload): Promis
 export async function deleteUser(id: number): Promise<{ message?: string }> {
     return apiFetch<{ message?: string }>(`/api/v2/user/${id}`, { method: "DELETE" });
 }
+
+export type TaskMeResponse = {
+    class_id: number;
+    banner_id: number;
+    favorite: number;
+    assignment_id: number;
+    assignment_title: string;
+    description: string;
+    max_attempt: number;
+    due_date: string;
+    /** "completed" | "overdue" | "in_progress" */
+    status: string;
+};
+
+/**
+ * Get all tasks for the authenticated user across all enrolled classes
+ * Backend: GET /api/v2/user/me/task
+ */
+export async function getMyTasks(): Promise<TaskMeResponse[]> {
+    return apiFetch<TaskMeResponse[]>("/api/v2/user/me/task", { method: "GET" });
+}
+

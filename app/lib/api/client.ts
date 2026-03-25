@@ -3,7 +3,10 @@ import { getToken, clearToken } from "../auth/token";
 import type { Playground } from "@/lib/api/playground";
 
 // If no environment variable is set, default to empty string to use relative path (Next.js proxy)
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+const isServer = typeof window === "undefined";
+export const API_BASE = isServer
+  ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || ""
+  : process.env.NEXT_PUBLIC_API_URL || "";
 
 const DEBUG_API =
   process.env.NEXT_PUBLIC_DEBUG_API === "1" ||

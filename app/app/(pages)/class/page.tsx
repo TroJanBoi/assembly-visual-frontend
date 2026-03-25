@@ -2,22 +2,23 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { HiPlus, HiOutlineArrowRight, HiChevronRight } from "react-icons/hi";
+import { HiChevronRight } from "react-icons/hi";
 
-import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
 import CreateClassModal from "@/components/class/CreateClassModal";
-import { getMyClasses, getJoinedClasses, Class, joinClass } from "@/lib/api/class";
+import { getMyClasses, getJoinedClasses, Class } from "@/lib/api/class";
 import { toast } from "sonner";
 import ClassCard from "@/components/class/ClassCard";
+import ClassCardSkeleton from "@/components/skeletons/ClassCardSkeleton";
+import CreateCard from "@/components/class/CreateCard";
+import JoinPrivateCard from "@/components/class/JoinPrivateCard";
 
 export default function ClassPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [joinOpen, setJoinOpen] = useState(false);
-  const [joinCode, setJoinCode] = useState("");
-  const [loading, setLoading] = useState(false);
   const [myClasses, setMyClasses] = useState<Class[]>([]);
   const [joinedClasses, setJoinedClasses] = useState<Class[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
+  const [joinedLoading, setJoinedLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchClasses = useCallback(async () => {
@@ -25,7 +26,7 @@ export default function ClassPage() {
       setError(null);
       const [owned, joined] = await Promise.all([
         getMyClasses(),
-        getJoinedClasses()
+        getJoinedClasses(),
       ]);
       setMyClasses(owned || []);
       setJoinedClasses(joined || []);
@@ -39,41 +40,35 @@ export default function ClassPage() {
     }
   }, []);
 
+  // Refresh only the joined classes list (used after joining)
+  const refreshJoinedClasses = useCallback(async () => {
+    setJoinedLoading(true);
+    try {
+      const joined = await getJoinedClasses();
+      setJoinedClasses(joined || []);
+    } catch (err: any) {
+      toast.error("Failed to refresh classes.");
+    } finally {
+      setJoinedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     setPageLoading(true);
     fetchClasses();
   }, [fetchClasses]);
 
-
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = joinCode.trim();
-    if (!code) return;
-
-    setLoading(true);
-    try {
-      const res = await joinClass(code);
-      setJoinOpen(false);
-      setJoinCode("");
-
-      toast.success("Joined Successfully!", {
-        description: res.message,
-      });
-
-      await fetchClasses();
-    } catch (err: any) {
-      toast.error("Join Failed", {
-        description: err.message || "Could not join the class. Please check the code.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (pageLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-        <p className="text-gray-500">Loading classes...</p>
+      <div className=" min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <Section title="My Classes" viewAllHref="/class/my" leadingCard={<CreateCard onOpen={() => { }} />}>
+            {[...Array(3)].map((_, i) => <ClassCardSkeleton key={i} />)}
+          </Section>
+          <Section title="Joined Classes" viewAllHref="/class/join" leadingCard={<div className="h-56 rounded-2xl bg-gray-100 animate-pulse" />}>
+            {[...Array(3)].map((_, i) => <ClassCardSkeleton key={i} />)}
+          </Section>
+        </div>
       </div>
     );
   }
@@ -86,6 +81,9 @@ export default function ClassPage() {
     );
   }
 
+  const displayedMyClasses = myClasses.slice(0, 3);
+  const displayedJoinedClasses = joinedClasses.slice(0, 3);
+
   return (
     <div className=" min-h-screen p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -95,7 +93,7 @@ export default function ClassPage() {
             viewAllHref="/class/my"
             leadingCard={<CreateCard onOpen={() => setCreateModalOpen(true)} />}
           >
-            {myClasses.map((item) => (
+            {displayedMyClasses.map((item) => (
               <ClassCard key={item.id} item={item} />
             ))}
           </Section>
@@ -103,38 +101,20 @@ export default function ClassPage() {
           <Section
             title="Joined Classes"
             viewAllHref="/class/join"
-            leadingCard={<JoinPrivateCard onOpen={() => setJoinOpen(true)} />}
+            leadingCard={
+              <JoinPrivateCard onJoinSuccess={refreshJoinedClasses} />
+            }
           >
-            {joinedClasses.map((item) => (
-              <ClassCard key={item.id} item={item} />
-            ))}
+            {joinedLoading
+              ? [...Array(Math.max(1, displayedJoinedClasses.length))].map((_, i) => (
+                <ClassCardSkeleton key={i} />
+              ))
+              : displayedJoinedClasses.map((item) => (
+                <ClassCard key={item.id} item={item} />
+              ))}
           </Section>
         </div>
       </div>
-
-      <Modal
-        open={joinOpen}
-        onClose={() => setJoinOpen(false)}
-        title="Join Private Class"
-      >
-        <form onSubmit={handleJoin} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Enter your class ID or code"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)}
-            className="w-full h-12 rounded-lg border border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-white px-4 text-base focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-900 outline-none transition"
-            autoFocus
-          />
-          <button
-            type="submit"
-            disabled={!joinCode.trim() || loading}
-            className="w-full h-12 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
-          >
-            {loading ? "Joining..." : "Join Class"}
-          </button>
-        </form>
-      </Modal>
 
       <CreateClassModal
         open={createModalOpen}
@@ -175,39 +155,5 @@ function Section({
         {children}
       </div>
     </section>
-  );
-}
-
-function CreateCard({ onOpen }: { onOpen: () => void }) {
-  return (
-    <button
-      onClick={onOpen}
-      className="group h-full w-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 flex flex-col items-center justify-center text-center hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-all duration-300"
-    >
-      <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-600 grid place-items-center mb-4 group-hover:scale-110 transition-transform">
-        <HiPlus className="w-7 h-7" />
-      </div>
-      <p className="font-semibold text-gray-800 dark:text-gray-100">Create New Class</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-        Start a new classroom for your assignments.
-      </p>
-    </button>
-  );
-}
-
-function JoinPrivateCard({ onOpen }: { onOpen: () => void }) {
-  return (
-    <button
-      onClick={onOpen}
-      className="group h-full w-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 flex flex-col items-center justify-center text-center hover:border-teal-500 dark:hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-slate-800 transition-all duration-300"
-    >
-      <div className="w-14 h-14 rounded-full bg-teal-100 text-teal-600 grid place-items-center mb-4 group-hover:scale-110 transition-transform">
-        <HiOutlineArrowRight className="w-6 h-6" />
-      </div>
-      <p className="font-semibold text-gray-800 dark:text-gray-100">Join Private Class</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-        Enter a class using an invite code.
-      </p>
-    </button>
   );
 }

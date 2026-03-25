@@ -22,6 +22,9 @@ export const metadata = {
   title: "BLYLAB.",
   description: "",
 };
+export const dynamic = "force-dynamic";
+
+import { BookmarkProvider } from "@/lib/context/BookmarkContext";
 
 export default function RootLayout({
   children,
@@ -43,7 +46,9 @@ export default function RootLayout({
         >
           <Toaster position="bottom-right" richColors />
           <GlobalLoadingProvider>
-            {children}
+            <BookmarkProvider>
+              {children}
+            </BookmarkProvider>
           </GlobalLoadingProvider>
         </ThemeProvider>
       </body>

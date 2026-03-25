@@ -13,8 +13,6 @@ import {
   HiAcademicCap,
   HiOutlineDocumentText,
   HiDocumentText,
-  HiOutlineCalendar,
-  HiCalendar,
   HiOutlineBookmark,
   HiBookmark,
   HiOutlineClock,
@@ -31,6 +29,7 @@ type NavItem = {
   label: string;
   iconOutline?: React.ComponentType<{ size?: number; className?: string }>;
   iconSolid?: React.ComponentType<{ size?: number; className?: string }>;
+  children?: NavItem[];
 };
 
 export default function SideBar({
@@ -104,9 +103,18 @@ export default function SideBar({
 
   const navItemsRaw: NavItem[] = items ?? [
     { href: "/home", label: "Home", iconOutline: HiOutlineHome, iconSolid: HiHome },
-    { href: "/class", label: "Class", iconOutline: HiOutlineAcademicCap, iconSolid: HiAcademicCap },
+    {
+      href: "/class",
+      label: "Classroom",
+      iconOutline: HiOutlineAcademicCap,
+      iconSolid: HiAcademicCap,
+      children: [
+        { href: "/class/public", label: "Public Class" },
+        { href: "/class/my", label: "My Classes" },
+        { href: "/class/join", label: "Joined Classes" },
+      ]
+    },
     { href: "/assignment", label: "Assignment", iconOutline: HiOutlineDocumentText, iconSolid: HiDocumentText },
-    { href: "/calendar", label: "Calendar", iconOutline: HiOutlineCalendar, iconSolid: HiCalendar },
     { href: "/bookmark", label: "Bookmark", iconOutline: HiOutlineBookmark, iconSolid: HiBookmark },
     { href: "/recent", label: "Recent", iconOutline: HiOutlineClock, iconSolid: HiClock },
   ];
@@ -171,12 +179,8 @@ export default function SideBar({
           href="/"
           className="flex items-center gap-3 text-gray-900 dark:text-gray-100 hover:text-blue-600 transition-colors duration-150"
         >
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white grid place-items-center font-bold text-sm">
-            BL
-          </div>
-
           <span
-            className={`font-semibold text-lg transition-all duration-150 ease-out overflow-hidden whitespace-nowrap ${isCollapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]"
+            className={`font-semibold text-xl transition-all duration-150 ease-out overflow-hidden whitespace-nowrap ${isCollapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]"
               }`}
           >
             BLYLAB.
@@ -205,43 +209,40 @@ export default function SideBar({
               pathname === item.href ||
               (item.href !== "/" && pathname?.startsWith(item.href + "/"));
 
-            const Icon = isActive
-              ? item.iconSolid ?? item.iconOutline
-              : item.iconOutline ?? item.iconSolid;
+            // Check if any child is active
+            const isChildActive = item.children?.some(
+              (child) => pathname === child.href || pathname?.startsWith(child.href + "/")
+            );
 
-            // ใช้ href+label+index ป้องกันซ้ำ แม้ input จะซ้ำมา
-            const key = `${item.href}__${item.label}__${idx}`;
+            // If item has children, render as a group (simplified for 2 levels)
+            if (item.children && item.children.length > 0) {
+              const isOpen = isActive || isChildActive; // Expand if active or child active. Could add state for toggle but keeping simple for now or use state.
+              // Let's use a local state for detailed control if needed, but for now let's try a simple approach:
+              // actually, specific requirement for submenus implies we might want them collapsible. 
+              // But since standard sidebar often just expands, let's make it expandable.
+              // Since we are mapping, we can't easily add state for *each* item without extracting a component or using a map of states.
+              // Given the constraints and simplicity, let's create a separate component or just handle it inline if simple.
+
+              // Refactoring to a separate component for recursion is cleaner but let's stick to inline for minimal diff if possible, 
+              // or better: extract `NavItemObj` render.
+
+              return (
+                <SidebarItem
+                  key={`${item.href}__${idx}`}
+                  item={item}
+                  isCollapsed={isCollapsed}
+                  pathname={pathname || ""}
+                />
+              );
+            }
 
             return (
-              <li key={key} className="relative">
-                <Link
-                  href={item.href}
-                  className={`
-            relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors duration-150
-            ${isCollapsed ? "" : "justify-start"}
-            ${isActive
-                      ? "bg-blue-50 text-blue-700 dark:bg-slate-800/60 dark:text-blue-300"
-                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100"
-                    }
-          `}
-                >
-                  <div
-                    className={`
-              flex-shrink-0 flex items-center justify-center
-              ${isCollapsed ? "w-full" : "w-5"}
-              ${isActive ? "text-blue-600 dark:text-blue-400" : ""}
-            `}
-                  >
-                    {Icon && <Icon size={24} />}
-                  </div>
-                  <span
-                    className={`transition-all duration-150 ease-out overflow-hidden whitespace-nowrap ${isCollapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]"
-                      }`}
-                  >
-                    {item.label}
-                  </span>
-                </Link>
-              </li>
+              <SidebarItem
+                key={`${item.href}__${idx}`}
+                item={item}
+                isCollapsed={isCollapsed}
+                pathname={pathname || ""}
+              />
             );
           })}
         </ul>
@@ -291,5 +292,123 @@ export default function SideBar({
         </button>
       </div>
     </motion.aside>
+  );
+}
+
+function SidebarItem({
+  item,
+  isCollapsed,
+  pathname
+}: {
+  item: NavItem;
+  isCollapsed: boolean;
+  pathname: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const isActive =
+    pathname === item.href ||
+    (item.href !== "/" && pathname?.startsWith(item.href + "/"));
+
+  // Auto-expand if child is active
+  const hasChildren = item.children && item.children.length > 0;
+  const isChildActive = hasChildren && item.children!.some(
+    (child) => pathname === child.href || pathname?.startsWith(child.href + "/")
+  );
+
+  useEffect(() => {
+    if (isChildActive) {
+      setIsOpen(true);
+    }
+  }, [isChildActive]);
+
+  const Icon = isActive
+    ? item.iconSolid ?? item.iconOutline
+    : item.iconOutline ?? item.iconSolid;
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isCollapsed) return;
+    setIsOpen(!isOpen);
+  };
+
+  return (
+    <li className="relative">
+      {/* Main Item */}
+      <div className="relative flex items-center">
+        <Link
+          href={item.href}
+          className={`
+              relative flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors duration-150
+              ${isCollapsed ? "" : "justify-start"}
+              ${isActive && !hasChildren // Highlight parent if active and no children 
+              ? "bg-blue-50 text-blue-700 dark:bg-slate-800/60 dark:text-blue-300"
+              : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100"
+            }
+            `}
+        >
+          <div
+            className={`
+                flex-shrink-0 flex items-center justify-center
+                ${isCollapsed ? "w-full" : "w-5"}
+                ${(isActive || isChildActive) ? "text-blue-600 dark:text-blue-400" : ""}
+              `}
+          >
+            {Icon && <Icon size={24} />}
+          </div>
+
+          <span
+            className={`flex-1 transition-all duration-150 ease-out overflow-hidden whitespace-nowrap ${isCollapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]"
+              }`}
+          >
+            {item.label}
+          </span>
+        </Link>
+
+        {/* Arrow for submenu - Separate button for toggle */}
+        {!isCollapsed && hasChildren && (
+          <button
+            onClick={handleToggle}
+            className="absolute right-2 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+          >
+            <HiOutlineChevronRight
+              size={16}
+              className={`transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+            />
+          </button>
+        )}
+      </div>
+
+      {/* Submenu */}
+      {!isCollapsed && hasChildren && isOpen && (
+        <motion.ul
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="ml-9 mt-1 space-y-1 border-l-2 border-gray-100 dark:border-slate-800 pl-2"
+        >
+          {item.children!.map((child, idx) => {
+            const isChildItemActive = pathname === child.href;
+            return (
+              <li key={idx}>
+                <Link
+                  href={child.href}
+                  className={`
+                      block px-3 py-2 rounded-md text-sm transition-colors
+                      ${isChildItemActive
+                      ? "text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-slate-800/40 font-medium"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800"
+                    }
+                   `}
+                >
+                  {child.label}
+                </Link>
+              </li>
+            );
+          })}
+        </motion.ul>
+      )}
+    </li>
   );
 }

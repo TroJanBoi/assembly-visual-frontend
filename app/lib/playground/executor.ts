@@ -270,23 +270,23 @@ export function executeInstruction(
 
         case 'CMP':
             narrative = executeCMP(cpu, operands);
-            if (cpu.flags.Z === 1) {
-                cpu.pc = (item as any).next_true || 0;
-            } else {
-                cpu.pc = (item as any).next_false || 0;
-            }
+            cpu.pc = getNextNonJump(item, instructionMap);
             break;
 
-        case 'JMP':
-            const targetJmp = resolveJumpTarget(operands, instructionMap);
-            cpu.pc = targetJmp || (item.next || 0);
-            narrative = `Jumping to ${operands[0].value}`;
+        case 'JMP': {
+            // Visual mode: use pre-compiled next_true wire. Fallback to label resolution.
+            const jmpTarget = (item as any).next_true ?? resolveJumpTarget(operands, instructionMap) ?? (item.next ?? 0);
+            cpu.pc = jmpTarget;
+            narrative = `Jumping to ${operands[0]?.value ?? '?'}`;
             break;
+        }
 
         case 'JZ':
             if (cpu.flags.Z === 1) {
-                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
-                narrative = `Zero flag is set (Z=1). Jumping to ${operands[0].value}`;
+                // TRUE: jump via pre-compiled wire, or fall back to label resolution
+                const jzTrue = (item as any).next_true ?? resolveJumpTarget(operands, instructionMap) ?? (item.next ?? 0);
+                cpu.pc = jzTrue;
+                narrative = `Zero flag is set (Z=1). Jumping to ${operands[0]?.value ?? '?'}`;
             } else {
                 cpu.pc = getNextNonJump(item, instructionMap);
                 narrative = `Zero flag is not set (Z=0). No jump.`;
@@ -295,8 +295,9 @@ export function executeInstruction(
 
         case 'JNZ':
             if (cpu.flags.Z === 0) {
-                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
-                narrative = `Zero flag is clear (Z=0). Jumping to ${operands[0].value}`;
+                const jnzTrue = (item as any).next_true ?? resolveJumpTarget(operands, instructionMap) ?? (item.next ?? 0);
+                cpu.pc = jnzTrue;
+                narrative = `Zero flag is clear (Z=0). Jumping to ${operands[0]?.value ?? '?'}`;
             } else {
                 cpu.pc = getNextNonJump(item, instructionMap);
                 narrative = `Zero flag is set (Z=1). No jump.`;
@@ -305,8 +306,9 @@ export function executeInstruction(
 
         case 'JC':
             if (cpu.flags.C === 1) {
-                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
-                narrative = `Carry flag is set (C=1). Jumping to ${operands[0].value}`;
+                const jcTrue = (item as any).next_true ?? resolveJumpTarget(operands, instructionMap) ?? (item.next ?? 0);
+                cpu.pc = jcTrue;
+                narrative = `Carry flag is set (C=1). Jumping to ${operands[0]?.value ?? '?'}`;
             } else {
                 cpu.pc = getNextNonJump(item, instructionMap);
                 narrative = `Carry flag is not set (C=0). No jump.`;
@@ -315,8 +317,9 @@ export function executeInstruction(
 
         case 'JNC':
             if (cpu.flags.C === 0) {
-                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
-                narrative = `Carry flag is clear (C=0). Jumping to ${operands[0].value}`;
+                const jncTrue = (item as any).next_true ?? resolveJumpTarget(operands, instructionMap) ?? (item.next ?? 0);
+                cpu.pc = jncTrue;
+                narrative = `Carry flag is clear (C=0). Jumping to ${operands[0]?.value ?? '?'}`;
             } else {
                 cpu.pc = getNextNonJump(item, instructionMap);
                 narrative = `Carry flag is set (C=1). No jump.`;
@@ -325,8 +328,9 @@ export function executeInstruction(
 
         case 'JN':
             if (cpu.flags.N === 1) {
-                cpu.pc = resolveJumpTarget(operands, instructionMap) || (item.next || 0);
-                narrative = `Negative flag is set (N=1). Jumping to ${operands[0].value}`;
+                const jnTrue = (item as any).next_true ?? resolveJumpTarget(operands, instructionMap) ?? (item.next ?? 0);
+                cpu.pc = jnTrue;
+                narrative = `Negative flag is set (N=1). Jumping to ${operands[0]?.value ?? '?'}`;
             } else {
                 cpu.pc = getNextNonJump(item, instructionMap);
                 narrative = `Negative flag is not set (N=0). No jump.`;
@@ -358,7 +362,8 @@ export function executeInstruction(
 
 // Helper: Get next sequential instruction
 function getNextNonJump(item: ProgramItem, map: Map<number, ProgramItem>): number {
-    return item.next || 0;
+    // Branching nodes map their 'False' wire termination to next_false.
+    return item.next ?? (item as any).next_false ?? 0;
 }
 
 // Helper: Resolve jump target from label operand

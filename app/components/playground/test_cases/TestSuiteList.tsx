@@ -188,7 +188,17 @@ function SuiteItem({
                             onClick={(e) => e.stopPropagation()}
                         />
                     ) : (
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{suite.name}</span>
+                        <span
+                            onDoubleClick={(e) => {
+                                if (!suite.locked && isOwner) {
+                                    e.stopPropagation();
+                                    setIsEditing(true);
+                                }
+                            }}
+                            className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate select-none"
+                        >
+                            {suite.name}
+                        </span>
                     )}
                 </div>
 
@@ -333,11 +343,19 @@ function CaseItem({
                     onClick={(e) => e.stopPropagation()}
                 />
             ) : (
-                <span className={cn(
-                    "truncate flex-1",
-                    testCase.isHidden && !isOwner && "text-gray-400 italic",
-                    testCase.isHidden && isOwner && "text-amber-600"
-                )}>
+                <span
+                    onDoubleClick={(e) => {
+                        if (!isLocked && isOwner && !testCase.isHidden) {
+                            e.stopPropagation();
+                            setIsEditing(true);
+                        }
+                    }}
+                    className={cn(
+                        "truncate flex-1 select-none",
+                        testCase.isHidden && !isOwner && "text-gray-400 italic",
+                        testCase.isHidden && isOwner && "text-amber-600"
+                    )}
+                >
                     {testCase.name}
                     {testCase.isHidden && " (Hidden)"}
                 </span>

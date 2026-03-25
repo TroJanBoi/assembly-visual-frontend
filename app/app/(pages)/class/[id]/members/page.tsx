@@ -14,11 +14,12 @@ import {
 } from "react-icons/hi";
 import { DateRange } from "react-day-picker";
 
-import { getClassMembers, Member, changeMemberRole, removeMember, getClassById, inviteMember } from "@/lib/api/class";
-import { getProfile } from "@/lib/api/profile";
+import { getClassMembers, Member, changeMemberRole, removeMember, inviteMember } from "@/lib/api/class";
+import { useClass } from "../ClassContext";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { InviteMemberDialog } from "@/components/class/InviteMemberDialog";
 import { HiOutlineClipboardCopy, HiOutlinePlus, HiCheck } from "react-icons/hi";
+import ClassToolHeader from "@/components/class/ClassToolHeader";
 
 import {
     DropdownMenu,
@@ -47,11 +48,14 @@ import { cn } from "@/lib/utils";
 export default function MemberPage() {
     const { id } = useParams() as { id: string };
     const router = useRouter();
+    const { classData, isOwner: contextIsOwner, loading: contextLoading } = useClass();
 
     const [members, setMembers] = useState<Member[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isOwner, setIsOwner] = useState(false);
-    const [classCode, setClassCode] = useState<string | null>(null);
+    // Removed local isOwner and classCode state, derived from context
+    const isOwner = contextIsOwner;
+    const classCode = classData?.code || null;
+
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
 
@@ -74,8 +78,10 @@ export default function MemberPage() {
     const [isFiltering, setIsFiltering] = useState(false);
 
     useEffect(() => {
-        fetchMembers();
-    }, [id]);
+        if (!contextLoading) {
+            fetchMembers();
+        }
+    }, [id, contextLoading]);
 
     useEffect(() => {
         if (loading) return;
@@ -84,24 +90,14 @@ export default function MemberPage() {
         return () => clearTimeout(timer);
     }, [searchQuery, dateRange, roleFilter]);
 
-    const showSkeleton = loading || isFiltering;
+    const showSkeleton = loading || isFiltering || contextLoading;
 
     const fetchMembers = async () => {
         const startTime = Date.now();
         try {
             setLoading(true);
 
-            const [membersData, classroom, profile] = await Promise.all([
-                getClassMembers(id),
-                getClassById(id),
-                getProfile()
-            ]);
-
-            // Check Ownership and Set Code
-            if (classroom && profile) {
-                setIsOwner(classroom.owner_id === profile.id);
-                setClassCode(classroom.code);
-            }
+            const membersData = await getClassMembers(id);
 
             // Ensure min 0.35s delay for smooth UI
             const elapsed = Date.now() - startTime;
@@ -304,58 +300,45 @@ export default function MemberPage() {
     return (
         <div className="min-h-screen bg-gray-50/50 pb-20">
             {/* Header */}
-            <div className="bg-white border-b sticky top-0 z-10">
-                <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Button variant="outline" size="icon" onClick={() => router.back()}>
-                                <HiChevronLeft className="h-5 w-5" />
-                            </Button>
-                            <div>
-                                <h1 className="text-xl font-bold text-gray-900">Class Members</h1>
-                                <p className="text-sm text-muted-foreground">
-                                    Manage students and instructors in this class
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            {isOwner && classCode && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleCopyCode}
-                                    className={cn(
-                                        "flex items-center gap-2 border-dashed border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-all",
-                                        copiedCode && "border-green-300 bg-green-50 text-green-700"
-                                    )}
-                                >
-                                    {copiedCode ? (
-                                        <HiCheck className="w-4 h-4" />
-                                    ) : (
-                                        <HiOutlineClipboardCopy className="w-4 h-4" />
-                                    )}
-                                    <span className="font-mono font-bold tracking-wider">{classCode}</span>
-                                </Button>
-                            )}
-                            {isOwner && (
-                                <Button
-                                    size="sm"
-                                    onClick={() => setIsInviteOpen(true)}
-                                    className="hidden sm:flex gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
-                                >
-                                    <HiOutlinePlus className="w-4 h-4" />
-                                    <span>Invite</span>
-                                </Button>
-                            )}
-                            <div className="text-sm font-medium bg-indigo-500/20 px-3 py-1 rounded-full text-indigo-600 whitespace-nowrap">
-                                <span className="font-bold ">{(members?.length || 0)}</span> <span className="hidden sm:inline">Total Members</span><span className="sm:hidden">Members</span>
-                            </div>
-                        </div>
-                    </div>
+            <ClassToolHeader
+                title="Class Members"
+                subtitle="Manage students and instructors in this class"
+                showBackButton
+            >
+                {isOwner && classCode && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyCode}
+                        className={cn(
+                            "flex items-center gap-2 border-dashed border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-all",
+                            copiedCode && "border-green-300 bg-green-50 text-green-700"
+                        )}
+                    >
+                        {copiedCode ? (
+                            <HiCheck className="w-4 h-4" />
+                        ) : (
+                            <HiOutlineClipboardCopy className="w-4 h-4" />
+                        )}
+                        <span className="font-mono font-bold tracking-wider">{classCode}</span>
+                    </Button>
+                )}
+                {isOwner && (
+                    <Button
+                        size="sm"
+                        onClick={() => setIsInviteOpen(true)}
+                        className="hidden sm:flex gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                    >
+                        <HiOutlinePlus className="w-4 h-4" />
+                        <span>Invite</span>
+                    </Button>
+                )}
+                <div className="text-sm font-medium bg-indigo-500/20 px-3 py-1 rounded-full text-indigo-600 whitespace-nowrap">
+                    <span className="font-bold ">{(members?.length || 0)}</span> <span className="hidden sm:inline">Total Members</span><span className="sm:hidden">Members</span>
                 </div>
-            </div>
+            </ClassToolHeader>
 
-            <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 space-y-6">
+            <div className="max-w-screen-xl mx-auto px-4 md:px-6 py-8 space-y-8">
                 {/* Toolbar */}
                 <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                     <div className="flex items-center gap-4 w-full md:w-auto flex-1">
@@ -387,7 +370,7 @@ export default function MemberPage() {
                 </div>
 
                 {/* Members Table */}
-                <Card className="border shadow-sm bg-white overflow-hidden">
+                <Card className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="relative w-full overflow-auto">
                         <Table>
                             <TableHeader className="bg-gray-50/50">

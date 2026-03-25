@@ -2,7 +2,7 @@
 import { getToken, decodeToken } from "@/lib/auth/token";
 import { generateUUID } from "@/lib/utils";
 import { useState, useCallback, useEffect, useRef, DragEvent } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   applyEdgeChanges,
   applyNodeChanges,
@@ -43,7 +43,7 @@ import { VirtualIO } from "@/lib/playground/io";
 import { CPU, CPUSnapshot } from "@/lib/playground/cpu";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { usePlaygroundDBSave, loadPlaygroundFromDB } from "@/hooks/usePlaygroundDB";
-import { saveToLocalStorage, loadFromLocalStorage, migrateLegacyStorage } from "@/lib/storage/playground";
+import { saveToLocalStorage, loadFromLocalStorage, migrateLegacyStorage, type PlaygroundLocalData } from "@/lib/storage/playground";
 import { ExecutionDeck, ExecutionMode } from "@/components/playground/ExecutionDeck";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -59,7 +59,13 @@ import {
   getSubmissions,
   getMySubmissions,
   Submission,
+  getSubmissionById,
 } from "@/lib/api/submission";
+import { useEditorStore } from "@/hooks/playground/useEditorStore";
+import { usePlaygroundExecution } from "@/hooks/playground/usePlaygroundExecution";
+import { usePlaygroundHotkeys } from "@/hooks/playground/usePlaygroundHotkeys";
+import { parseProgramItems } from "@/lib/playground/parser";
+import { CPUState, buildInitialCPUState, enforceRegisterConstraint } from "@/lib/playground/cpu-init";
 
 const nodeTypes: NodeTypes = { instruction: InstructionNode };
 const getId = () => generateUUID();
@@ -70,12 +76,6 @@ const getInstr = (n: Node) =>
   String(n.data?.instructionType || "").toUpperCase();
 
 // ===== Types & helpers =====
-type CPUState = {
-  registers: Record<string, number>;
-  flags: Record<string, number>;
-  memory: { address: number; value: number }[];
-  ports: Record<number, number>;
-};
 
 type AllowedMap = Record<string, 1>;
 type AllowedInstructions = {
@@ -102,55 +102,7 @@ function toLowerSetFromAllowed(
   return set;
 }
 
-function buildInitialCPUState(assignment: Assignment | null): CPUState {
-  const defaults: CPUState = {
-    registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0, R6: 0, R7: 0 },
-    flags: { Z: 0, C: 0, V: 0, O: 0 },
-    memory: [],
-    ports: { 3: 0 },
-  };
-  if (!assignment) return defaults;
 
-  const cond: any = assignment.condition || {};
-  let initState = cond.initial_state;
-  // Fallback: Check if initial_state is nested inside execution_constraints (Backwards compatibility/Type definition mismatch)
-  if (!initState && cond.execution_constraints?.initial_state) {
-    initState = cond.execution_constraints.initial_state;
-  }
-  initState = initState || {};
-
-  const execConstraints = cond.execution_constraints || {};
-
-  // 1. Build Registers based on register_count (default 8)
-  const regCount = typeof execConstraints.register_count === 'number' ? execConstraints.register_count : 8;
-  const registers: Record<string, number> = {};
-
-  // Initialize R0..Rn-1 with 0
-  for (let i = 0; i < regCount; i++) {
-    registers[`R${i}`] = 0;
-  }
-
-  // Overlay defined initial values from DB
-  if (initState.registers) {
-    // Ensure keys are upper case to match R0, R1...
-    for (const [k, v] of Object.entries(initState.registers)) {
-      registers[k.toUpperCase()] = Number(v);
-    }
-  }
-
-  // 2. Read memory from initial_state.memory
-  const initMem = initState.memory;
-  const memory: { address: number; value: number }[] = Array.isArray(initMem)
-    ? initMem
-    : [];
-
-  return {
-    registers,
-    flags: { Z: 0, C: 0, V: 0, O: 0 },
-    memory,
-    ports: { 3: 0 },
-  };
-}
 
 function getCurrentUserId(): number | string | undefined {
   try {
@@ -171,30 +123,16 @@ function pickPlaygroundId(...candidates: any[]): number | null {
   return null;
 }
 
-function enforceRegisterConstraint(cpu: CPUState, assignment: Assignment): CPUState {
-  if (!assignment) return cpu;
-  const defaults = buildInitialCPUState(assignment);
-  // defaults has correct keys based on assignment setting (e.g. 4 or 8)
 
-  const newRegs: Record<string, number> = {};
-
-  // Iterate strictly over DEFAULT keys (the source of truth for count)
-  for (const key of Object.keys(defaults.registers)) {
-    // Keep existing value if key exists in saved state, else use default
-    if (Object.prototype.hasOwnProperty.call(cpu.registers, key)) {
-      newRegs[key] = cpu.registers[key];
-    } else {
-      newRegs[key] = defaults.registers[key];
-    }
-  }
-
-  return { ...cpu, registers: newRegs };
-}
 
 export default function AssignmentPlaygroundPage() {
   const params = useParams();
   const router = useRouter();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
+  const searchParams = useSearchParams();
+  const submissionId = searchParams.get("submissionId");
+  const isReadOnly = !!submissionId;
 
   // Modal states
   const [testManagerOpen, setTestManagerOpen] = useState(false);
@@ -206,41 +144,63 @@ export default function AssignmentPlaygroundPage() {
   };
 
   const [assignment, setAssignment] = useState<Assignment | null>(null);
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+
+  // ==========================================
+  // Global Editor State (Zustand)
+  // ==========================================
+  const {
+    nodes, edges, variables,
+    setNodes, setEdges, setVariables,
+    onNodesChange, onEdgesChange, onConnect,
+    loadFromSave, takeSnapshot, undo, redo, canUndo, canRedo
+  } = useEditorStore();
+
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
-  // --- State for Execution Modes ---
+  // State missing from extraction + passed directly to usePlaygroundExecution
+  const ioHandlerRef = useRef<VirtualIO>(new VirtualIO());
+
+  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
   const [executionMode, setExecutionMode] = useState<ExecutionMode>("debug");
   const [testStatus, setTestStatus] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
 
-  // Execution Control State
-  const [isRunning, setIsRunning] = useState(false);
-  const [speed, setSpeed] = useState(2); // Hz
-  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
-
-  const [loading, setLoading] = useState(true);
-  const [playgroundLoaded, setPlaygroundLoaded] = useState(false);
-
-  // Execution state from BE
-  const [execRegisters, setExecRegisters] = useState<Record<string, number>>(
-    {},
-  );
-  const [execFlags, setExecFlags] = useState<Record<string, number>>({});
-  const [execMemorySparse, setExecMemorySparse] = useState<
-    Record<string, number>
-  >({});
-  const [execPorts, setExecPorts] = useState<Record<number, number>>({});
-  const [execOutputLines, setExecOutputLines] = useState<string[]>([]); // Clean Output Stream
-  // IO State (Console, 7-Seg, LED Matrix) is managed in VirtualIO but reflected here
-  const [execIO, setExecIO] = useState<
-    {
-      logs: any[];
-      consoleBuffer: string;
-      sevenSegment: number;
-    }
-    | undefined
-  >(undefined);
+  // New Hook Integration
+  const {
+    isRunning,
+    setIsRunning,
+    speed,
+    setSpeed,
+    waitingForInput,
+    setWaitingForInput,
+    execRegisters,
+    setExecRegisters,
+    execFlags,
+    execMemorySparse,
+    setExecMemorySparse,
+    execPorts,
+    execOutputLines,
+    execIO,
+    currentSP,
+    recentlyAccessedAddresses,
+    historyLength,
+    canStepBack,
+    handleStep,
+    runInstant,
+    handleStepBack,
+    handleReset,
+    toggleDebugPlay,
+    simulationRef
+  } = usePlaygroundExecution({
+    nodes,
+    edges,
+    variables,
+    assignment,
+    ioHandlerRef,
+    setHighlightedLine,
+    setSelectedNode
+  });
 
   const [userId, setUserId] = useState<number>(() => {
     // Initial fetch from token if available
@@ -252,9 +212,64 @@ export default function AssignmentPlaygroundPage() {
     return 0;
   });
 
+  // Animation hook for currently executing node
+  useEffect(() => {
+    const items = simulationRef.current?.cachedItems;
+
+    // If no execution context, clear all
+    if (!items || highlightedLine === null) {
+      setNodes((nds) => nds.map(n => {
+        const s = { ...n.style };
+        if (s.transform) delete s.transform;
+        if (s.zIndex) delete s.zIndex;
+        if (s.border) delete s.border;
+        if (s.boxShadow) delete s.boxShadow;
+        if (s.transition) delete s.transition;
+
+        if (n.data?.isActiveExec) {
+          return { ...n, style: s, data: { ...n.data, isActiveExec: false } };
+        }
+        return { ...n, style: s };
+      }));
+      return;
+    }
+
+    const activeItem = items.find((i: any) => i.id === highlightedLine);
+    const activeNodeId = activeItem?.sourceNodeId;
+
+    if (!activeNodeId) return;
+
+    setNodes((nds) => nds.map((n) => {
+      const isTarget = n.id === activeNodeId;
+      const wasActive = n.data?.isActiveExec;
+
+      if (isTarget && wasActive) return n;
+      if (!isTarget && !wasActive) return n;
+
+      if (isTarget) {
+        return {
+          ...n,
+          data: { ...n.data, isActiveExec: true }
+        };
+      } else {
+        const s = { ...n.style };
+        if (s.transform) delete s.transform;
+        if (s.zIndex) delete s.zIndex;
+        if (s.border) delete s.border;
+        if (s.boxShadow) delete s.boxShadow;
+        if (s.transition) delete s.transition;
+        return { ...n, style: s, data: { ...n.data, isActiveExec: false } };
+      }
+    }));
+  }, [highlightedLine, setNodes, simulationRef]);
+
   const [isOwner, setIsOwner] = useState(false);
   const [testSuites, setTestSuites] = useState<TestSuite[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+
+  // Page Load State
+  const [loading, setLoading] = useState(true);
+  const [playgroundLoaded, setPlaygroundLoaded] = useState(false);
 
   const fetchSubmissions = useCallback(async () => {
     if (assignmentId && userId) {
@@ -326,35 +341,13 @@ export default function AssignmentPlaygroundPage() {
 
 
   // Persistent IO Handler for Keyboard Buffer
-  const ioHandlerRef = useRef(new VirtualIO());
-
+  // ioHandlerRef is already defined from line 226
   const playgroundIdRef = useRef<number | null>(null);
 
-  // ===== Interactive Execution State =====
-  const simulationRef = useRef<{
-    interval: NodeJS.Timeout | null;
-    cpu: CPU | null;
-    cachedItems: ProgramItem[] | null;
-  }>({
-    interval: null,
-    cpu: null,
-    cachedItems: null
-  });
-  const historyRef = useRef<CPUSnapshot[]>([]);
-  const [historyLength, setHistoryLength] = useState(0);
-  const canStepBack = historyLength > 0;
-
-  // BUG FIX #5: Track isRunning in ref for fresh reads (avoid stale closure)
-  const isRunningRef = useRef(isRunning);
-  useEffect(() => {
-    isRunningRef.current = isRunning;
-  }, [isRunning]);
-
   // Track if CPU is waiting for input (for auto-resume on Enter)
-  const [waitingForInput, setWaitingForInput] = useState(false);
+  const [waitingForInputState, setWaitingForInputState] = useState(false);
 
-  // ===== Variables Manager State =====
-  const [variables, setVariables] = useState<Variable[]>([]);
+
 
   // Helper to sync variable changes to memory
   const syncVariableToMemory = (address: number, value: number | null) => {
@@ -375,29 +368,22 @@ export default function AssignmentPlaygroundPage() {
       return { ...prev, memory: mem };
     });
 
-    setExecMemorySparse((prev) => {
-      if (value === null) {
-        const next = { ...prev };
-        delete next[address];
-        return next;
-      }
-      return { ...prev, [address]: value };
-    });
+    // Note: execMemorySparse is updated automatically during execution.
+    // Manual variable edits only update the initial CPU state block.
   };
+
 
 
   // ===== Auto Save =====
   const onAutoSaveLoad = useCallback((savedNodes: Node[], savedEdges: Edge[], savedMemory: Record<string, number>) => {
-    setNodes(savedNodes);
-    setEdges(savedEdges);
+    // Only used for sparse memory now, nodes/edges handled by DB load mostly
     setExecMemorySparse(savedMemory);
   }, []);
 
   // Create unique storage key for this assignment + user
   const storageKey = useMemo(() => `playground-${assignmentId}-${userId}`, [assignmentId, userId]);
 
-  const { resetSave } = useAutoSave(nodes, edges, execMemorySparse, onAutoSaveLoad, storageKey);
-
+  const { resetSave } = useAutoSave(nodes, edges, cpu.memory.reduce((acc: any, cur: any) => { acc[cur.address] = cur.value; return acc; }, {}), onAutoSaveLoad, storageKey);
 
   // 1. Load on Mount (Priority: DB → LocalStorage → Legacy)
   useEffect(() => {
@@ -407,6 +393,44 @@ export default function AssignmentPlaygroundPage() {
 
       try {
         const numAssignmentId = parseInt(assignmentId);
+
+        // --- Read-Only Submission Load ---
+        if (isReadOnly && submissionId) {
+          console.log('[Hybrid Load] Loading Submission (Read-Only)...');
+          try {
+            const submission = await getSubmissionById(parseInt(submissionId));
+            if (submission && submission.item_snapshot) {
+              const content = submission.item_snapshot;
+              loadFromSave(
+                content.react_flow?.nodes || [],
+                content.react_flow?.edges || [],
+                content.cpu_state?.variables || []
+              );
+
+              if (content.react_flow?.viewport && reactFlowInstance) {
+                const { x, y, zoom } = content.react_flow.viewport;
+                reactFlowInstance.setViewport({ x, y, zoom }, { duration: 400 });
+              } else if (reactFlowInstance) {
+                setTimeout(() => reactFlowInstance.fitView(), 100);
+              }
+
+              if (content.cpu_state) {
+                setCpu(prev => {
+                  const merged = { ...prev, registers: content.cpu_state.registers, memory: content.cpu_state.memory };
+                  return enforceRegisterConstraint(merged, assignment!);
+                });
+                const sparse: Record<string, number> = {};
+                (content.cpu_state.memory || []).forEach((m: any) => sparse[m.address] = m.value);
+                setExecMemorySparse(sparse);
+              }
+            }
+          } catch (e) {
+            console.error('[Hybrid Load] Failed to load submission:', e);
+            toast.error("Failed to load submission data.");
+          }
+          setPlaygroundLoaded(true);
+          return;
+        }
 
         // Step 1: Try loading from Database
         console.log('[Hybrid Load] Attempting DB load...');
@@ -423,9 +447,12 @@ export default function AssignmentPlaygroundPage() {
             console.log('[Hybrid Load] ✓ Set Playground ID:', pid);
           }
 
-          // Restore React Flow state
-          if (content.react_flow?.nodes) setNodes(content.react_flow.nodes);
-          if (content.react_flow?.edges) setEdges(content.react_flow.edges);
+          // Restore React Flow state to Zustand
+          loadFromSave(
+            content.react_flow?.nodes || [],
+            content.react_flow?.edges || [],
+            content.cpu_state?.variables || []
+          );
 
           // Restore Viewport
           if (content.react_flow?.viewport && reactFlowInstance) {
@@ -445,7 +472,6 @@ export default function AssignmentPlaygroundPage() {
               };
               return enforceRegisterConstraint(merged, assignment!);
             });
-            if (content.cpu_state.variables) setVariables(content.cpu_state.variables);
 
             // Rebuild exec memory sparse
             const sparse: Record<string, number> = {};
@@ -480,8 +506,11 @@ export default function AssignmentPlaygroundPage() {
           };
 
           // Hydrate UI State immediately from LocalStorage
-          if (localData.react_flow?.nodes) setNodes(localData.react_flow.nodes);
-          if (localData.react_flow?.edges) setEdges(localData.react_flow.edges);
+          loadFromSave(
+            localData.react_flow?.nodes || [],
+            localData.react_flow?.edges || [],
+            localData.cpu_state?.variables || []
+          );
 
           if (localData.cpu_state) {
             setCpu(prev => {
@@ -492,7 +521,6 @@ export default function AssignmentPlaygroundPage() {
               };
               return enforceRegisterConstraint(merged, assignment!);
             });
-            if (localData.cpu_state.variables) setVariables(localData.cpu_state.variables);
 
             const sparse: Record<string, number> = {};
             (localData.cpu_state.memory || []).forEach((m: any) => {
@@ -592,11 +620,11 @@ export default function AssignmentPlaygroundPage() {
   const debouncedPlaygroundData = useDebounce(rawPlaygroundData, 1000); // 1s debounce
 
   useEffect(() => {
-    if (!assignmentId || !playgroundLoaded) return;
+    if (!assignmentId || !playgroundLoaded || isReadOnly) return;
 
     const numAssignmentId = parseInt(assignmentId);
     saveToLocalStorage(numAssignmentId, userId, debouncedPlaygroundData);
-  }, [debouncedPlaygroundData, assignmentId, playgroundLoaded, userId]);
+  }, [debouncedPlaygroundData, assignmentId, playgroundLoaded, userId, isReadOnly]);
 
 
   // 3. Debounced Database Save (3 seconds after last change)
@@ -641,16 +669,53 @@ export default function AssignmentPlaygroundPage() {
     assignmentId ? parseInt(assignmentId) : undefined,
     {
       delay: 3000,
-      enabled: playgroundLoaded,
+      enabled: playgroundLoaded && !isReadOnly,
       onSave: (result) => {
         const pid = result?.id || result?.Data?.id;
-        if (pid && !playgroundIdRef.current) {
+        if (pid && pid !== playgroundIdRef.current) {
           playgroundIdRef.current = pid;
-          console.log('[DB Save] ✓ Captured Playground ID:', pid);
+          console.log('[DB] ✓ Playground ID set:', pid);
         }
-      }
+      },
     }
   );
+
+
+  // Multi-tab Sync: Listen for changes from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      // Only react to changes for THIS assignment's LocalStorage key
+      const ourKey = `playground_${assignmentId}_${userId}`;
+      if (e.key !== ourKey || !e.newValue || !playgroundLoaded || isReadOnly) return;
+
+      try {
+        const data = JSON.parse(e.newValue) as PlaygroundLocalData;
+        console.log('[Multi-tab] Detected change from another tab, syncing...');
+
+        // Reload React Flow state via Zustand
+        loadFromSave(
+          data.react_flow?.nodes || nodes,
+          data.react_flow?.edges || edges,
+          data.cpu_state?.variables || variables
+        );
+
+        if (data.cpu_state) {
+          setCpu(prev => ({
+            ...prev,
+            registers: data.cpu_state?.registers || prev.registers,
+            memory: data.cpu_state?.memory || prev.memory,
+          }));
+        }
+
+        console.log('[Multi-tab] ✓ Synced successfully');
+      } catch (err) {
+        console.error('[Multi-tab] Failed to parse storage change:', err);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [assignmentId, userId, playgroundLoaded]);
 
   // Create a stable ref for saveImmediately to avoid effect re-runs
   const saveImmediatelyRef = useRef(saveImmediately);
@@ -664,7 +729,7 @@ export default function AssignmentPlaygroundPage() {
     return () => {
       console.log('[Unmount] Triggering immediate save...');
       // Only trigger if data is actually loaded and populated to avoid saving empty state over DB
-      if (playgroundLoaded) {
+      if (playgroundLoaded && !isReadOnly) {
         saveImmediatelyRef.current?.();
       }
     };
@@ -674,7 +739,7 @@ export default function AssignmentPlaygroundPage() {
   useEffect(() => {
     const handleBeforeUnload = () => {
       console.log('[BeforeUnload] Triggering immediate save...');
-      if (playgroundLoaded) {
+      if (playgroundLoaded && !isReadOnly) {
         saveImmediatelyRef.current?.();
       }
     };
@@ -708,7 +773,7 @@ export default function AssignmentPlaygroundPage() {
 
 
   const handleEditVariable = (id: string, name: string, value: number) => {
-    setVariables((prev) => {
+    setVariables((prev: Variable[]) => {
       const target = prev.find((v) => v.id === id);
       if (target && target.value !== value) {
         syncVariableToMemory(target.address, value);
@@ -718,7 +783,7 @@ export default function AssignmentPlaygroundPage() {
   };
 
   const handleDeleteVariable = (id: string) => {
-    setVariables((prev) => {
+    setVariables((prev: Variable[]) => {
       const target = prev.find((v) => v.id === id);
       if (target) {
         // Option: clear memory or leave it. 
@@ -728,6 +793,17 @@ export default function AssignmentPlaygroundPage() {
       }
       return prev;
     });
+  };
+
+  // Resets cpu.memory (and the visual execMemorySparse) back to the assignment's initial values.
+  const handleResetMemory = () => {
+    const initialCpu = buildInitialCPUState(assignment);
+    setCpu((prev) => ({ ...prev, memory: initialCpu.memory }));
+    // Also reset the execution-memory sparse map so the display is consistent
+    const sparse: Record<string, number> = {};
+    initialCpu.memory.forEach((m) => { sparse[m.address] = m.value; });
+    setExecMemorySparse(sparse);
+    toast.success("Memory reset to initial values");
   };
 
 
@@ -747,9 +823,21 @@ export default function AssignmentPlaygroundPage() {
       const source = edge.source;
       const target = edge.target;
       const existing = edgesMap.get(source) || {};
-      if (edge.sourceHandle === 'true') existing.nextTrue = target;
-      else if (edge.sourceHandle === 'false') existing.nextFalse = target;
-      else existing.next = target;
+
+      // React Flow handles: 
+      // - branch condition true = 'left' or 'true'
+      // - sequential fallback = 'source-bottom' or 'false'
+
+      if (edge.sourceHandle === 'true' || edge.sourceHandle === 'left') {
+        existing.nextTrue = target;
+      } else if (edge.sourceHandle === 'false') {
+        existing.nextFalse = target;
+      } else {
+        // 'source-bottom' or null/undefined resolves to the standard 'next' edge.
+        // For JZ/JNZ, getNextNonJump() checks item.next, so this maps perfectly.
+        existing.next = target;
+      }
+
       edgesMap.set(source, existing);
     });
 
@@ -757,9 +845,9 @@ export default function AssignmentPlaygroundPage() {
       const numericId = nodeMap.get(node.id)!;
       const links = edgesMap.get(node.id);
 
-      const nextId = links?.next ? nodeMap.get(links.next) ?? -1 : -1;
-      const nextTrueId = links?.nextTrue ? nodeMap.get(links.nextTrue) ?? -1 : -1;
-      const nextFalseId = links?.nextFalse ? nodeMap.get(links.nextFalse) ?? -1 : -1;
+      const nextId = links?.next ? (nodeMap.get(links.next) ?? null) : null;
+      const nextTrueId = links?.nextTrue ? (nodeMap.get(links.nextTrue) ?? null) : null;
+      const nextFalseId = links?.nextFalse ? (nodeMap.get(links.nextFalse) ?? null) : null;
 
       // Extract operands based on instruction type and node data
       const type = node.data.instructionType;
@@ -833,8 +921,9 @@ export default function AssignmentPlaygroundPage() {
     });
     program.sort((a, b) => a.id - b.id);
 
-    // 2. Run Test
-    const result = await runTestCase(testCase, program, cpu);
+    // 2. Run Test — use a fresh CPU (reset memory to init) so each run is deterministic
+    const freshCpu = buildInitialCPUState(assignment);
+    const result = await runTestCase(testCase, program, freshCpu);
 
     // 3. Feedback
     if (result.passed) {
@@ -899,38 +988,85 @@ export default function AssignmentPlaygroundPage() {
         instruction: type,
         label: d.label,
         operands: operands,
-        next: links?.next ? nodeMap.get(links.next) ?? -1 : -1,
-        next_true: links?.nextTrue ? nodeMap.get(links.nextTrue) ?? -1 : -1,
-        next_false: links?.nextFalse ? nodeMap.get(links.nextFalse) ?? -1 : -1
+        next: links?.next ? (nodeMap.get(links.next) ?? null) : null,
+        next_true: links?.nextTrue ? (nodeMap.get(links.nextTrue) ?? null) : null,
+        next_false: links?.nextFalse ? (nodeMap.get(links.nextFalse) ?? null) : null
       });
     });
     program.sort((a, b) => a.id - b.id);
 
-    // 2. Run Suite
-    const result = await runTestSuite(suite, program, cpu);
+    // 2. Run Suite — use a fresh CPU (reset memory to init) so each run is deterministic
+    const freshCpu = buildInitialCPUState(assignment);
+    const result = await runTestSuite(suite, program, freshCpu);
 
     return result;
   };
 
-  // ===== Property Panel state =====
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+
 
   // (Duplicate removed)
 
 
-  const onNodeClick = useCallback((_e: any, node: Node) => {
-    setSelectedNode(node);
-    // Removed setPanelOpen(true) to prevent opening on single click
-  }, []);
+  const { handleKeyDown } = usePlaygroundHotkeys({
+    reactFlowInstance,
+    setNodes,
+    setEdges,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    takeSnapshot,
+    getId
+  });
 
   const onNodeDoubleClick = useCallback((_e: any, node: Node) => {
     setSelectedNode(node);
     setPanelOpen(true);
   }, []);
 
+  const onNodeClick = useCallback((_e: React.MouseEvent, node: Node) => {
+    // Smart Connect (Option 1)
+    if (_e.ctrlKey || _e.metaKey) {
+      setSelectedNode((prevSelected) => {
+        if (prevSelected && prevSelected.id !== node.id) {
+          const newEdge: Edge = {
+            id: `e${prevSelected.id}-${node.id}`,
+            source: prevSelected.id,
+            target: node.id,
+            sourceHandle: "source-bottom",
+            targetHandle: "in",
+            type: 'default',
+            animated: false,
+            style: { stroke: '#94a3b8', strokeWidth: 2 }
+          };
+
+          setEdges((eds) => {
+            // Remove existing out edges from prevSelected out handle to allow only 1
+            const cleanEdges = eds.filter(e => {
+              if (e.source !== prevSelected.id) return true;
+              const h = e.sourceHandle;
+              if (h === 'source-bottom' || h === 'out' || !h) {
+                return false;
+              }
+              return true;
+            });
+            return addEdge(newEdge, cleanEdges);
+          });
+
+          // Return the new node so subsequent Ctrl+clicks keep chaining
+          return node;
+        }
+        return node;
+      });
+    } else {
+      setSelectedNode(node);
+    }
+  }, [setEdges]);
+
   const onPatchNode = (nodeId: string, patch: Record<string, any>) => {
-    setNodes((nds) =>
+    // Snapshot before modifying properties
+    takeSnapshot();
+    setNodes((nds: Node[]) =>
       nds.map((n) =>
         n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n,
       ),
@@ -943,16 +1079,8 @@ export default function AssignmentPlaygroundPage() {
     .map((n) => n.data?.label)
     .filter(Boolean) as string[];
 
-  // ===== ReactFlow handlers =====
-  const onNodesChange: OnNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    [],
-  );
-
-  const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    [],
-  );
+  // Note: onNodesChange and onEdgesChange are now provided by Zustand store,
+  // we just pass them directly to ReactFlow.
 
   // Auto-generate dashed edges for label jumps
   useEffect(() => {
@@ -991,49 +1119,59 @@ export default function AssignmentPlaygroundPage() {
         .map(e => ({ ...e, type: 'default' }));
       return [...regularEdges, ...labelEdges];
     });
-  }, [nodes]);
+  }, [nodes, setEdges]);
 
-  const onConnect: OnConnect = useCallback((params) => {
-    setEdges((eds) => {
-      // 1. Filter out ANY existing edge that comes from the same Source Node + Source Handle
-      const cleanEdges = eds.filter((e) => {
-        const isSameSource = e.source === params.source;
-        if (!isSameSource) return true;
+  const onNodeDragStart = useCallback((event: React.MouseEvent, node: Node) => {
+    // Take snapshot for Undo/Redo before dragging starts
+    takeSnapshot();
 
-        // Strict Handle Matching with Legacy Support
-        // New Handle ID: "source-bottom"
-        // Legacy IDs: "out", null, undefined
-        // "left" is distinct and should NOT be replaced by "source-bottom"
+    // ALT-DRAG (Figma style duplication)
+    if (event.altKey && reactFlowInstance) {
+      // Find all currently selected nodes. If dragging an unselected node, just duplicate that one.
+      const selectedNodes = reactFlowInstance.getNodes().filter(n => n.selected);
+      const isDraggingSelected = selectedNodes.some(n => n.id === node.id);
+      const nodesToClone = isDraggingSelected ? selectedNodes : [node];
 
-        const pHandle = params.sourceHandle;
-        const eHandle = e.sourceHandle;
+      const idMap = new Map<string, string>();
 
-        const isBottomParam = pHandle === 'source-bottom' || pHandle === 'out' || !pHandle;
-        const isBottomEdge = eHandle === 'source-bottom' || eHandle === 'out' || !eHandle;
+      // Original Nodes stay behind. WE become the duplicated nodes currently attached to the cursor.
+      // We do this by duplicating the nodes but making the NEW nodes become the originals visually in State, 
+      // while we drag the OLD (cursor attached) ones forward. 
+      // Actually, ReactFlow simplifies this: Duplicate the nodes AT original position, unselect them,
+      // and let the user continue dragging the original ones that were already grabbed by the cursor.
 
-        // If both are "Bottom" group, they conflict -> Remove Edge (Return false)
-        if (isBottomParam && isBottomEdge) {
-          console.log(`Replacing bottom connection: ${e.id} with new ${params.source}->${params.target}`);
-          return false;
-        }
-
-        // If specific handles match exactly (e.g. left === left), Remove Edge
-        if (pHandle === eHandle) return false;
-
-        return true; // Keep edge
+      const leftBehindClones = nodesToClone.map((n) => {
+        const newId = getId();
+        idMap.set(n.id, newId);
+        return {
+          ...n,
+          id: newId,
+          selected: false,
+          dragging: false, // Drop them strictly at spawn point
+          position: n.position
+        };
       });
 
-      // 2. Add the new connection to the cleaned list
-      console.log(`🔌 Connected: ${params.source} -> ${params.target}`);
-      const newEdge = {
-        ...params,
-        type: 'default',
-        animated: false,
-        style: { stroke: '#94a3b8', strokeWidth: 2 },
-      };
-      return addEdge(newEdge, cleanEdges);
-    });
-  }, [setEdges]);
+      // Handle completely internal edges of the cloned group
+      const selectedEdges = reactFlowInstance.getEdges().filter(
+        (e) => nodesToClone.some((n) => n.id === e.source) && nodesToClone.some((n) => n.id === e.target)
+      );
+
+      const cloneEdges = selectedEdges.map(e => {
+        return {
+          ...e,
+          id: `e${idMap.get(e.source)}-${idMap.get(e.target)}`,
+          source: idMap.get(e.source) || e.source,
+          target: idMap.get(e.target) || e.target,
+          selected: false,
+        };
+      });
+
+      setNodes((nds: Node[]) => [...nds, ...leftBehindClones]);
+      setEdges((eds: Edge[]) => [...eds, ...cloneEdges]);
+    }
+  }, [reactFlowInstance, setNodes, setEdges, takeSnapshot]);
+
 
   const onNodeDrag = useCallback(
     (_: any, node: Node) => {
@@ -1339,7 +1477,7 @@ export default function AssignmentPlaygroundPage() {
 
       // Cleanup Highlights
       setHighlightedTargetId(null);
-      setNodes((nds) => nds.map((n) => {
+      setNodes((nds: Node[]) => nds.map((n) => {
         if (n.data?.isProximity) {
           return {
             ...n,
@@ -1350,7 +1488,7 @@ export default function AssignmentPlaygroundPage() {
         return n;
       }));
     },
-    [nodes, edges, setEdges]
+    [nodes, edges, setEdges, setNodes]
   );
 
   // ===== Fetch assignment =====
@@ -1455,296 +1593,6 @@ export default function AssignmentPlaygroundPage() {
     return out;
   }
 
-  // Clean items only: remove nulls/unexpected fields but do not modify top-level
-  // payload shape. This returns a cleaned array of items for sending to BE.
-  function cleanItems(items: any[]): any[] {
-    if (!Array.isArray(items)) return [];
-
-    const forbidNext = new Set(["JMP", "JZ", "JNZ", "HLT", "LABEL", "NOP"]);
-
-    return items.map((rawItem) => {
-      const item = JSON.parse(JSON.stringify(rawItem || {}));
-
-      // remove backend-unexpected fields
-      if ("stat" in item) delete item.stat;
-
-      const instr = String(item.instruction || "").toUpperCase();
-
-      // NEXT fields: CMP uses next_true/next_false; others use next
-      if (instr === "CMP") {
-        // CMP ใช้แต่ next_true/next_false
-        delete item.next;
-        if (item.next_true === null || item.next_true === undefined)
-          delete item.next_true;
-        if (item.next_false === null || item.next_false === undefined)
-          delete item.next_false;
-      } else if (forbidNext.has(instr)) {
-        delete item.next;
-        delete item.next_true;
-        delete item.next_false;
-      } else {
-        // คำสั่งทั่วไป: ใช้ได้เฉพาะ next
-        delete item.next_true;
-        delete item.next_false;
-        if (item.next === null || item.next === undefined) delete item.next;
-      }
-
-      // Ensure operands is an array (do not inject defaults)
-      item.operands = Array.isArray(item.operands) ? item.operands : [];
-
-      // Clean nested nulls
-      return removeNulls(item);
-    });
-  }
-
-  function parseProgramItems(nds: Node[], eds: Edge[], vars: Variable[] = []): ProgramItem[] {
-    console.log("🔍 [parseProgramItems] Starting - Total nodes:", nds.length);
-
-    // BUG FIX #4: Only parse nodes reachable from START (ignore unconnected nodes)
-    // Step 1: Find START node
-    const startNode = nds.find(n => getInstr(n) === "START");
-    if (!startNode) {
-      console.error("❌ [parseProgramItems] No START node found");
-      return [];
-    }
-    console.log("✅ [parseProgramItems] Found START node:", startNode.id);
-
-    // Step 2: Traverse from START to find all reachable nodes
-    const reachableNodeIds = new Set<string>();
-    const queue: string[] = [startNode.id];
-
-    // Phase 1: Global Label Indexing (Wireless Support)
-    // Map Label Name -> Node ID
-    const labelMap = new Map<string, string>();
-    for (const n of nds) {
-      const instr = getInstr(n);
-      if (instr === "LABEL" && n.data?.label) {
-        labelMap.set(n.data.label, n.id);
-      }
-    }
-
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
-
-      if (reachableNodeIds.has(currentId)) continue;
-      reachableNodeIds.add(currentId);
-
-      // Find all outgoing edges from this node
-      const outEdges = eds.filter(e => e.source === currentId);
-
-      // Add all target nodes to queue (Physical Connections)
-      outEdges.forEach(edge => {
-        if (!reachableNodeIds.has(edge.target)) {
-          queue.push(edge.target);
-        }
-      });
-
-      // Phase 2: Enhanced Traversal (Wireless Jumps)
-      // If current node is a Jump/Call, add the target label to queue
-      const currentNode = nds.find(n => n.id === currentId);
-      if (currentNode) {
-        const instr = getInstr(currentNode);
-        // implicit connection instructions
-        if (["JMP", "JZ", "JNZ", "CALL"].includes(instr)) {
-          const targetLabel = currentNode.data?.label;
-          if (targetLabel && labelMap.has(targetLabel)) {
-            const targetId = labelMap.get(targetLabel)!;
-            if (!reachableNodeIds.has(targetId)) {
-              console.log(`📡 [Wireless] Jumping from ${instr} to LABEL ${targetLabel} (${targetId})`);
-              queue.push(targetId);
-            }
-          }
-        }
-      }
-    }
-
-    console.log("✅ [parseProgramItems] Reachable nodes:", reachableNodeIds.size, "of", nds.length);
-    console.log("   Reachable IDs:", Array.from(reachableNodeIds));
-
-    // Step 3: Filter to only reachable nodes and create ID mapping
-    const reachableNodes = nds.filter(n => reachableNodeIds.has(n.id));
-    const nodeMap = new Map(reachableNodes.map((n, i) => [n.id, i + 1]));
-
-    // Step 4: Parse only reachable nodes
-    return reachableNodes.map((node) => {
-      const instruction = getInstr(node);
-      const outEdges = eds.filter((e) => e.source === node.id);
-
-      const nextEdge = outEdges.find((e) => !e.sourceHandle || e.sourceHandle === "out" || e.sourceHandle === "source-bottom");
-      const nextTrueEdge = outEdges.find((e) => e.sourceHandle === "true");
-      const nextFalseEdge = outEdges.find((e) => e.sourceHandle === "false");
-
-      const item: any = {
-        id: nodeMap.get(node.id)!,
-        instruction,
-        label: node.data?.label || "",
-        operands: [],
-        sourceNodeId: node.id, // Map for UI highlighting
-      };
-
-      if (instruction === "CMP") {
-        item.next_true = nextTrueEdge
-          ? (nodeMap.get(nextTrueEdge.target) ?? null)
-          : (nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null);
-        item.next_false = nextFalseEdge
-          ? (nodeMap.get(nextFalseEdge.target) ?? null)
-          : (nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null);
-      } else if (instruction === "HLT") {
-      } else if (instruction === "NOP") {
-        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
-      } else if (instruction === "LABEL") {
-        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
-      } else {
-        item.next = nextEdge ? (nodeMap.get(nextEdge.target) ?? null) : null;
-      }
-
-      const operands: Operand[] = [];
-
-      // Variables Lookup Helper
-      const resolveVariable = (val: string | number): { value: string; type: "Immediate" | "Memory" } => {
-        // 1. Priority Check: Is it a Variable? (Case-Insensitive)
-        const valStr = String(val).trim();
-        const foundVar = vars.find((v) => v.name.toLowerCase() === valStr.toLowerCase());
-
-        if (foundVar) {
-          console.log(`🔍 [Parser] Resolved Variable '${valStr}' -> Address ${foundVar.address} (Memory Access)`);
-          return { value: String(foundVar.address), type: "Memory" };
-        }
-
-        // 2. Number Check (Fallthrough)
-        // If it's not a variable, but is a number, treat as Immediate
-        if (!isNaN(Number(val))) {
-          return { value: String(val), type: "Immediate" };
-        }
-
-        // 3. Fallback
-        return { value: String(val), type: "Immediate" };
-      };
-
-      if (instruction === "LOAD" || instruction === "STORE") {
-        const memMode = node.data?.memMode ?? "imm";
-        const memImm = node.data?.memImm;
-        const memReg = node.data?.memReg;
-
-        if (instruction === "LOAD") {
-          const dest = node.data?.dest ?? node.data?.dst ?? node.data?.register ?? node.data?.reg;
-          if (dest) operands.push({ type: "Register", value: String(dest) });
-
-          if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
-            // Memory Address for LOAD is always treated as Immediate/Direct Address
-            const resolved = resolveVariable(memImm);
-            operands.push({ type: "Immediate", value: resolved.value });
-          } else if (memMode === "reg" && memReg) {
-            operands.push({ type: "Register", value: String(memReg) });
-          }
-        } else if (instruction === "STORE") {
-          if (memMode === "imm" && memImm !== undefined && memImm !== null && memImm !== "") {
-            // Memory Address for STORE is always treated as Immediate/Direct Address
-            const resolved = resolveVariable(memImm);
-            operands.push({ type: "Immediate", value: resolved.value });
-          } else if (memMode === "reg" && memReg) {
-            operands.push({ type: "Register", value: String(memReg) });
-          }
-
-          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
-          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
-        }
-      } else if (instruction === "OUT") {
-        const port = node.data?.memImm;
-        if (port !== undefined && port !== null && port !== "") {
-          operands.push({ type: "Immediate", value: String(port) });
-        }
-
-        let pushedSrc = false;
-        const immRaw = node.data?.srcImm ?? node.data?.imm ?? node.data?.value ?? node.data?.val;
-        if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
-          const resolved = resolveVariable(immRaw);
-          if (resolved.type === "Memory") {
-            operands.push({ type: "Memory", value: resolved.value });
-          } else {
-            operands.push({ type: "Immediate", value: `#${resolved.value}` });
-          }
-          pushedSrc = true;
-        }
-        if (!pushedSrc) {
-          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
-          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
-        }
-      } else {
-        const destReg = node.data?.dest ?? node.data?.dst ?? node.data?.register ?? node.data?.reg;
-        if (destReg) operands.push({ type: "Register", value: String(destReg) });
-
-        let pushedSrc = false;
-        const immRaw = node.data?.srcImm ?? node.data?.imm ?? node.data?.value ?? node.data?.val;
-        if (immRaw !== undefined && immRaw !== null && immRaw !== "") {
-          const resolved = resolveVariable(immRaw);
-          if (resolved.type === "Memory") {
-            operands.push({ type: "Memory", value: resolved.value });
-          } else {
-            operands.push({ type: "Immediate", value: `#${resolved.value}` });
-          }
-          pushedSrc = true;
-        }
-        if (!pushedSrc) {
-          const srcReg = node.data?.srcReg ?? node.data?.src ?? node.data?.reg2 ?? node.data?.rSrc;
-          if (srcReg) operands.push({ type: "Register", value: String(srcReg) });
-        }
-        // Handle direct memory address if applicable (e.g. MOV R0, [100]) - depends on UI node data structure
-        // If there's a specific 'memAddr' field for non-load/store instructions?
-        // Current UI structure seems to use 'srcImm' for immediates.
-      }
-
-      if ((instruction === "JMP" || instruction === "JZ" || instruction === "JNZ" || instruction === "CALL") && node.data?.label) {
-        operands.push({ type: "Label", value: String(node.data.label) });
-      }
-
-      item.operands = operands;
-      return item as ProgramItem;
-    });
-  }
-
-  function validateProgramItems(items: ProgramItem[]): string[] {
-    const errs: string[] = [];
-    for (const it of items) {
-      const instr = String(it.instruction || "").toUpperCase();
-      const ops = Array.isArray(it.operands) ? it.operands : [];
-
-      const need2 = new Set(["MOV", "LOAD", "STORE", "ADD", "SUB", "CMP", "MUL", "DIV", "AND", "OR", "XOR", "SHL", "SHR", "IN", "OUT"]);
-      const need1 = new Set(["INC", "DEC", "PUSH", "POP", "NOT"]);
-      const zero = new Set(["HLT", "START", "NOP"]);
-
-      if (need2.has(instr) && ops.length !== 2) {
-        errs.push(
-          `${instr} at id=${it.id} requires 2 operands, got ${ops.length}`,
-        );
-      }
-
-      if (need1.has(instr) && ops.length !== 1) {
-        errs.push(
-          `${instr} at id=${it.id} requires 1 operand, got ${ops.length}`,
-        );
-      }
-
-      if (zero.has(instr) && ops.length > 0) {
-        errs.push(
-          `${instr} at id=${it.id} should have no operands, got ${ops.length}`,
-        );
-      }
-
-      // LABEL needs a label name
-      if (instr === "LABEL" && !it.label) {
-        errs.push(`LABEL at id=${it.id} must have a label name`);
-      }
-
-      // Jump instructions need a label operand or next field pointing to target
-      if ((instr === "JMP" || instr === "JZ" || instr === "JNZ") && ops.length === 0 && !(it as any).next) {
-        errs.push(`${instr} at id=${it.id} must have a label operand or next field`);
-      }
-    }
-    return errs;
-  }
-
-
   /* start handleRun section */
 
 
@@ -1758,466 +1606,6 @@ export default function AssignmentPlaygroundPage() {
 
 
 
-  // 1. Instant Run
-  const runInstant = useCallback(async () => {
-    console.log("\n\n");
-    console.log("═══════════════════════════════════════════════════════");
-    console.log("🚀🚀🚀 [INSTANT RUN] EXECUTION STARTED 🚀🚀🚀");
-    console.log("═══════════════════════════════════════════════════════");
-    console.log("📊 Input Data:");
-    console.log("   - Nodes count:", nodes.length);
-    console.log("   - Edges count:", edges.length);
-    console.log("   - Nodes:", nodes);
-    console.log("   - Edges:", edges);
-
-    // Clear selection to show Processor Dashboard
-    setSelectedNode(null);
-
-    try {
-      console.log("\n📝 Step 1: Parsing nodes to program items...");
-      const items = parseProgramItems(nodes, edges, variables);
-      console.log("   ✅ Parsed", items.length, "items");
-      console.log("   📋 Items:", items);
-
-      console.log("\n🔍 Step 2: Validating program...");
-      const valErrors = validateProgramItems(items);
-      if (valErrors.length) {
-        console.error("   ❌ VALIDATION FAILED:");
-        console.error("   Errors:", valErrors);
-        toast.error(`Invalid: ${valErrors[0]}`);
-        return;
-      }
-      console.log("   ✅ Validation passed");
-
-      // BUG FIX #1: Check for IN instruction in COMPILED instructions only (not all canvas nodes)
-      console.log("\n🔒 Step 2.5: Checking for IN instruction in compiled program...");
-      const hasInInProgram = items.some(item => item.instruction?.toUpperCase() === "IN");
-      if (hasInInProgram) {
-        console.error("   ❌ INSTANT RUN BLOCKED: IN instruction found in program flow");
-        toast.error("Input (IN) not supported in Instant Mode. Use Debugger.", {
-          icon: '🚫',
-          style: { borderRadius: '10px', background: '#333', color: '#fff' },
-        });
-        return;
-      }
-      console.log("   ✅ No IN instruction in program flow");
-
-      console.log("\n🗺️ Step 3: Building instruction map...");
-      const instructionMap = buildInstructionMap(items);
-      console.log("   ✅ Map size:", instructionMap.size);
-
-      console.log("\n💾 Step 4: Initializing CPU...");
-      const initialState = buildInitialCPUState(assignment);
-
-      // FIX: Inject Variables into Instant Run Memory
-      const computedMemory = [...(initialState.memory || [])];
-      variables.forEach(v => {
-        const existingIdx = computedMemory.findIndex(m => m.address === v.address);
-        if (existingIdx !== -1) {
-          computedMemory[existingIdx].value = v.value;
-        } else {
-          computedMemory.push({ address: v.address, value: v.value });
-        }
-      });
-      computedMemory.sort((a, b) => a.address - b.address);
-      initialState.memory = computedMemory;
-
-      const freshCpu = initialState;
-      console.log("   Initial state with vars:", freshCpu);
-
-      console.log("\n⚙️ Step 5: EXECUTING PROGRAM...");
-      const result = await executeProgram(items, freshCpu, 10000, {}, ioHandlerRef.current);
-      console.log("   ✅ EXECUTION COMPLETE!");
-      console.log("   📊 Result:", result);
-
-      console.log("\n🔄 Step 6: Updating React state...");
-      console.log("   - Registers:", result.registers);
-      console.log("   - Flags:", result.flags);
-      console.log("   - Memory:", result.memory_sparse);
-      console.log("   - Ports:", result.ports);
-
-      setExecRegisters(result.registers);
-      setExecFlags(result.flags);
-      setExecMemorySparse(result.memory_sparse);
-      setExecPorts(result.ports || {});
-
-      // Update IO State (Debug Logs + Clean Output)
-      if (result.io_state) {
-        setExecIO({
-          logs: result.io_state.logs,
-          consoleBuffer: result.io_state.consoleBuffer,
-          sevenSegment: result.io_state.sevenSegment,
-        });
-        setExecOutputLines(result.io_state.outputLines || []);
-      }
-      console.log("   ✅ State update functions called");
-
-      // Sync IO State from execution result
-      if (result.io_state) {
-        console.log("\n📺 Step 7: Updating IO state...");
-        console.log("   IO State:", result.io_state);
-        setExecIO({
-          logs: result.io_state.logs || [],
-          consoleBuffer: result.io_state.consoleBuffer || "",
-          sevenSegment: result.io_state.sevenSegment || 0,
-        });
-        console.log("   ✅ IO state updated");
-      }
-
-      // Handle logs (legacy - kept for backward compatibility)
-      if (result.logs) {
-        result.logs.forEach(l => appendLog(l));
-      }
-
-      // Highlight end
-      setHighlightedLine(null);
-
-      toast.success("Execution Complete!", { position: "bottom-center" });
-
-      console.log("\n═══════════════════════════════════════════════════════");
-      console.log("🎉🎉🎉 [EXECUTE] COMPLETED SUCCESSFULLY 🎉🎉🎉");
-      console.log("═══════════════════════════════════════════════════════\n\n");
-
-    } catch (e: any) {
-      console.log("\n═══════════════════════════════════════════════════════");
-      console.error("💥💥💥 [EXECUTE] ERROR 💥💥💥");
-      console.log("═══════════════════════════════════════════════════════");
-      console.error("Error details:", e);
-      console.error("Stack trace:", e.stack);
-      toast.error(`Error: ${e.message}`);
-      appendLog(`[ERROR] ${e.message}`);
-    }
-  }, [nodes, edges, assignment, appendLog, variables]);
-
-  // 1.5 Step Back
-  const handleStepBack = useCallback(() => {
-    console.log("⏮️ [handleStepBack] Attempting step back. History length:", historyRef.current.length);
-
-    if (historyRef.current.length === 0 || !simulationRef.current.cpu) {
-      console.log("❌ [handleStepBack] Cannot step back - no history or no CPU");
-      return;
-    }
-
-    const snapshot: any = historyRef.current.pop();
-    if (snapshot) {
-      console.log("✅ [handleStepBack] Restoring snapshot. PC:", snapshot.pc);
-
-      // Restore CPU state
-      simulationRef.current.cpu.restoreSnapshot(snapshot);
-
-      // Restore IO state if present
-      if (snapshot.ioState) {
-        console.log("🔄 [handleStepBack] Restoring IO state. Logs:", snapshot.ioState.logs.length, "KeyBuf:", snapshot.ioState.keyBuffer.length);
-        ioHandlerRef.current.restoreSnapshot(snapshot.ioState);
-      }
-
-      setHistoryLength(historyRef.current.length);
-
-      // Sync UI
-      const currentCpu = simulationRef.current.cpu;
-      console.log("🔄 [handleStepBack] Syncing UI - Registers:", currentCpu.registers);
-      setExecRegisters({ ...currentCpu.registers });
-      setExecFlags({ ...currentCpu.flags });
-      setExecMemorySparse(currentCpu.getMemorySparse());
-      setHighlightedLine(currentCpu.pc);
-
-      // Sync IO UI
-      const ioRestoreState = ioHandlerRef.current.getSnapshot();
-      setExecIO({
-        logs: ioRestoreState.logs,
-        consoleBuffer: ioRestoreState.consoleBuffer,
-        sevenSegment: ioRestoreState.sevenSegment,
-      });
-      setExecOutputLines(ioRestoreState.outputLines || []);
-
-      // Auto-pause if running
-      if (isRunning) {
-        setIsRunning(false);
-        if (simulationRef.current.interval) {
-          clearInterval(simulationRef.current.interval);
-          simulationRef.current.interval = null;
-        }
-      }
-
-      console.log("✅ [handleStepBack] Step back completed. New history length:", historyRef.current.length);
-    }
-  }, [isRunning]);
-
-  // 2. Debug Run (Step / Play) using existing simulationRef structure
-  const handleStep = useCallback(async () => {
-    console.log(" [handleStep] Starting step...");
-
-    // Clear selection to show results
-    setSelectedNode(null);
-
-    // BUG FIX #7: Use cached items instead of re-parsing every step
-    let items = simulationRef.current.cachedItems;
-    if (!items) {
-      console.log("📝 [handleStep] Parsing items (first time)...");
-      items = parseProgramItems(nodes, edges, variables);
-      simulationRef.current.cachedItems = items;
-      console.log("✅ [handleStep] Cached", items.length, "items");
-    } else {
-      console.log("♻️ [handleStep] Using cached items:", items.length);
-    }
-
-    if (!simulationRef.current.cpu) {
-      console.log("🆕 [handleStep] Initializing new CPU...");
-
-      // Init CPU if needed
-      const valErrors = validateProgramItems(items);
-      if (valErrors.length) {
-        toast.error(valErrors[0]);
-        return;
-      }
-
-      // CRITICAL FIX: Ensure Variables Interop!
-      // 'assignment' defines the template, but 'variables' (React State) holds the *current* user definitions.
-      // We must merge the current variables into the fresh CPU memory.
-      const initialState = buildInitialCPUState(assignment);
-
-      // Initialize memory array if needed (assumes max size 256 or similar from CPU default)
-      // We'll create a sparse map or array approach depending on CPU constructor expectations.
-      // Assuming CPU handles an array of {address, value} or a raw array.
-      // Let's force it to be an array that includes our variables.
-
-      const computedMemory = [...(initialState.memory || [])]; // Start with assignment defaults
-
-      // Inject Variables (Source of Truth)
-      // This fixes the issue where cpu.memory might be empty on first load.
-      variables.forEach(v => {
-        // Find if this address already has a value in initial state, if so overwrite, else add
-        const existingIdx = computedMemory.findIndex(m => m.address === v.address);
-        if (existingIdx !== -1) {
-          computedMemory[existingIdx].value = v.value;
-        } else {
-          computedMemory.push({ address: v.address, value: v.value });
-        }
-      });
-      // Sort for cleanliness (optional but good for debugging)
-      computedMemory.sort((a, b) => a.address - b.address);
-
-      initialState.memory = computedMemory;
-
-      const fresh = new CPU(initialState);
-      // Find START
-      const startItem = items.find(i => i.instruction?.toUpperCase() === 'START');
-      if (startItem) fresh.pc = startItem.id;
-      simulationRef.current.cpu = fresh;
-      console.log("✅ [handleStep] CPU initialized at PC:", fresh.pc);
-
-      // LOG MEMORY STATE
-      console.log("🔍 [handleStep] Fresh CPU Memory State:", fresh.memory);
-    }
-
-    const currentCpu = simulationRef.current.cpu;
-
-    // BUG FIX #3: Stop the interval immediately if CPU is halted (prevent zombie loop)
-    if (!currentCpu || currentCpu.halted) {
-      console.log("⏸️ [handleStep] CPU halted or missing - STOPPING INTERVAL");
-
-      // Stop the play interval
-      setIsRunning(false);
-      if (simulationRef.current.interval) {
-        clearInterval(simulationRef.current.interval);
-        simulationRef.current.interval = null;
-        console.log("✅ [handleStep] Interval cleared");
-      }
-
-      return;
-    }
-
-    try {
-      const instructionMap = buildInstructionMap(items);
-      const item = instructionMap.get(currentCpu.pc);
-
-      console.log("🎯 [handleStep] Executing PC:", currentCpu.pc, "Instruction:", item?.instruction);
-
-      if (!item) {
-        currentCpu.halt(`Invalid PC: ${currentCpu.pc}`);
-        // Sync UI one last time
-        const newRegisters = { ...currentCpu.registers };
-        setExecRegisters(newRegisters);
-        setExecFlags({ ...currentCpu.flags });
-        return;
-      }
-
-      // Save Snapshot for Time Travel BEFORE execution (CPU + IO State)
-      const cpuSnapshot = currentCpu.getSnapshot();
-      const ioSnapshot = ioHandlerRef.current.getSnapshot();
-      const fullSnapshot = {
-        ...cpuSnapshot,
-        ioState: ioSnapshot
-      };
-      historyRef.current.push(fullSnapshot);
-      setHistoryLength(historyRef.current.length);
-      console.log("📸 [handleStep] Saved snapshot. PC:", cpuSnapshot.pc, "IO Logs:", ioSnapshot.logs.length, "History:", historyRef.current.length);
-
-      executeInstruction(currentCpu, item, instructionMap, undefined, ioHandlerRef.current);
-
-      // Sync UI
-      const newRegisters = { ...currentCpu.registers };
-      console.log("🔄 [handleStep] Updating registers:", newRegisters);
-      setExecRegisters(newRegisters);
-      setExecFlags({ ...currentCpu.flags });
-      setExecMemorySparse(currentCpu.getMemorySparse());
-
-      // FIX: Update Ports State
-      if (currentCpu.ports) {
-        setExecPorts({ ...currentCpu.ports });
-        console.log("🔌 [handleStep] Ports Updated:", currentCpu.ports);
-      }
-
-      // Sync IO State from handler
-      const ioSnapshotSync = ioHandlerRef.current.getSnapshot();
-      setExecIO({
-        logs: ioSnapshotSync.logs || [],
-        consoleBuffer: ioSnapshotSync.consoleBuffer || "",
-        sevenSegment: ioSnapshotSync.sevenSegment || 0,
-      });
-      setExecOutputLines(ioSnapshotSync.outputLines || []);
-
-      // Highlight
-      setHighlightedLine(currentCpu.pc);
-
-      // Clear waiting flag on successful execution
-      setWaitingForInput(false);
-
-      if (currentCpu.halted) {
-        console.log("✅ [handleStep] CPU halted - stopping execution");
-        setIsRunning(false);
-
-        // Clear the interval to prevent further step calls
-        if (simulationRef.current.interval) {
-          clearInterval(simulationRef.current.interval);
-          simulationRef.current.interval = null;
-          console.log("✅ [handleStep] Interval cleared on halt");
-        }
-
-        toast.success("Halted");
-      }
-    } catch (e: any) {
-      // BUG FIX #6: Handle blocking I/O (INPUT_REQUIRED exception)
-      if (e.message === 'INPUT_REQUIRED') {
-        console.log("⏸️ [handleStep] INPUT_REQUIRED - pausing for input");
-        setIsRunning(false);
-        setWaitingForInput(true); // Set flag for auto-resume
-
-        // Clear interval to stop continuous stepping
-        if (simulationRef.current.interval) {
-          clearInterval(simulationRef.current.interval);
-          simulationRef.current.interval = null;
-        }
-
-
-        toast("Waiting for input...", {
-          icon: '⌨️',
-          duration: 2000,
-          style: { borderRadius: '10px', background: '#3b82f6', color: '#fff' }
-        });
-
-
-        // Don't halt CPU - just pause. PC remains on IN instruction.
-        // When user types and hits Step/Play again, it will retry the IN.
-        return;
-      }
-
-      // Other errors: halt execution
-      console.error("💥 [handleStep] Error:", e);
-      setIsRunning(false);
-      toast.error(e.message);
-      currentCpu.halt(e.message);
-    }
-  }, [nodes, edges, assignment, variables]);
-
-  const toggleDebugPlay = useCallback(() => {
-    setIsRunning(prev => !prev);
-  }, []);
-
-  // VISUAL HIGHLIGHT: execution pop effect
-  useEffect(() => {
-    // 1. Identify active node
-    const items = simulationRef.current.cachedItems;
-
-    // If no execution context, clear all
-    if (!items || highlightedLine === null) {
-      setNodes((nds) => nds.map(n => {
-        // Always sanitize to be safe
-        const s = { ...n.style };
-        if (s.transform) delete s.transform;
-        if (s.zIndex) delete s.zIndex;
-        if (s.border) delete s.border;
-        if (s.boxShadow) delete s.boxShadow;
-        if (s.transition) delete s.transition;
-
-        if (n.data?.isActiveExec) {
-          return { ...n, style: s, data: { ...n.data, isActiveExec: false } };
-        }
-        // Even if not active, return sanitized style
-        return { ...n, style: s };
-      }));
-      return;
-    }
-
-    const activeItem = items.find(i => i.id === highlightedLine);
-    const activeNodeId = activeItem?.sourceNodeId;
-
-    if (!activeNodeId) return;
-
-    setNodes((nds) => nds.map((n) => {
-      const isTarget = n.id === activeNodeId;
-      const wasActive = n.data?.isActiveExec;
-
-      if (isTarget && wasActive) return n; // No change
-      if (!isTarget && !wasActive) return n; // No change
-
-      if (isTarget) {
-        // Apply Pop Flag
-        return {
-          ...n,
-          data: { ...n.data, isActiveExec: true }
-        };
-      } else {
-        // Clear Pop Flag AND sanitize styles (legacy cleanup)
-        const s = { ...n.style };
-        if (s.transform) delete s.transform;
-        if (s.zIndex) delete s.zIndex;
-        if (s.border) delete s.border;
-        if (s.boxShadow) delete s.boxShadow;
-        if (s.transition) delete s.transition;
-        return { ...n, style: s, data: { ...n.data, isActiveExec: false } };
-      }
-    }));
-
-  }, [highlightedLine, setNodes]);
-
-  // Centralized Verification & Interval Management
-  useEffect(() => {
-    // Cleanup helper
-    const cleanup = () => {
-      if (simulationRef.current.interval) {
-        clearInterval(simulationRef.current.interval);
-        simulationRef.current.interval = null;
-      }
-    };
-
-    if (isRunning) {
-      // Clear existing if any (e.g. speed change or re-render)
-      cleanup();
-
-      // Start new interval
-      simulationRef.current.interval = setInterval(() => {
-        handleStep();
-      }, 1000 / speed);
-    } else {
-      // Ensure we are stopped
-      cleanup();
-    }
-
-    // Unmount cleanup
-    return cleanup;
-  }, [isRunning, speed, handleStep]);
-
 
   // 3. Test Suite (Mock)
   const runTests = useCallback(async () => {
@@ -2229,6 +1617,7 @@ export default function AssignmentPlaygroundPage() {
       let allResults: TestResult[] = [];
 
       const initialState = buildInitialCPUState(assignment);
+      const programItems = parseProgramItems(nodes, edges, variables);
 
       for (const suite of allSuites) {
         const result = await runTestSuite(suite, programItems, initialState);
@@ -2249,7 +1638,7 @@ export default function AssignmentPlaygroundPage() {
     } finally {
       setTestStatus(null);
     }
-  }, [assignment, assignmentId, programItems]);
+  }, [assignment, assignmentId, classId, nodes, edges, variables]);
 
   const handleSubmit = useCallback(async () => {
     if (!assignment) {
@@ -2258,53 +1647,6 @@ export default function AssignmentPlaygroundPage() {
     }
     setSubmissionModalOpen(true);
   }, [assignment]);
-
-  const handleReset = useCallback(() => {
-    setIsRunning(false);
-    if (simulationRef.current.interval) {
-      clearInterval(simulationRef.current.interval);
-      simulationRef.current.interval = null;
-    }
-    simulationRef.current.cpu = null;
-
-    // BUG FIX #7: Clear cached items on reset
-    simulationRef.current.cachedItems = null;
-    console.log("🗑️ [handleReset] Cleared cached items");
-
-    setLogs([]);
-    setLogs([]);
-    setTestStatus(null);
-    setHighlightedLine(null);
-
-    // Clear History
-    historyRef.current = [];
-    setHistoryLength(0);
-
-    // Reset UI State
-    const initial = buildInitialCPUState(assignment);
-
-    // FIX: Re-hydrate UI Memory from Variables (Reset to Initial with Vars)
-    const initialMemory: Record<string, number> = {};
-    console.log("🧹 [handleReset] Resetting... CPU State found:", !!cpu);
-    if (cpu?.memory) {
-      console.log("💧 [handleReset] Hydrating from cpu.memory:", cpu.memory);
-      cpu.memory.forEach(m => {
-        initialMemory[m.address] = m.value;
-      });
-    } else {
-      console.warn("⚠️ [handleReset] cpu.memory is missing! Variables will not be loaded.");
-    }
-    console.log("📦 [handleReset] Final Initial Memory:", initialMemory);
-
-    setExecRegisters(initial.registers);
-    setExecFlags(initial.flags);
-    setExecMemorySparse(initialMemory);
-    setExecPorts(initial.ports);
-    setExecIO(undefined);
-    setExecOutputLines([]);
-
-    ioHandlerRef.current.reset();
-  }, [assignment, cpu]);
 
   // Compute dense memory array for LedPanel (Address 0-255)
   // MOVED UP to prevent Hook Order Violation (must be called before conditional return)
@@ -2439,28 +1781,36 @@ export default function AssignmentPlaygroundPage() {
     <div className="h-screen w-screen flex flex-col bg-gray-50 dark:bg-slate-950 font-sans overflow-hidden">
       {/* 1. Navbar (Top) */}
       <PlaygroundNavbar
-        assignmentTitle={labName}
+        assignmentTitle={isReadOnly ? `${labName} (Submission View)` : labName}
         onBack={() => router.back()}
         mode={executionMode}
         onRun={setExecutionMode}
         onSubmit={handleSubmit}
         onOpenTestManager={() => setTestManagerOpen(true)}
+        isOwner={isOwner || isReadOnly}
       />
 
       {/* 2. Main Workspace (Flex Row) */}
       <div className="flex-1 flex overflow-hidden">
 
         {/* 2.1 Left: Slim Toolbar */}
-        <SlimToolbar
-          allowedInstructions={allowed}
-          hideStart={hasStart}
-          hideHlt={hasHlt}
-        />
+        {!isReadOnly && (
+          <SlimToolbar
+            allowedInstructions={allowed}
+            hideStart={nodes.some((n) => getInstr(n) === "START")}
+            hideHlt={nodes.some((n) => getInstr(n) === "HLT")}
+          />
+        )}
 
         {/* 2.2 Center: Canvas & Bottom Deck */}
         <div className="flex-1 flex flex-col relative min-w-0">
           {/* Canvas Area */}
-          <div className="flex-1 relative bg-gray-100 dark:bg-black/20" ref={reactFlowWrapper}>
+          <div
+            className="flex-1 relative bg-gray-100 dark:bg-black/20 focus:outline-none"
+            ref={reactFlowWrapper}
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
+          >
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur px-3 py-1 rounded border dark:border-slate-800 text-sm shadow-sm pointer-events-none text-slate-700 dark:text-slate-300">
               {limitBadge}
             </div>
@@ -2468,17 +1818,19 @@ export default function AssignmentPlaygroundPage() {
             <PlaygroundCanvas
               nodes={nodes}
               edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
+              onNodesChange={isReadOnly ? () => {} : onNodesChange}
+              onEdgesChange={isReadOnly ? () => {} : onEdgesChange}
+              onConnect={isReadOnly ? () => {} : onConnect}
               onInit={setReactFlowInstance}
-              onDrop={onDrop}
-              onDragOver={onDragOver}
+              onDrop={isReadOnly ? () => {} : onDrop}
+              onDragOver={isReadOnly ? () => {} : onDragOver}
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
               nodeTypes={nodeTypes}
+              onNodeDragStart={onNodeDragStart}
               onNodeDrag={onNodeDrag}
               onNodeDragStop={onNodeDragStop}
+              readOnly={isReadOnly}
             />
           </div>
 
@@ -2526,15 +1878,18 @@ export default function AssignmentPlaygroundPage() {
           flags={displayFlags}
           memory={displayMemory}
           selectedNode={panelOpen ? selectedNode : null}
-          onNodeChange={onPatchNode}
+          onNodeChange={isReadOnly ? () => {} : onPatchNode}
           onCloseInspector={() => setPanelOpen(false)}
           availableRegisters={registerNames}
           availableLabels={labelOptions}
           variables={variables}
-          onAddVariable={handleAddVariable}
-          onEditVariable={handleEditVariable}
-          onDeleteVariable={handleDeleteVariable}
+          onAddVariable={isReadOnly ? () => toast.error("Read-only mode") : handleAddVariable}
+          onEditVariable={isReadOnly ? () => toast.error("Read-only mode") : handleEditVariable}
+          onDeleteVariable={isReadOnly ? () => toast.error("Read-only mode") : handleDeleteVariable}
           assignment={assignment}
+          sp={currentSP}
+          recentlyAccessedAddresses={recentlyAccessedAddresses}
+          onResetMemory={handleResetMemory}
         />
       </div>
 
@@ -2564,6 +1919,7 @@ export default function AssignmentPlaygroundPage() {
             fetchSubmissions();
             toast.success("Assignment submitted successfully!");
           }}
+          rawPlaygroundData={rawPlaygroundData}
         />
       )}
     </div>

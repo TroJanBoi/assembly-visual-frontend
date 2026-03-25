@@ -31,6 +31,7 @@ interface PlaygroundNavbarProps {
   onSubmit: () => void;
   onReset?: () => void;
   onOpenTestManager?: () => void;
+  isOwner?: boolean;
 }
 
 export default function PlaygroundNavbar({
@@ -40,7 +41,8 @@ export default function PlaygroundNavbar({
   onRun,
   onSubmit,
   onReset,
-  onOpenTestManager
+  onOpenTestManager,
+  isOwner = false
 }: PlaygroundNavbarProps) {
 
   return (
@@ -118,13 +120,15 @@ export default function PlaygroundNavbar({
           </button>
         </div>
 
-        <button
-          onClick={onSubmit}
-          className="h-9 px-4 text-xs font-semibold text-white bg-gray-900 hover:bg-black dark:bg-indigo-600 dark:hover:bg-indigo-700 rounded-lg shadow-sm transition-all flex items-center gap-2"
-        >
-          <span>Submit</span>
-          <HiOutlineChevronRight className="size-3 opacity-60" />
-        </button>
+        {!isOwner && (
+          <button
+            onClick={onSubmit}
+            className="h-9 px-4 text-xs font-semibold text-white bg-gray-900 hover:bg-black dark:bg-indigo-600 dark:hover:bg-indigo-700 rounded-lg shadow-sm transition-all flex items-center gap-2"
+          >
+            <span>Submit</span>
+            <HiOutlineChevronRight className="size-3 opacity-60" />
+          </button>
+        )}
 
         <Link
           href="/profile"

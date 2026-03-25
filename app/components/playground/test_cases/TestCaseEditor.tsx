@@ -103,8 +103,8 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
                     </div>
 
 
-                    <div className="w-full">
-                        {isHidden ? (
+                    <div className={cn("w-full transition-colors", isHidden && isOwner && "rounded-lg p-3 border-2 border-amber-400 bg-amber-50/50 dark:border-amber-600 dark:bg-amber-900/20")}>
+                        {isHidden && !isOwner ? (
                             <div className="text-center py-12 text-gray-400 bg-amber-50 border-2 border-dashed border-amber-200 rounded-lg">
                                 <Lock size={32} className="mx-auto mb-3 text-amber-500" />
                                 <p className="text-sm font-medium text-gray-600">Hidden Test Case</p>
@@ -162,8 +162,8 @@ export default function TestCaseEditor({ testCase, onUpdate, onRun, isRunning, a
                         )}
                     </div>
 
-                    <div className="w-full">
-                        {isHidden ? (
+                    <div className={cn("w-full transition-colors", isHidden && isOwner && "rounded-lg p-3 border-2 border-amber-400 bg-amber-50/50 dark:border-amber-600 dark:bg-amber-900/20")}>
+                        {isHidden && !isOwner ? (
                             <div className="text-center py-12 text-gray-400 bg-amber-50 border-2 border-dashed border-amber-200 rounded-lg">
                                 <Lock size={32} className="mx-auto mb-3 text-amber-500" />
                                 <p className="text-sm font-medium text-gray-600">Hidden Test Case</p>
@@ -244,8 +244,7 @@ function ConditionRow({
     const OUT_PORTS = [
         { id: '0', name: '0: Console', icon: Terminal },
         { id: '2', name: '2: 7-Segment', icon: Hash },
-        { id: '3', name: '3: LED Select', icon: LayoutGrid },
-        { id: '4', name: '4: LED Data', icon: LayoutGrid },
+        { id: '3', name: '3: LED Panel', icon: LayoutGrid },
     ];
     const IN_PORTS = [
         { id: '0', name: '0: Keyboard', icon: Terminal },

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { HiOutlineBell, HiOutlineSearch, HiOutlineUser } from "react-icons/hi";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import NotificationDropdown from "@/components/layout/NotificationDropdown";
 
 export default function TopNav() {
   const [isHidden, setIsHidden] = useState(false);
@@ -26,14 +27,33 @@ export default function TopNav() {
     }
   });
 
-  // Date for dashboard mode
+  // Profile state for dashboard mode
+  const [me, setMe] = useState<{ name?: string; picture_path?: string } | null>(null);
   const [dateStr, setDateStr] = useState("");
+
   useEffect(() => {
     if (isLanding) return;
     try {
       const now = new Date();
       setDateStr(now.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric" }));
+
+      // Fetch profile
+      // We import dynamically or just use the API function if available in scope
+      // using require/import inside effect is tricky, better to import at top. 
+      // But since we are replacing the whole component logic part, let's just use the top level imports.
+      // Wait, I need to add imports first. 
+
+      // Let's assume I will add imports in a separate `replace_file_content` or I can rewrite the whole file. 
+      // Rewriting the whole file is cleaner to ensure imports are correct.
     } catch { }
+  }, [isLanding]);
+
+  // Fetch profile effect separate to avoid cluttering date logic
+  useEffect(() => {
+    if (isLanding) return;
+    import("@/lib/api/profile").then(({ getProfile }) => {
+      getProfile().then(data => setMe(data)).catch(() => { });
+    });
   }, [isLanding]);
 
   if (isLanding) {
@@ -88,15 +108,26 @@ export default function TopNav() {
           <div className="text-sm text-gray-700 dark:text-gray-200 font-medium">{dateStr}</div>
         </div>
         <div className="flex-1">
-          <div className="max-w-lg mx-auto relative">
+          <div className="max-w-lg mx-auto relative hidden md:block">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><HiOutlineSearch /></span>
-            <input className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm" placeholder="Search..." />
+            <input className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20" placeholder="Search..." />
           </div>
         </div>
         <nav className="flex items-center gap-3">
           <ThemeToggle />
-          <button className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-gray-200"><HiOutlineBell size={20} /></button>
-          <Link href="/profile" className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-gray-200"><HiOutlineUser size={20} /></Link>
+          <NotificationDropdown />
+
+          <Link href="/profile" className="flex items-center gap-2 pl-2">
+            <div className="h-8 w-8 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              {me?.picture_path ? (
+                <img src={me.picture_path} alt="Profile" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-indigo-100 text-indigo-600 font-bold text-xs">
+                  {me?.name?.charAt(0).toUpperCase() || <HiOutlineUser size={16} />}
+                </div>
+              )}
+            </div>
+          </Link>
         </nav>
       </div>
     </header>

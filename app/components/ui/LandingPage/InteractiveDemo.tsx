@@ -59,7 +59,7 @@ const initialEdges: Edge[] = [
     source: "demo-1",
     target: "demo-2",
     animated: true,
-    style: { stroke: "#6366f1", strokeWidth: 2 }, // Indigo-500
+    style: { stroke: "#3b82f6", strokeWidth: 2 }, // Blue-500
   },
 ];
 

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { getClassById, updateClass, UpdateClassInput } from "@/lib/api/class";
+import { updateClass, UpdateClassInput } from "@/lib/api/class";
+import { useClass } from "../ClassContext";
 import { toast } from "sonner";
 import { CLASS_BANNERS } from "@/lib/constants/banners";
 import BannerSelectionModal from "@/components/class/BannerSelectionModal";
@@ -15,6 +16,7 @@ export default function EditClassPage() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
+    const { classData, isOwner: contextIsOwner, loading: contextLoading } = useClass();
 
     const [privacy, setPrivacy] = useState<Privacy>("public");
     const [name, setName] = useState("");
@@ -31,25 +33,21 @@ export default function EditClassPage() {
     }, [bannerId]);
 
     useEffect(() => {
-        if (!id) return;
+        if (contextLoading) return;
 
-        const fetchClass = async () => {
-            try {
-                const classData = await getClassById(id);
-                setName(classData.topic);
-                setDesc(classData.description);
-                setPrivacy(classData.status === 0 ? "public" : "private");
-                setBannerId(classData.banner_id || 0);
-            } catch (err: any) {
-                toast.error("Failed to load class data.");
-                router.push(`/class/${id}`);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchClass();
-    }, [id, router]);
+        if (classData) {
+            setName(classData.topic);
+            setDesc(classData.description);
+            setPrivacy(classData.status === 0 ? "public" : "private");
+            setBannerId(classData.banner_id || 0);
+            setLoading(false);
+        } else if (!contextLoading && !classData) {
+            // Handle case where class data fails to load (though context handles error usually)
+            // Or maybe user navigated here directly and context failed?
+            // But valid id should yield data or error.
+            setLoading(false);
+        }
+    }, [id, router, contextLoading, classData]);
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

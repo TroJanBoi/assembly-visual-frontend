@@ -60,7 +60,11 @@ export default function BannerSelectionModal({
                                 >
                                     <div
                                         className="h-32 w-full"
-                                        style={banner.style}
+                                        style={{
+                                            backgroundImage: `url(${banner.imageUrl})`,
+                                            backgroundSize: 'cover',
+                                            backgroundPosition: 'center'
+                                        }}
                                     />
                                     <div className="px-4 py-3 bg-gray-50 dark:bg-slate-800/50">
                                         <p className="font-semibold text-gray-900 dark:text-white text-sm">

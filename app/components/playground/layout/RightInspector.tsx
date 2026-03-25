@@ -29,6 +29,13 @@ type Props = {
 
     // Assignment Props
     assignment?: Assignment | null;
+
+    // Memory Visualization Props
+    sp?: number;
+    recentlyAccessedAddresses?: Set<number>;
+
+    // Memory Reset
+    onResetMemory?: () => void;
 };
 
 export default function RightInspector({
@@ -44,7 +51,10 @@ export default function RightInspector({
     onAddVariable,
     onEditVariable,
     onDeleteVariable,
-    assignment
+    assignment,
+    sp,
+    recentlyAccessedAddresses,
+    onResetMemory
 }: Props) {
     const [isOpen, setIsOpen] = useState(true);
     const [taskExpanded, setTaskExpanded] = useState(true);
@@ -158,6 +168,9 @@ export default function RightInspector({
                                 onAddVariable={onAddVariable}
                                 onEditVariable={onEditVariable}
                                 onDeleteVariable={onDeleteVariable}
+                                sp={sp}
+                                recentlyAccessedAddresses={recentlyAccessedAddresses}
+                                onResetMemory={onResetMemory}
                             />
                         </div>
                     </div>

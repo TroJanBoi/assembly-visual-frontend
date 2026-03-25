@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
 import { GoogleCourse, listGoogleCourses, confirmGoogleCourse } from "@/lib/api/google_classroom";
 import { getClasses } from "@/lib/api/class";
 import { HiOutlineUserGroup, HiOutlineTemplate, HiCheck, HiOutlinePlus } from "react-icons/hi";
@@ -220,13 +221,15 @@ export default function CreateClassModal({ open, onClose, onSuccess }: Props) {
                     >
                         Back
                     </button>
-                    <button
+                    <Button
                         onClick={handleConfirmGoogle}
                         disabled={!selectedCourse || loading}
-                        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        isLoading={loading}
+                        loadingText="Importing..."
+                        className="bg-green-600 text-white hover:bg-green-700"
                     >
-                        {loading ? "Importing..." : "Confirm Import"}
-                    </button>
+                        Confirm Import
+                    </Button>
                 </div>
             </div>
         );

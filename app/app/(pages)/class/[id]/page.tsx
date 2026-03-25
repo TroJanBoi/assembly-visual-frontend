@@ -4,13 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import {
-  Class,
-  getClassById,
   getClassMembers,
   joinClass,
-  toggleBookmark,
   deleteClass,
 } from "@/lib/api/class";
+import { useBookmarks } from "@/lib/context/BookmarkContext";
+import { useClass } from "./ClassContext";
 import { Assignment, getAssignmentsForClass } from "@/lib/api/assignment";
 import { toast } from "sonner";
 
@@ -23,28 +22,31 @@ import ClassHeader from "@/components/class/ClassHeader";
 import ClassActions from "@/components/class/ClassActions";
 import ClassPageSkeleton from "@/components/skeletons/ClassPageSkeleton";
 
+
 export default function ViewClassPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { classData, isOwner: contextIsOwner, loading: contextLoading, refreshClass } = useClass();
+  const { toggleFavorite } = useBookmarks();
 
 
-  const [classData, setClassData] = useState<Class | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Use context isOwner directly
+  const isOwner = contextIsOwner;
+
   const fetchClassDetails = useCallback(async () => {
     try {
       setError(null);
-      const [classResult, assignmentsResult, membersResult] = await Promise.all(
+      const [assignmentsResult, membersResult] = await Promise.all(
         [
-          getClassById(id),
           getAssignmentsForClass(id).catch((err) => {
             if (err.message?.includes("record not found")) return [];
             throw err;
@@ -53,20 +55,20 @@ export default function ViewClassPage() {
         ],
       );
 
-      setClassData(classResult);
       setAssignments(assignmentsResult);
 
-      const token = getToken();
-      if (token) {
-        const decoded = decodeToken(token);
-        if (decoded && decoded.user_id) {
-          const currentUserId = decoded.user_id;
-          const owner = currentUserId === classResult.owner_id;
-          const member = Array.isArray(membersResult)
-            ? membersResult.some((m) => m && m.id === currentUserId)
-            : false;
-          setIsOwner(owner);
-          setIsMember(owner || Boolean(member));
+      if (classData) {
+        const token = getToken();
+        if (token) {
+          const decoded = decodeToken(token);
+          if (decoded && decoded.user_id) {
+            const currentUserId = decoded.user_id;
+            // isOwner is already determined by context, but we check member status here
+            const member = Array.isArray(membersResult)
+              ? membersResult.some((m) => m && m.id === currentUserId)
+              : false;
+            setIsMember(isOwner || Boolean(member));
+          }
         }
       }
     } catch (err: any) {
@@ -74,20 +76,23 @@ export default function ViewClassPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, classData, isOwner]);
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    fetchClassDetails();
-  }, [id, fetchClassDetails]);
+    if (!contextLoading) {
+      setLoading(true); // Set local loading to true when context loading is done, before fetching assignments/members
+      fetchClassDetails();
+    }
+  }, [id, contextLoading, fetchClassDetails]);
 
   const handleJoinClass = async () => {
     setIsJoining(true);
     try {
       const response = await joinClass(id);
       toast.success(response.message || "Successfully joined the class!");
-      await fetchClassDetails();
+      await refreshClass(); // Refresh context data (e.g. member count)
+      await fetchClassDetails(); // Refresh list-specific data
     } catch (err: any) {
       toast.error(err.message || "Failed to join class.");
       console.error("Join class error:", err);
@@ -97,13 +102,11 @@ export default function ViewClassPage() {
   };
 
   const handleToggleBookmark = async () => {
-    if (!classData) return;
     try {
-      const result = await toggleBookmark(id);
-      setClassData({ ...classData, favorite: result.bookmarked ? 1 : 0 });
-      toast.success(result.message);
+      await toggleFavorite(id);
+      toast.success("Bookmark updated!");
     } catch (err: any) {
-      toast.error(err.message || "Failed to update bookmark.");
+      // Error is handled in context
     }
   };
 
@@ -124,7 +127,7 @@ export default function ViewClassPage() {
 
   // ... existing imports ...
 
-  if (loading) {
+  if (loading || contextLoading) {
     return <ClassPageSkeleton />;
   }
 
@@ -156,10 +159,9 @@ export default function ViewClassPage() {
         isJoining={isJoining}
         onJoin={handleJoinClass}
         onBookmark={handleToggleBookmark}
-        onDelete={handleDeleteClass}
       />
 
-      <ClassHeader classData={classData} />
+      <ClassHeader classData={classData} isOwner={isOwner} />
 
       {/* Main Content */}
       <main className="mt-8">

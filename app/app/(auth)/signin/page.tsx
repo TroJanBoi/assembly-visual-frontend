@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import LandingNav from "@/components/layout/TopNav";
 
-import { LoadingButton } from "@/components/ui/LoadingButton";
+import { Button } from "@/components/ui/Button";
 import { useGlobalLoading } from "@/components/providers/GlobalLoadingProvider";
 import AuthDemo from "@/components/ui/Auth/AuthDemo";
 import { FaGoogle, FaArrowLeft } from "react-icons/fa6";
@@ -137,14 +137,14 @@ export default function SignInPage() {
               </Link>
             </div>
 
-            <LoadingButton
+            <Button
               type="submit"
               isLoading={loading}
               loadingText="Signing In..."
               className="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all api-test-selector-signin-btn"
             >
               Sign In
-            </LoadingButton>
+            </Button>
           </form>
 
           <div className="relative">

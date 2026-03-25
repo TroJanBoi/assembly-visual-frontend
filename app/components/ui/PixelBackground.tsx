@@ -12,7 +12,7 @@ interface PixelBackgroundProps {
 export default function PixelBackground({
     pixelSize = 40,
     fadeSpeed = 0.05,
-    color = "#6366f1", // Indigo-500
+    color = "#3b82f6", // Blue-500
     className = "",
 }: PixelBackgroundProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);

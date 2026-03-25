@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { TOKEN_KEY, setToken } from "@/lib/auth/token";
 import { apiFetch } from "@/lib/api/client";
 import { UserProfile } from "@/lib/api/auth";
 
-export default function AuthSuccessPage() {
+function AuthSuccessContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const token = searchParams.get("token");
@@ -42,5 +42,19 @@ export default function AuthSuccessPage() {
                 <p className="text-slate-500 dark:text-slate-400">Please wait while we redirect you.</p>
             </div>
         </div>
+    );
+}
+
+export default function AuthSuccessPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
+                <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                </div>
+            </div>
+        }>
+            <AuthSuccessContent />
+        </Suspense>
     );
 }

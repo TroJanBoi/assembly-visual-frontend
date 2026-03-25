@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
-import { HiSearch, HiViewGrid, HiViewList } from "react-icons/hi";
+import { HiSearch, HiViewGrid, HiViewList, HiRefresh } from "react-icons/hi";
 import { cn } from "@/lib/utils";
 import VariableManager, { Variable } from "./VariableManager";
 
@@ -14,6 +14,13 @@ interface ProcessorDashboardProps {
   onAddVariable?: (name: string, value: number) => void;
   onEditVariable?: (id: string, name: string, value: number) => void;
   onDeleteVariable?: (id: string) => void;
+
+  // Stack and Memory Access Visualization
+  sp?: number; // Stack Pointer position
+  recentlyAccessedAddresses?: Set<number>; // Addresses accessed recently for animation
+
+  // Memory Reset
+  onResetMemory?: () => void;
 }
 
 const StateCell = ({ label, value }: { label: string; value: number }) => (
@@ -118,6 +125,9 @@ export default React.memo(function ProcessorDashboard({
   onAddVariable,
   onEditVariable,
   onDeleteVariable,
+  sp,
+  recentlyAccessedAddresses = new Set(),
+  onResetMemory,
 }: ProcessorDashboardProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -311,6 +321,17 @@ export default React.memo(function ProcessorDashboard({
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300">Memory</h3>
           <div className="flex items-center gap-1 text-gray-400">
+            {onResetMemory && (
+              <button
+                onClick={onResetMemory}
+                className="p-1 rounded-md hover:bg-red-50 hover:text-red-500 transition-colors"
+                aria-label="Reset Memory"
+                title="Reset memory to initial values"
+              >
+                <HiRefresh className="w-5 h-5" />
+              </button>
+            )}
+            <div className="w-px h-4 bg-gray-200 dark:bg-slate-700 mx-0.5" />
             <button
               onClick={() => setViewMode("grid")}
               className={cn(
@@ -354,6 +375,8 @@ export default React.memo(function ProcessorDashboard({
 
               const isStack = i >= 224;
               const isHighlighted = highlightedAddress === i;
+              const isSP = sp !== undefined && i === sp;
+              const isRecentlyAccessed = recentlyAccessedAddresses.has(i);
 
               return (
                 <div
@@ -362,12 +385,23 @@ export default React.memo(function ProcessorDashboard({
                   onMouseMove={(e) => handleMouseMove(e, i)}
                   onMouseLeave={handleMouseLeave}
                   className={cn(
-                    "aspect-square text-[9px] flex items-center justify-center border-r border-b border-gray-200 dark:border-slate-700 cursor-pointer transition-colors relative",
+                    "aspect-square text-[9px] flex items-center justify-center border-r border-b cursor-pointer transition-all relative",
+
+                    // Stack region special border - ONLY if has value
+                    isStack && hasValue && "border-orange-400 dark:border-orange-600",
+                    !(isStack && hasValue) && "border-gray-200 dark:border-slate-700",
+
                     // Search Highlighting (Highest Priority)
                     isHighlighted && "bg-yellow-300 animate-pulse z-10 ring-2 ring-yellow-500",
 
+                    // Memory Access Animation (High Priority)
+                    !isHighlighted && isRecentlyAccessed && "animate-pulse ring-2 ring-blue-400 z-[5]",
+
+                    // Stack Pointer Marker (Medium-High Priority)
+                    !isHighlighted && isSP && "ring-2 ring-red-500 shadow-lg z-[4]",
+
                     // Normal State
-                    !isHighlighted && (
+                    !isHighlighted && !isRecentlyAccessed && (
                       // Priority: Variable > Value > Empty
                       variable
                         ? "bg-green-100 font-bold text-green-700 border-green-200" // Variable Reserved
@@ -380,8 +414,15 @@ export default React.memo(function ProcessorDashboard({
                             : "text-gray-400 dark:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800" // Heap/Code Empty
                     )
                   )}
-                  title={variable ? `Var: ${variable.name}` : undefined}
+                  title={variable ? `Var: ${variable.name}` : isSP ? `SP (Stack Pointer)` : undefined}
                 >
+                  {/* SP Badge */}
+                  {isSP && !isHighlighted && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white flex items-center justify-center text-[6px] text-white font-bold z-10">
+                      SP
+                    </div>
+                  )}
+
                   {hasValue ? (
                     val
                   ) : (

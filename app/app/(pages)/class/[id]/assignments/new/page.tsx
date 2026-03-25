@@ -17,7 +17,8 @@ import {
 
 // --- CORRECTED IMPORTS ---
 // Import Class-related functions from class.ts
-import { Class, getClassById } from "@/lib/api/class";
+import { Class } from "@/lib/api/class";
+import { useClass } from "../../ClassContext";
 // Import Assignment-related functions from assignment.ts
 import {
   createAssignment as createMainAssignment,
@@ -56,12 +57,13 @@ export default function CreateAssignmentPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { classData, isOwner: contextIsOwner, loading: contextLoading } = useClass();
 
 
   const [currentStep, setCurrentStep] = useState<Step>("detail");
-  const [classData, setClassData] = useState<Class | null>(null);
+  // const [classData, setClassData] = useState<Class | null>(null); // Use context classData
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingClass, setIsFetchingClass] = useState(true);
+  // const [isFetchingClass, setIsFetchingClass] = useState(true); // user contextLoading
 
   const [formData, setFormData] = useState<AssignmentFormData>({
     assignmentName: "",
@@ -97,22 +99,11 @@ export default function CreateAssignmentPage() {
   };
 
   useEffect(() => {
-    if (!id) return;
-    const fetchClassData = async () => {
-      try {
-        setIsFetchingClass(true);
-        const data = await getClassById(id);
-        setClassData(data);
-      } catch (error: any) {
-        console.error("fetchClassData error:", error);
-        toast.error(error.message || "Failed to load class data.");
-        router.back();
-      } finally {
-        setIsFetchingClass(false);
-      }
-    };
-    fetchClassData();
-  }, [id, router]);
+    if (!contextLoading && !classData) {
+      // Handle error or redirect if class not found?
+      // Context handles it mostly, or user sees error/redirect from layout.
+    }
+  }, [contextLoading, classData]);
 
   const transformConditionsToState = (
     conditions: TestCondition[],
@@ -318,7 +309,7 @@ export default function CreateAssignmentPage() {
 
   // ... existing imports ...
 
-  if (isFetchingClass) {
+  if (contextLoading) {
     return <FormSkeleton />;
   }
 

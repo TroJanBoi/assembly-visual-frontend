@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Assignment } from "@/lib/api/assignment";
+import { format } from "date-fns";
 import {
   HiOutlineDocumentText,
   HiOutlineCalendar,
@@ -22,11 +23,8 @@ const formatDate = (dateString: string | null) => {
   const dueDate = new Date(dateString);
   const now = new Date();
   const isPast = dueDate < now;
-  const formattedDate = dueDate.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  // Use date-fns to format the date in local time consistently
+  const formattedDate = format(dueDate, "PPP");
   return { text: `Due: ${formattedDate}`, isPast };
 };
 
@@ -66,7 +64,12 @@ const AssignmentListItem = ({
   return (
     <li className="flex items-center justify-between gap-4 p-4 hover:bg-gray-50 transition-colors duration-150">
       <div className="flex items-center gap-4 flex-1 min-w-0">
-        <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
+        <div className={cn(
+          "flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center",
+          isAssignmentIncomplete(assignment)
+            ? "bg-amber-100 text-amber-600"
+            : "bg-indigo-100 text-indigo-600"
+        )}>
           <HiOutlineDocumentText className="w-6 h-6" />
         </div>
         <div className="min-w-0">
@@ -114,15 +117,27 @@ const AssignmentListItem = ({
                   `/class/${assignment.class_id}/assignment/${assignment.id}/playground`,
                 )
               }
-              className="p-2 text-gray-500 hover:text-green-600 hover:bg-gray-100 rounded-md"
-              title="Play / Test"
+              disabled={isAssignmentIncomplete(assignment)}
+              className={cn(
+                "p-2 rounded-md",
+                isAssignmentIncomplete(assignment)
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-500 hover:text-green-600 hover:bg-gray-100"
+              )}
+              title={isAssignmentIncomplete(assignment) ? "Setup Required" : "Play / Test"}
             >
               <HiOutlinePlay className="w-5 h-5" />
             </button>
             <button
               aria-label="Edit assignment"
               onClick={handleEdit}
-              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-md"
+              className={cn(
+                "p-2 rounded-md transition-all duration-300",
+                isAssignmentIncomplete(assignment)
+                  ? "text-amber-500 bg-amber-50 animate-pulse hover:text-amber-600 hover:bg-amber-100"
+                  : "text-gray-500 hover:text-indigo-600 hover:bg-gray-100"
+              )}
+              title={isAssignmentIncomplete(assignment) ? "Complete Setup" : "Edit Assignment"}
             >
               <HiOutlinePencil className="w-5 h-5" />
             </button>
@@ -173,7 +188,7 @@ const AssignmentListItem = ({
 export default function AssignmentList({
   assignments,
   isOwner,
-  isMember, // Receive isMember prop
+  isMember,
 }: {
   assignments: Assignment[];
   isOwner: boolean;
@@ -181,7 +196,7 @@ export default function AssignmentList({
 }) {
   if (!assignments || assignments.length === 0) {
     return (
-      <div className="text-center py-16 px-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+      <div className="text-center py-16 px-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
         <HiExclamationCircle className="w-12 h-12 mx-auto text-gray-400" />
         <h3 className="mt-2 text-lg font-medium text-gray-900">
           No assignments yet
@@ -196,7 +211,7 @@ export default function AssignmentList({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
       <ul className="divide-y divide-gray-200">
         {assignments.map((assignment) => (
           <AssignmentListItem

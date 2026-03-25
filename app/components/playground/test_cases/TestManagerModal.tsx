@@ -41,6 +41,7 @@ export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRun
     const [suites, setSuites] = useState<TestSuite[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [dirtyCases, setDirtyCases] = useState<Set<string>>(new Set());
 
     // Selection State
     const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(null);
@@ -278,7 +279,8 @@ export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRun
     // 3. Full Update (Content)
 
     const handleUpdateCaseLocal = (updated: TestCase) => {
-        // Just update local state for UI responsiveness
+        // Just update local state for UI responsiveness and mark as dirty
+        setDirtyCases(prev => new Set(prev).add(updated.id));
         setSuites(prev => prev.map(s => {
             if (s.id === selectedSuiteId) {
                 return {
@@ -314,10 +316,21 @@ export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRun
                     return s;
                 }));
                 setSelectedCaseId(savedCase.id); // Update selection to real ID
+                setDirtyCases(prev => {
+                    const next = new Set(prev);
+                    next.delete(activeCase.id);
+                    next.delete(savedCase.id);
+                    return next;
+                });
                 toast.success("Test case created");
             } else {
                 // UPDATE (PUT)
                 await updateTestCase(classId, assignmentId, parseInt(selectedSuiteId), parseInt(activeCase.id), activeCase);
+                setDirtyCases(prev => {
+                    const next = new Set(prev);
+                    next.delete(activeCase.id);
+                    return next;
+                });
                 toast.success("Saved changes");
             }
         } catch (e) {
@@ -446,11 +459,17 @@ export default function TestManagerModal({ isOpen, onClose, onRunTestCase, onRun
 
                         <div className="flex items-center gap-3">
                             {/* Save Button for Active Case */}
-                            {activeCase && !activeCase.isHidden && isOwner && (
+                            {activeCase && isOwner && (
                                 <button
                                     onClick={handleSaveCurrentCase}
-                                    disabled={saving}
-                                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
+                                    disabled={saving || !(dirtyCases.has(activeCase.id) || activeCase.id.startsWith("temp-"))}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all border",
+                                        (dirtyCases.has(activeCase.id) || activeCase.id.startsWith("temp-"))
+                                            ? "text-white bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700 shadow-sm hover:translate-y-[-1px]"
+                                            : "text-gray-400 bg-gray-50 dark:bg-slate-800/50 border-gray-200 dark:border-slate-700 cursor-not-allowed",
+                                        saving && "opacity-50"
+                                    )}
                                 >
                                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                     Save Changes

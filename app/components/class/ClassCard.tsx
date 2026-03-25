@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { HiOutlineGlobeAlt, HiOutlineLockClosed, HiOutlineUserCircle, HiHeart, HiOutlineHeart, HiOutlineExternalLink, HiOutlineUsers, HiBookmark, HiOutlineBookmark } from "react-icons/hi";
 import { cn } from "@/lib/utils";
-import { Class, toggleBookmark } from "@/lib/api/class";
+import { Class } from "@/lib/api/class";
 import { CLASS_BANNERS } from "@/lib/constants/banners";
+import { useBookmarks } from "@/lib/context/BookmarkContext";
 import { toast } from "sonner";
 
 interface ClassCardProps {
@@ -13,30 +14,15 @@ interface ClassCardProps {
 }
 
 export default function ClassCard({ item }: ClassCardProps) {
-  const [isFavorite, setIsFavorite] = useState(item.favorite === 1);
-  const [loading, setLoading] = useState(false);
+  const { bookmarkedIds, toggleFavorite, isLoading } = useBookmarks();
+  const isFavorite = bookmarkedIds.has(item.id);
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (loading) return;
-
-    // Optimistic update
-    const newStatus = !isFavorite;
-    setIsFavorite(newStatus);
-    setLoading(true);
-
-    try {
-      await toggleBookmark(item.id);
-      // Success - state already updated
-    } catch (err) {
-      // Revert on error
-      setIsFavorite(!newStatus);
-      toast.error("Failed to update bookmark");
-    } finally {
-      setLoading(false);
-    }
+    if (isLoading) return;
+    await toggleFavorite(item.id);
   };
 
   return (
@@ -48,7 +34,11 @@ export default function ClassCard({ item }: ClassCardProps) {
       {/* --- Card Image (Banner) --- */}
       <div
         className="relative h-48 w-full overflow-hidden transition-all duration-300"
-        style={CLASS_BANNERS[item.banner_id || 0]?.style || CLASS_BANNERS[0].style}
+        style={{
+          backgroundImage: `url(${CLASS_BANNERS[item.banner_id || 0]?.imageUrl || CLASS_BANNERS[0].imageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60" />
 
@@ -124,10 +114,12 @@ export default function ClassCard({ item }: ClassCardProps) {
             <span>{item.member_amount || 0}</span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 group-hover:text-rose-500 transition-colors pl-2 border-l border-slate-200 ml-2">
-            <HiOutlineHeart className="w-4 h-4" />
-            <span>{item.favorite || 0}</span>
-          </div>
+          {isFavorite && (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-500 pl-2 border-l border-slate-200 ml-2">
+              <HiHeart className="w-4 h-4" />
+              <span>Saved</span>
+            </div>
+          )}
         </div>
       </div>
     </Link>

@@ -13,6 +13,7 @@ import ReactFlow, {
   OnConnect,
   ReactFlowInstance,
   ConnectionLineType,
+  MarkerType,
 } from "reactflow";
 import CircuitLoopEdge from "./edges/CircuitLoopEdge";
 import { useTheme } from "next-themes";
@@ -38,8 +39,10 @@ export type PlaygroundCanvasProps = {
   /** NEW: forward node click to open Properties Panel */
   onNodeClick?: (e: any, node: Node) => void;
   onNodeDoubleClick?: (e: any, node: Node) => void;
+  onNodeDragStart?: (e: any, node: Node) => void;
   onNodeDrag?: (e: any, node: Node) => void;
   onNodeDragStop?: (e: any, node: Node) => void;
+  readOnly?: boolean;
 };
 
 export default React.memo(function PlaygroundCanvas({
@@ -54,8 +57,10 @@ export default React.memo(function PlaygroundCanvas({
   onDragOver,
   onNodeClick, // NEW
   onNodeDoubleClick,
+  onNodeDragStart,
   onNodeDrag,
   onNodeDragStop,
+  readOnly = false,
 }: PlaygroundCanvasProps) {
   const { resolvedTheme } = useTheme();
 
@@ -70,25 +75,30 @@ export default React.memo(function PlaygroundCanvas({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onInit={onInit}
-        onNodeClick={onNodeClick}
+        onNodeClick={onNodeClick} // NEW PROPS
         onNodeDoubleClick={onNodeDoubleClick}
-        deleteKeyCode='Delete'
+        onNodeDragStart={onNodeDragStart}
+        deleteKeyCode={readOnly ? null : 'Delete'}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        elementsSelectable={true}
+        fitView
+        fitViewOptions={{ padding: 0.2, maxZoom: 1.5 }}
         snapToGrid={true}
         snapGrid={[20, 20]}
         defaultEdgeOptions={{
           type: 'default',
           animated: false,
           markerEnd: {
-            type: 'arrowclosed',
+            type: MarkerType.ArrowClosed,
             width: 20,
             height: 20,
             color: '#64748b',
           },
         }}
         connectionLineType={ConnectionLineType.Bezier}
-        fitView
       >
         <svg style={{ position: 'absolute', width: 0, height: 0 }}>
           <defs>
@@ -121,7 +131,7 @@ export default React.memo(function PlaygroundCanvas({
             >
               <path
                 d="M 0 0 L 20 10 L 0 20 L 5 10 z"
-                fill="#818CF8"
+                fill="#60a5fa"
                 strokeWidth="0"
               />
             </marker>

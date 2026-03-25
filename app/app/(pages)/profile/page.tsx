@@ -1,501 +1,459 @@
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { User, Lock, Trash2, Camera, Key, ShieldAlert, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// API
 import { getProfile, updateProfile, deleteProfile, type Profile } from "@/lib/api/profile";
 import { changePassword } from "@/lib/api/auth";
-// import Swal from "sweetalert2";
-// import withReactContent from "sweetalert2-react-content";
-import { toast } from "sonner";
-
-import multiavatar from "@multiavatar/multiavatar";
-import { svgToDataUrl, randomSeed } from "@/components/utils/avatar";
 import { uploadAvatarFile, uploadAvatarSvg } from "@/lib/api/upload";
+import { svgToDataUrl, randomSeed } from "@/components/utils/avatar";
+import multiavatar from "@multiavatar/multiavatar";
 
-// const MySwal = withReactContent(Swal);
+// Components
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import SpotlightCard from "@/components/ui/SpotlightCard";
 
-type TabKey = "profile" | "password" | "danger";
+type TabKey = "general" | "security" | "danger";
+
+interface TabItem {
+  key: TabKey;
+  label: string;
+  icon: React.ElementType;
+  description: string;
+}
+
+const TABS: TabItem[] = [
+  { key: "general", label: "General", icon: User, description: "Manage your personal information" },
+  { key: "security", label: "Security", icon: Lock, description: "Update your password and security settings" },
+  { key: "danger", label: "Danger Zone", icon: ShieldAlert, description: "Irreversible account actions" },
+];
 
 export default function ProfilePage() {
-  const [tab, setTab] = useState<TabKey>("profile");
-  const [me, setMe] = useState<Profile | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("general");
   const [loading, setLoading] = useState(true);
+  const [me, setMe] = useState<Profile | null>(null);
 
-  // form state (profile)
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-
-  // form state (password)
-  // const [curPwd, setCurPwd]   = useState("");
-  const [newPwd, setNewPwd] = useState("");
-  const [confPwd, setConfPwd] = useState("");
-
-  // const [showCurPwd, setShowCurPwd] = useState(false);
-  const [showNewPwd, setShowNewPwd] = useState(false);
-  const [showConfPwd, setShowConfPwd] = useState(false);
-
-  const [avatarOpen, setAvatarOpen] = useState(false);
-  const [avatarTab, setAvatarTab] = useState<"generator" | "upload">("generator");
-  const [seed, setSeed] = useState<string>("");
-  const [svg, setSvg] = useState<string>("");
-  const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-
+  // --- Data Fetching ---
+  const fetchMe = async () => {
+    try {
+      const data = await getProfile();
+      setMe(data);
+    } catch (error) {
+      console.error("Failed to fetch profile", error);
+      toast.error("Failed to load profile data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await getProfile();     // ✅ /api/v2/profile/
-        setMe(data);
-        setName(data.name ?? "");
-        setEmail(data.email ?? "");
-
-        if (!me?.picture_path) {
-          const s = randomSeed();
-          const svgCode = multiavatar(s);
-          setSeed(s);
-          setSvg(svgCode);
-          setPreviewUrl(svgToDataUrl(svgCode));
-        } else {
-          setPreviewUrl(me.picture_path!);
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [me?.picture_path]);
-
-  const displayName = useMemo(() => (name || me?.name || "User"), [name, me?.name]);
-
-  const initials = useMemo(() => {
-    const parts = (displayName || "User").trim().split(" ");
-    const a = parts[0]?.[0]?.toUpperCase() || "U";
-    const b = parts[1]?.[0]?.toUpperCase() || "";
-    return (a + b).slice(0, 2);
-  }, [displayName]);
-
-  function toastOK(message: string) {
-    toast.success(message);
-  }
-
-  async function onSaveProfile() {
-    try {
-      const updated = await updateProfile({ name, email });
-      setMe(updated);
-      setEditing(false);
-      toastOK("Saved successfully");
-    } catch (e) {
-      console.error(e);
-      toast.error("Save failed");
-    }
-  }
-
-  async function onChangePassword() {
-    if (!newPwd || newPwd !== confPwd) {
-      toast.warning("New passwords do not match");
-      return;
-    }
-
-    try {
-      // await changePassword({ currentPassword: curPwd, newPassword: newPwd });
-      await changePassword(newPwd);
-      setNewPwd(""); setConfPwd("");
-      toastOK("Password updated");
-    } catch (e) {
-      console.error(e);
-      toast.error("Change password failed");
-    }
-  }
-
-  function onDeleteAccount() {
-    toast("Delete account permanently?", {
-      description: "This action is irreversible.",
-      action: {
-        label: "Delete",
-        onClick: async () => {
-          try {
-            await deleteProfile(); // ✅ /api/v2/profile/
-            toast.success("Account deleted");
-            // TODO: signout + router.push("/signin")
-          } catch (e) {
-            console.error(e);
-            toast.error("Delete failed");
-          }
-        },
-      },
-      cancel: { label: "Cancel", onClick: () => { } },
-    });
-  }
+    fetchMe();
+  }, []);
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse h-6 w-40 bg-gray-200 rounded mb-4" />
-        <div className="animate-pulse h-[400px] bg-gray-100 rounded-xl" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
       </div>
     );
   }
 
-  function onSeedChange(newSeed: string) {
-    setSeed(newSeed);
-    const svgCode = multiavatar(newSeed);
-    setSvg(svgCode);
-    setPreviewUrl(svgToDataUrl(svgCode));
-    setUploadFile(null);
-    setAvatarTab("generator");
-  }
-
-  function onRandomize() {
-    onSeedChange(randomSeed());
-  }
-
-  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setUploadFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
-    setSvg("");
-    setAvatarTab("upload");
-  }
-
-  // บันทึก avatar แล้วอัปเดต picture_path
-  async function onSaveAvatar() {
-    try {
-      let url: string | null = null;
-
-      if (avatarTab === "generator" && svg) {
-        // ส่ง SVG ไปให้ backend เซฟแล้วคืน URL (แนะนำ)
-        url = await uploadAvatarSvg(svg);
-      } else if (avatarTab === "upload" && uploadFile) {
-        url = await uploadAvatarFile(uploadFile);
-      }
-      if (!url) return;
-
-      const updated = await updateProfile({ picture_path: url });
-      setMe(updated);
-
-      setAvatarOpen(false);
-      setUploadFile(null);
-      toastOK("Avatar updated");
-    } catch (e) {
-      console.error(e);
-      toast.error("Update avatar failed");
-    }
-  }
-
   return (
-    <div className="p-6">
-      <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-0 overflow-hidden">
-        <div className="flex">
-          {/* Left tabs */}
-          <div className="w-64 border-r border-gray-200 dark:border-slate-800 p-4">
-            <ul className="space-y-2">
-              <li>
-                <button
-                  onClick={() => setTab("profile")}
-                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${tab === "profile"
-                    ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100"
-                    : "hover:bg-gray-50 dark:hover:bg-slate-800/50 text-gray-600 dark:text-gray-300"
-                    }`}
-                >
-                  My Profile
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setTab("password")}
-                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${tab === "password"
-                    ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100"
-                    : "hover:bg-gray-50 dark:hover:bg-slate-800/50 text-gray-600 dark:text-gray-300"
-                    }`}
-                >
-                  Change Password
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setTab("danger")}
-                  className={`w-full text-left px-3 py-2 rounded-lg font-medium ${tab === "danger"
-                    ? "bg-red-50 text-red-700 dark:bg-red-900/20"
-                    : "hover:bg-red-50/60 text-red-600"
-                    }`}
-                >
-                  Delete Account
-                </button>
-              </li>
-            </ul>
+    <div className="container max-w-5xl mx-auto py-10 px-4 md:px-6 lg:px-8">
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* --- Sidebar Navigation --- */}
+        <aside className="w-full md:w-64 shrink-0 space-y-2">
+          <div className="mb-6 px-2">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Settings</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Manage your account settings and preferences.</p>
           </div>
 
-          {/* Right content */}
-          <div className="flex-1 p-6">
-            {/* Avatar + name */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="text-center">
-                {me?.picture_path ? (
-                  <Image
-                    src={me.picture_path}
-                    alt={displayName}
-                    width={96}
-                    height={96}
-                    className="rounded-full object-cover mx-auto"
-                  />
-                ) : (
-                  <div
-                    className="w-24 h-24 rounded-full mx-auto grid place-items-center text-xl font-semibold text-white"
-                    style={{ background: "linear-gradient(135deg,#ff7849,#ff3d68)" }}
-                  >
-                    {initials}
-                  </div>
-                )}
-                <div className="mt-2 font-semibold text-lg">{displayName}</div>
+          <nav className="flex flex-col space-y-1">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    isActive
+                      ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  )}
+                >
+                  <Icon className={cn("w-4 h-4", isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400")} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => { setAvatarOpen(true); setAvatarTab("generator"); }}
-                    className="text-xs px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
-                  >
-                    Change photo
-                  </button>
-                </div>
-              </div>
+        {/* --- Main Content Area --- */}
+        <main className="flex-1 min-w-0">
+          <div className="space-y-6">
+            {/* Header for Mobile only (optional, can be hidden on desktop if redundant) */}
+            <div className="md:hidden">
+              <h2 className="text-lg font-semibold">{TABS.find(t => t.key === activeTab)?.label}</h2>
+              <p className="text-sm text-slate-500">{TABS.find(t => t.key === activeTab)?.description}</p>
             </div>
-            {avatarOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold">Profile Photo</h3>
-                    <button onClick={() => setAvatarOpen(false)} className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-slate-800">✕</button>
-                  </div>
 
-                  <div className="flex gap-2 mb-4">
-                    <button
-                      onClick={() => setAvatarTab("generator")}
-                      className={`px-3 py-1.5 rounded border text-sm ${avatarTab === "generator"
-                        ? "bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
-                        : "border-transparent hover:bg-gray-50 dark:hover:bg-slate-800/60"
-                        }`}
-                    >
-                      Random / Seed (Multiavatar)
-                    </button>
-                    <button
-                      onClick={() => setAvatarTab("upload")}
-                      className={`px-3 py-1.5 rounded border text-sm ${avatarTab === "upload"
-                        ? "bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
-                        : "border-transparent hover:bg-gray-50 dark:hover:bg-slate-800/60"
-                        }`}
-                    >
-                      From device
-                    </button>
-                  </div>
-
-                  {avatarTab === "generator" ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <input
-                          value={seed}
-                          onChange={(e) => onSeedChange(e.target.value)}
-                          placeholder="Type your seed"
-                          className="flex-1 px-3 py-2 rounded border border-gray-200"
-                        />
-                        <button onClick={onRandomize} className="px-3 py-2 rounded border border-gray-200 hover:bg-gray-50">🎲 Random</button>
-                      </div>
-                      {previewUrl ? (
-                        <img src={previewUrl} alt="preview" className="w-32 h-32 rounded-full object-cover" />
-                      ) : <div className="text-sm text-gray-500">No preview</div>}
-                      <p className="text-xs text-gray-500">* Multiavatar สร้างภาพจาก seed อัตโนมัติ</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={onPickFile}
-                        className="block w-full text-sm text-gray-700 dark:text-gray-200
-                                  file:mr-4 file:py-2 file:px-4 file:rounded file:border-0
-                                  file:bg-gray-100 dark:file:bg-slate-800
-                                  hover:file:bg-gray-200 dark:hover:file:bg-slate-700"
-                      />
-                      {previewUrl ? (
-                        <img src={previewUrl} alt="preview" className="w-32 h-32 rounded-full object-cover" />
-                      ) : <div className="text-sm text-gray-500">No image selected</div>}
-                    </div>
-                  )}
-
-                  <div className="mt-5 flex justify-end gap-2">
-                    <button onClick={() => setAvatarOpen(false)} className="px-4 py-2 rounded border border-gray-200 hover:bg-gray-50">Cancel</button>
-                    <button
-                      onClick={onSaveAvatar}
-                      disabled={!previewUrl}
-                      className={`px-4 py-2 rounded text-white ${previewUrl ? "bg-blue-600 hover:opacity-90" : "bg-blue-300 cursor-not-allowed"}`}
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              </div>
+            {activeTab === "general" && me && (
+              <GeneralTab me={me} refreshProfile={fetchMe} />
             )}
 
-
-
-            {/* Tab panels */}
-            {tab === "profile" && (
-              <section className="min-h-[60vh]">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold">Personal Information</h2>
-                  {!editing ? (
-                    <button
-                      onClick={() => setEditing(true)}
-                      className="text-sm px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
-                    >
-                      Edit
-                    </button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setEditing(false);
-                          // รีเซ็ตค่าเป็นข้อมูลล่าสุดจาก me
-                          setName(me?.name ?? "");
-                          setEmail(me?.email ?? "");
-                        }}
-                        className="text-sm px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={onSaveProfile}
-                        className="text-sm px-3 py-1.5 rounded bg-blue-600 text-white hover:opacity-90"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm text-gray-500 mb-1">Name</label>
-                    <input
-                      className="w-full px-3 py-2 rounded border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      disabled={!editing}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">Email</label>
-                    <input
-                      type="email"
-                      className="w-full px-3 py-2 rounded border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={!editing}
-                    />
-                  </div>
-                </div>
-              </section>
+            {activeTab === "security" && (
+              <SecurityTab />
             )}
 
-            {tab === "password" && (
-              <section className="max-w-lg min-h-[60vh]">
-                <h2 className="font-semibold mb-3">Change Password</h2>
-                <div className="space-y-4">
-
-                  {/* New Password */}
-                  <div className="relative">
-                    <label className="block text-sm text-gray-500 mb-1">New password</label>
-                    <input
-                      type={showNewPwd ? "text" : "password"}
-                      className="w-full px-3 py-2 rounded border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white pr-10"
-                      value={newPwd}
-                      onChange={(e) => setNewPwd(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPwd(!showNewPwd)}
-                      className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 text-sm"
-                    >
-                      {/* {showNewPwd ? "Hide" : "Show"} */}
-                      {showNewPwd ? (
-                        // Eye-off
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 3l18 18" />
-                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      ) : (
-                        // Eye
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
-
-                    </button>
-                  </div>
-
-                  {/* Confirm Password */}
-                  <div className="relative">
-                    <label className="block text-sm text-gray-500 mb-1">Confirm new password</label>
-                    <input
-                      type={showConfPwd ? "text" : "password"}
-                      className="w-full px-3 py-2 rounded border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white pr-10"
-                      value={confPwd}
-                      onChange={(e) => setConfPwd(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfPwd(!showConfPwd)}
-                      className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 text-sm"
-                    >
-                      {/* {showConfPwd ? "Hide" : "Show"} */}
-                      {showConfPwd ? (
-                        // Eye-off
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 3l18 18" />
-                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      ) : (
-                        // Eye
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={onChangePassword}
-                    className="px-4 py-2 rounded bg-blue-600 text-white hover:opacity-90"
-                  >
-                    Update Password
-                  </button>
-                </div>
-              </section>
-            )}
-
-
-            {tab === "danger" && (
-              <section className="max-w-lg min-h-[60vh]">
-                <h2 className="font-semibold mb-3 text-red-600">Delete Account</h2>
-                <p className="text-sm text-gray-600 mb-4">
-                  This action is irreversible. All your data will be permanently removed.
-                </p>
-                <button
-                  onClick={onDeleteAccount}
-                  className="px-4 py-2 rounded bg-red-600 text-white hover:opacity-90"
-                >
-                  Delete Account
-                </button>
-              </section>
+            {activeTab === "danger" && (
+              <DangerTab onDelete={() => { }} />
             )}
           </div>
-        </div>
+        </main>
       </div>
     </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+interface GeneralTabProps {
+  me: Profile;
+  refreshProfile: () => Promise<void>;
+}
+
+function GeneralTab({ me, refreshProfile }: GeneralTabProps) {
+  const [name, setName] = useState(me.name || "");
+  const [email, setEmail] = useState(me.email || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+
+  // Avatar state
+  const [seed, setSeed] = useState("");
+  const [svg, setSvg] = useState("");
+  const [previewAvatar, setPreviewAvatar] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [avatarMode, setAvatarMode] = useState<"generator" | "upload">("generator");
+
+  const isDirty = name !== (me.name || "") || email !== (me.email || "");
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateProfile({ name, email });
+      await refreshProfile();
+      toast.success("Profile updated successfully");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update profile");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Avatar Logic
+  const handleAvatarSave = async () => {
+    try {
+      let url: string | null = null;
+      if (avatarMode === "generator" && svg) {
+        url = await uploadAvatarSvg(svg);
+      } else if (avatarMode === "upload" && uploadFile) {
+        url = await uploadAvatarFile(uploadFile);
+      }
+
+      if (url) {
+        await updateProfile({ picture_path: url });
+        await refreshProfile();
+        setAvatarOpen(false);
+        toast.success("Avatar updated");
+      }
+    } catch (e) {
+      toast.error("Failed to update avatar");
+    }
+  };
+
+  const generateRandomAvatar = () => {
+    const newSeed = randomSeed();
+    setSeed(newSeed);
+    const newSvg = multiavatar(newSeed);
+    setSvg(newSvg);
+    setPreviewAvatar(svgToDataUrl(newSvg));
+    setAvatarMode("generator");
+    setUploadFile(null);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+      setPreviewAvatar(URL.createObjectURL(file));
+      setAvatarMode("upload");
+    }
+  };
+
+  // Init avatar generator if no picture
+  useEffect(() => {
+    if (!me.picture_path && !previewAvatar) {
+      generateRandomAvatar();
+    }
+  }, [me.picture_path]);
+
+  return (
+    <>
+      <SpotlightCard className="p-0 border-0 shadow-sm bg-white dark:bg-slate-900/50">
+        <div className="p-6 md:p-8">
+          <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6 mb-8">
+            <div className="relative group">
+              <Avatar className="w-24 h-24 sm:w-28 sm:h-28 border-4 border-white dark:border-slate-800 shadow-lg">
+                <AvatarImage
+                  src={me.picture_path || previewAvatar}
+                  className="object-cover"
+                  referrerPolicy="no-referrer"
+                />
+                <AvatarFallback className="text-2xl bg-indigo-100 text-indigo-600">
+                  {me.name?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                onClick={() => { setAvatarOpen(true); if (!me.picture_path) generateRandomAvatar(); }}
+                className="absolute bottom-0 right-0 p-2 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-colors"
+                title="Change Avatar"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="text-center sm:text-left space-y-1 mt-2">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">{me.name || "User"}</h3>
+              <p className="text-sm text-slate-500 break-all">{me.email || "No email provided"}</p>
+
+            </div>
+          </div>
+
+          <div className="space-y-4 max-w-xl">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Display Name</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+              />
+            </div>
+          </div>
+
+          <div className="mt-8 flex justify-end">
+            <Button onClick={handleSave} disabled={!isDirty || isSaving} isLoading={isSaving} loadingText="Saving...">
+              Save Changes
+            </Button>
+          </div>
+        </div>
+      </SpotlightCard>
+
+      {/* Avatar Modal */}
+      {avatarOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md shadow-2xl">
+            <CardHeader>
+              <CardTitle>Change Profile Photo</CardTitle>
+              <CardDescription>Choose a generated avatar or upload your own.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex justify-center">
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 dark:border-slate-800 shadow-inner">
+                  <img src={previewAvatar || me.picture_path || ""} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant={avatarMode === "generator" ? "default" : "outline"}
+                  onClick={generateRandomAvatar}
+                  className="w-full"
+                >
+                  Random Custom
+                </Button>
+                <div className="relative">
+                  <Button variant={avatarMode === "upload" ? "default" : "outline"} className="w-full">
+                    Upload Image
+                  </Button>
+                  <input
+                    type="file"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={handleFileUpload}
+                    accept="image/*"
+                  />
+                </div>
+              </div>
+
+              {avatarMode === "generator" && (
+                <div className="flex gap-2">
+                  <Input
+                    value={seed}
+                    onChange={(e) => {
+                      setSeed(e.target.value);
+                      const s = multiavatar(e.target.value);
+                      setSvg(s);
+                      setPreviewAvatar(svgToDataUrl(s));
+                    }}
+                    placeholder="Enter seed..."
+                  />
+                  <Button size="icon" variant="ghost" onClick={generateRandomAvatar}>
+                    <Loader2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="ghost" onClick={() => setAvatarOpen(false)}>Cancel</Button>
+              <Button onClick={handleAvatarSave}>Save Avatar</Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function SecurityTab() {
+  const [newPwd, setNewPwd] = useState("");
+  const [confPwd, setConfPwd] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!newPwd || newPwd !== confPwd) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await changePassword(newPwd);
+      toast.success("Password updated successfully");
+      setNewPwd("");
+      setConfPwd("");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Security Settings</CardTitle>
+        <CardDescription>Update your password to keep your account secure.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 max-w-xl">
+        <div className="grid gap-2">
+          <Label htmlFor="new-password">New Password</Label>
+          <div className="relative">
+            <Key className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              id="new-password"
+              type="password"
+              className="pl-9"
+              value={newPwd}
+              onChange={(e) => setNewPwd(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="confirm-password">Confirm Password</Label>
+          <div className="relative">
+            <Key className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              id="confirm-password"
+              type="password"
+              className="pl-9"
+              value={confPwd}
+              onChange={(e) => setConfPwd(e.target.value)}
+            />
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter className="border-t bg-slate-50 dark:bg-slate-900/50 py-4">
+        <Button onClick={handleChangePassword} disabled={!newPwd || loading} isLoading={loading} loadingText="Updating...">
+          Update Password
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function DangerTab({ onDelete }: { onDelete: () => void }) {
+  const handleDelete = () => {
+    toast("Are you sure?", {
+      description: "This action cannot be undone.",
+      action: {
+        label: "Delete Account",
+        onClick: () => {
+          (async () => {
+            try {
+              await deleteProfile();
+              toast.success("Account deleted");
+              // Redirect handled by caller or auth provider usually
+            } catch (e) {
+              toast.error("Failed to delete account");
+            }
+          })();
+        }
+      },
+      cancel: { label: "Cancel", onClick: () => { } },
+    });
+  };
+
+  return (
+    <Card className="border-red-200 dark:border-red-900/50">
+      <CardHeader>
+        <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
+        <CardDescription>
+          Irreversible actions for your account.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-900/20 dark:bg-red-900/10">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium text-red-900 dark:text-red-200">Delete Account</h4>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                Permanently remove your Personal data and all of your content.
+              </p>
+            </div>
+            <Button variant="destructive" onClick={handleDelete}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Account
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

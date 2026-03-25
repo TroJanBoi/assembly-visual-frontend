@@ -8,10 +8,14 @@ import { Assignment } from "@/lib/api/assignment";
 export function isAssignmentIncomplete(assignment: Assignment): boolean {
     if (!assignment) return true;
 
-    // Check if critical fields are null or undefined
-    // Based on the user's request, we need to ensure setting and condition exist
-    const hasSettings = assignment.settings !== null && assignment.settings !== undefined;
-    const hasCondition = assignment.condition !== null && assignment.condition !== undefined;
+    // Check if critical fields are null, undefined, or empty objects
+    const hasSettings = assignment.settings !== null
+        && assignment.settings !== undefined
+        && Object.keys(assignment.settings).length > 0;
+
+    const hasCondition = assignment.condition !== null
+        && assignment.condition !== undefined
+        && Object.keys(assignment.condition).length > 0;
 
     return !hasSettings || !hasCondition;
 }

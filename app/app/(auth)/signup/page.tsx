@@ -10,7 +10,7 @@ import { signup, OAUTH_GOOGLE_URL } from "@/lib/api/auth";
 import { toast } from "sonner";
 
 import LandingNav from "@/components/layout/TopNav";
-import { LoadingButton } from "@/components/ui/LoadingButton";
+import { Button } from "@/components/ui/Button";
 import { useGlobalLoading } from "@/components/providers/GlobalLoadingProvider";
 import AuthDemo from "@/components/ui/Auth/AuthDemo";
 import { FaGoogle, FaArrowLeft } from "react-icons/fa6";
@@ -193,7 +193,7 @@ export default function SignUpPage() {
             </label>
 
             {/* Submit */}
-            <LoadingButton
+            <Button
               type="submit"
               isLoading={loading}
               disabled={!agree || pwdMismatch}
@@ -201,7 +201,7 @@ export default function SignUpPage() {
               className="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               Create Account
-            </LoadingButton>
+            </Button>
 
             <div className="relative py-2">
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200 dark:border-slate-800" /></div>

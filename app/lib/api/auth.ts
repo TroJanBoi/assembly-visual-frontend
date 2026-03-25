@@ -83,7 +83,7 @@ export async function signin(data: SigninInput): Promise<SigninResponse> {
 
   let userProfile: UserProfile | null = null;
   try {
-    userProfile = await apiFetch<UserProfile>("/api/v2/profile", {
+    userProfile = await apiFetch<UserProfile>("/api/v2/profile/", {
       method: "GET",
     });
   } catch (err) {
