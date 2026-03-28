@@ -122,13 +122,13 @@ export default function WorkPlane({ children }: WorkPlaneProps) {
 
       const position = rfInstance.current?.project
         ? rfInstance.current.project({
-            x: clientX - reactFlowBounds.left,
-            y: clientY - reactFlowBounds.top,
-          })
+          x: clientX - reactFlowBounds.left,
+          y: clientY - reactFlowBounds.top,
+        })
         : {
-            x: clientX - reactFlowBounds.left,
-            y: clientY - reactFlowBounds.top,
-          };
+          x: clientX - reactFlowBounds.left,
+          y: clientY - reactFlowBounds.top,
+        };
 
       const id = `${nodeDef.id}-${Date.now()}`;
 

@@ -1,0 +1,60 @@
+"use client";
+
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, Suspense } from "react";
+import { TOKEN_KEY, setToken } from "@/lib/auth/token";
+import { apiFetch } from "@/lib/api/client";
+import { UserProfile } from "@/lib/api/auth";
+
+function AuthSuccessContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const token = searchParams.get("token");
+
+    useEffect(() => {
+        const handleAuth = async () => {
+            if (!token) {
+                router.push("/signin");
+                return;
+            }
+
+            try {
+                // 1. Save token
+                localStorage.setItem(TOKEN_KEY, token);
+
+                // 2. Hard Redirect (Skip Profile Fetch to avoid loop)
+                router.push("/home");
+
+            } catch (err) {
+                console.error("OAuth Success Error:", err);
+                router.push("/signin");
+            }
+        };
+
+        handleAuth();
+    }, [token, router]);
+
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
+            <div className="text-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Completing sign in...</h2>
+                <p className="text-slate-500 dark:text-slate-400">Please wait while we redirect you.</p>
+            </div>
+        </div>
+    );
+}
+
+export default function AuthSuccessPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
+                <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                </div>
+            </div>
+        }>
+            <AuthSuccessContent />
+        </Suspense>
+    );
+}

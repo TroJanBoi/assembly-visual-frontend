@@ -1,17 +1,30 @@
 import "./globals.css";
-import ThemeToggle from "@components/layout/ThemeToggle";
-import SideBar from "@components/layout/SideBar";
-import TopNav from "@components/layout/TopNav";
-import { Poppins } from "next/font/google";
+
+import { Poppins, JetBrains_Mono } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
+import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { NavigationLoader } from "@/components/ui/NavigationLoader";
+
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  variable: "--font-poppins",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
 });
 
 export const metadata = {
   title: "BLYLAB.",
   description: "",
 };
+export const dynamic = "force-dynamic";
+
+import { BookmarkProvider } from "@/lib/context/BookmarkContext";
 
 export default function RootLayout({
   children,
@@ -19,31 +32,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={poppins.className}>
-      <body className="min-h-screen ">
-        <div className="flex">
-          <SideBar />
+    <html lang="en" className={`${poppins.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <body className="min-h-screen">
+        {/* Navigation Loading UX */}
+        <NavigationLoader />
 
-          <div className="flex flex-col w-full">
-            <TopNav />
-            <main
-              role="main"
-              style={{
-                marginLeft: "var(--sidebar-width, 240px)",
-                paddingTop: "var(--topbar-height, 64px)",
-                transition:
-                  "margin-left 150ms ease-out, padding-top 150ms ease-out",
-                height: "100vh",
-                
-                boxSizing: "border-box",
-                overflow: "auto",
-              }}
-            >
-              {/* <ThemeToggle /> */}
+        {/* Wrap children with the ToastProvider */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Toaster position="bottom-right" richColors />
+          <GlobalLoadingProvider>
+            <BookmarkProvider>
               {children}
-            </main>
-          </div>
-        </div>
+            </BookmarkProvider>
+          </GlobalLoadingProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

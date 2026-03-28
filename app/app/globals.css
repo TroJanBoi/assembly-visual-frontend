@@ -1,29 +1,157 @@
+@import "react-phone-input-2/lib/style.css";
+@import "nprogress/nprogress.css";
+
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-dash {
+  animation: dashdraw 1s linear infinite;
+}
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 
-:root {
-  --color-primary: #687FE5;
-  --color-bg: #ffffff;
-  --color-text: #2e2e2e;
-  --color-sub-text: #5e5e5e;
-  --color-border: rgba(41, 41, 58, 0.23); /* 23% opacity */
+
+
+@layer components {
+  .PhoneInput {
+    @apply flex gap-2;
+  }
+
+  .PhoneInputCountry {
+    @apply h-11 rounded-lg border border-[var(--color-border)] bg-white px-3 inline-flex items-center gap-2 text-sm hover:bg-neutral-50;
+  }
+
+  .PhoneInputCountrySelectArrow {
+
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid rgb(115 115 115);
+    margin-left: .25rem;
+  }
+
+  .PhoneInputInput {
+    @apply flex-1 h-11 rounded-lg border border-[var(--color-border)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[color:rgba(104, 127, 229, 0.18)];
+  }
 }
 
-.dark {
-  --color-primary: #8C9EFF;      
-  --color-bg: #1A1A2E;           /* dark background */
-  --color-text: #F5F5F5;
-  --color-sub-text: #B0B0B0;
-  --color-border: rgba(255, 255, 255, 0.23);
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 229 70% 65%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 229 70% 65%;
+
+    --radius: 0.5rem;
+
+    /* Legacy Mappings to prevent breakage */
+    --color-primary: #687FE5;
+    --color-bg: #ffffff;
+    --color-text: #2e2e2e;
+    --color-sub-text: #5e5e5e;
+    --color-border: rgba(41, 41, 58, 0.23);
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 229 70% 65%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 229 70% 65%;
+
+    /* Legacy Mappings to prevent breakage */
+    --color-primary: #818cf8;
+    --color-bg: #020617;
+    --color-text: #f8fafc;
+    --color-sub-text: #94a3b8;
+    --color-border: rgba(255, 255, 255, 0.1);
+  }
 }
 
-.brand-text { color: var(--color-primary); }
-.text-primary { color: var(--color-text); }
-.text-sub { color: var(--color-sub-text); }
-.border-primary { border-color: var(--color-border); }
-.bg-primary { background-color: var(--color-primary); }
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+.brand-text {
+  color: var(--color-primary);
+}
+
+.text-primary {
+  color: var(--color-text);
+}
+
+.text-sub {
+  color: var(--color-sub-text);
+}
+
+.border-primary {
+  border-color: var(--color-border);
+}
+
+.bg-primary {
+  background-color: var(--color-primary);
+}
 
 .scroll-container {
   scrollbar-gutter: stable;
@@ -33,4 +161,18 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: 'Poppins', sans-serif;
+}
+
+/* --- Subtle grid background --- */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(41, 41, 58, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(41, 41, 58, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark .bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
 }

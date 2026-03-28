@@ -1,0 +1,176 @@
+// app/(auth)/signin/page.tsx
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signin, OAUTH_GOOGLE_URL } from "@/lib/api/auth";
+
+// Sonner for notifications
+import { toast } from "sonner";
+
+import LandingNav from "@/components/layout/TopNav";
+
+import { Button } from "@/components/ui/Button";
+import { useGlobalLoading } from "@/components/providers/GlobalLoadingProvider";
+import AuthDemo from "@/components/ui/Auth/AuthDemo";
+import { FaGoogle, FaArrowLeft } from "react-icons/fa6";
+
+
+export default function SignInPage() {
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const { show: showGlobalLoading } = useGlobalLoading();
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get("email") || "").trim();
+    const password = String(form.get("password") || "");
+    const remember = Boolean(form.get("remember"));
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return toast.warning("Please enter a valid email.");
+    }
+    if (!password) {
+      return toast.warning("Please enter your password.");
+    }
+
+    try {
+      setLoading(true);
+      const res = await signin({ email, password, remember });
+
+      toast.success("Welcome back!", {
+        description: "Redirecting to your workspace...",
+        duration: 2000,
+      });
+
+      showGlobalLoading();
+      router.push("/home");
+    } catch (err: any) {
+      setLoading(false);
+      toast.error("Sign in failed", {
+        description: err?.message || "Invalid credentials.",
+        action: {
+          label: "Try Again",
+          onClick: () => console.log("Try again clicked"),
+        }
+      });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col md:flex-row font-sans">
+      {/* LEFT: Form Section */}
+      {/* LEFT: Visual Side (Hidden on Mobile) */}
+      <section className="hidden md:flex flex-1 bg-slate-50 dark:bg-slate-900 p-0 items-center justify-center relative overflow-hidden border-r border-slate-200 dark:border-slate-800">
+        {/* Background Patterns */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:40px_40px] opacity-40" />
+
+        {/* The AuthDemo Component - Full Size */}
+        <div className="w-full h-full relative z-10">
+          <AuthDemo />
+        </div>
+      </section>
+
+      {/* RIGHT: Form Section */}
+      <section className="flex-1 flex flex-col justify-center px-4 sm:px-8 md:px-12 relative z-10 bg-white dark:bg-slate-950">
+        <div className="absolute top-8 left-8">
+          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors">
+            <FaArrowLeft /> Back
+          </Link>
+        </div>
+
+        <div className="max-w-md w-full mx-auto space-y-8">
+          <div className="space-y-2">
+            <Link href="/" className="inline-block mb-4">
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">BLYLAB<span className="text-indigo-600 dark:text-indigo-400">.</span></h1>
+            </Link>
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white leading-tight">Welcome back</h2>
+            <p className="text-slate-500 dark:text-slate-400">Please enter your details to sign in.</p>
+          </div>
+
+          <form onSubmit={onSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300" htmlFor="email">Email</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500 api-test-selector-email"
+                placeholder="name@example.com"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300" htmlFor="password">Password</label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={show ? "text" : "password"}
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500 api-test-selector-password"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShow(!show)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-indigo-600 px-2 py-1"
+                >
+                  {show ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
+                <input type="checkbox" name="remember" className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                Remember me
+              </label>
+              <Link href="/forgot" className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+
+            <Button
+              type="submit"
+              isLoading={loading}
+              loadingText="Signing In..."
+              className="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all api-test-selector-signin-btn"
+            >
+              Sign In
+            </Button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200 dark:border-slate-800" /></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white dark:bg-slate-950 px-4 text-slate-400 font-medium">Or continue with</span></div>
+          </div>
+
+          <button
+            type="button"
+            className="w-full py-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold text-sm transition-all flex items-center justify-center gap-2"
+            onClick={() => {
+              window.location.href = OAUTH_GOOGLE_URL;
+            }}
+          >
+            <FaGoogle className="text-slate-900 dark:text-white" />
+            Google
+          </button>
+
+          <p className="text-center text-sm text-slate-600">
+            Don’t have an account?{" "}
+            <Link href="/signup" className="font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline">
+              Sign up for free
+            </Link>
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}
