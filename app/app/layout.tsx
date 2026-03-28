@@ -21,6 +21,10 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata = {
   title: "BLYLAB.",
   description: "",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+  },
 };
 export const dynamic = "force-dynamic";
 
@@ -40,8 +44,8 @@ export default function RootLayout({
         {/* Wrap children with the ToastProvider */}
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
+          forcedTheme="light"
           disableTransitionOnChange
         >
           <Toaster position="bottom-right" richColors />

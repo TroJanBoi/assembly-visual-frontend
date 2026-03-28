@@ -256,11 +256,12 @@ export default function Overview() {
                         <div className="flex justify-center">
                             <ProfileCard
                                 name="Prakan Suma"
-                                title="Fontend Devoloper"
+                                title="Fontend Developer"
                                 handle="prakan"
                                 status="Building"
-                                contactText="Contact"
-                                avatarUrl="https://ui-avatars.com/api/?name=Prakan+Suma&background=random"
+                                contactText="Facebook"
+                                contactUrl="https://web.facebook.com/porddavitz/"
+                                avatarUrl="/images/team3.png"
                                 showUserInfo={true}
                                 enableTilt={true}
                                 enableMobileTilt={false}
@@ -271,11 +272,12 @@ export default function Overview() {
                         <div className="flex justify-center">
                             <ProfileCard
                                 name="Peerapol Srisawat"
-                                title="Backend Devoloper"
+                                title="Backend Developer"
                                 handle="Peerapol"
                                 status="Building"
-                                contactText="Portfolio"
-                                avatarUrl="https://ui-avatars.com/api/?name=Peerapol+Srisawatw&background=random"
+                                contactText="Facebook"
+                                contactUrl="https://web.facebook.com/love.za.50"
+                                avatarUrl="/images/team1.jpg"
                                 showUserInfo={true}
                                 enableTilt={true}
                                 enableMobileTilt={false}
@@ -285,12 +287,13 @@ export default function Overview() {
                         {/* Profile 3 */}
                         <div className="flex justify-center">
                             <ProfileCard
-                                name="Patipan"
+                                name="Patipan Duangdao"
                                 title="CEO & Product Manager"
                                 handle="Patipan"
                                 status="Online"
-                                contactText="Connect"
-                                avatarUrl="https://ui-avatars.com/api/?name=Patipan&background=random" // Different mock ID
+                                contactText="Facebook"
+                                contactUrl="https://web.facebook.com/ptiphan.dwngdaw"
+                                avatarUrl="/images/team2.jpg"
                                 showUserInfo={true}
                                 enableTilt={true}
                                 enableMobileTilt={false}

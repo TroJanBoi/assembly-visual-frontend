@@ -5,7 +5,7 @@ interface BannerSelectionModalProps {
     open: boolean;
     onClose: () => void;
     onSelect: (id: number) => void;
-    selectedId: number | undefined;
+    selectedId: number | null | undefined;
 }
 
 export default function BannerSelectionModal({

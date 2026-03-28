@@ -10,7 +10,7 @@ import { getToken, decodeToken } from "@/lib/auth/token";
 import { toast } from "sonner";
 import { CLASS_BANNERS } from "@/lib/constants/banners";
 import BannerSelectionModal from "@/components/class/BannerSelectionModal";
-import { Plus } from "lucide-react";
+import { Plus, ImagePlus } from "lucide-react";
 
 type Privacy = "public" | "private";
 
@@ -21,7 +21,7 @@ export default function CreateClassPage() {
   const [desc, setDesc] = useState("");
 
   // Default to first banner (or 0) if desired, or null to force selection
-  const [bannerId, setBannerId] = useState<number>(0);
+  const [bannerId, setBannerId] = useState<number | null>(null);
   const [showBannerModal, setShowBannerModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,7 +42,7 @@ export default function CreateClassPage() {
         topic: name.trim(),
         description: desc.trim(),
         status: privacy === "public" ? 0 : 1,
-        banner_id: bannerId,
+        banner_id: bannerId !== null ? bannerId : 0,
       };
       const res = await createClass(classData);
 
@@ -111,7 +111,11 @@ export default function CreateClassPage() {
           <label className="text-sm font-medium mb-2 block">Class Banner</label>
           <div
             onClick={() => setShowBannerModal(true)}
-            className="group relative w-full h-40 sm:h-56 lg:h-64 rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-indigo-600 transition-all ring-offset-2 hover:shadow-lg"
+            className={`group relative w-full h-40 sm:h-56 lg:h-64 rounded-2xl overflow-hidden cursor-pointer border-2 transition-all ring-offset-2 hover:shadow-lg ${
+              selectedBanner
+                ? "border-transparent hover:border-indigo-600"
+                : "border-dashed border-gray-300 hover:border-indigo-500 bg-gray-50 dark:bg-slate-800/50"
+            }`}
           >
             {selectedBanner ? (
               <div
@@ -124,16 +128,17 @@ export default function CreateClassPage() {
                 }}
               />
             ) : (
-              <div className="w-full h-full bg-gray-100 dark:bg-slate-800 flex flex-col items-center justify-center text-gray-400">
-                <div className="p-4 rounded-full bg-white dark:bg-slate-700 shadow-sm mb-2">
-                  <Plus size={24} />
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 group-hover:text-indigo-500 transition-colors">
+                <div className="p-4 rounded-full bg-white dark:bg-slate-700 shadow-sm border border-gray-100 dark:border-slate-600 mb-3 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+                  <ImagePlus className="w-7 h-7 text-indigo-500" strokeWidth={1.5} />
                 </div>
-                <span className="font-medium">Select a banner</span>
+                <span className="font-medium text-gray-600 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Select a banner</span>
+                <span className="text-xs text-gray-400 mt-1">Click to browse gallery</span>
               </div>
             )}
 
             {/* Overlay hint */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+            <div className={`absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center ${!selectedBanner ? 'hidden' : ''}`}>
               <div className="bg-white/90 dark:bg-slate-900/90 text-gray-900 dark:text-white px-4 py-2 rounded-lg text-sm font-medium opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all shadow-lg">
                 Change Banner
               </div>

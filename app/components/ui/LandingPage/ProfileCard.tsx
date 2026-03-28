@@ -1,5 +1,7 @@
 import React from 'react';
 import { HiOutlineMail } from "react-icons/hi";
+import { FaFacebook } from "react-icons/fa";
+import Link from 'next/link';
 
 interface ProfileCardProps {
   avatarUrl: string;
@@ -8,6 +10,7 @@ interface ProfileCardProps {
   handle?: string;
   status?: string;
   contactText?: string;
+  contactUrl?: string;
   // These props are kept for compatibility but ignored in usage
   iconUrl?: string;
   grainUrl?: string;
@@ -31,9 +34,19 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   handle,
   status,
   contactText = 'Contact',
+  contactUrl,
   className = '',
   onContactClick
 }) => {
+  const isFacebook = contactUrl?.includes('facebook.com');
+  
+  const ButtonContent = () => (
+    <>
+      {isFacebook ? <FaFacebook className="group-hover:text-[#1877F2] transition-colors" /> : <HiOutlineMail className="group-hover:text-indigo-400 transition-colors" />}
+      {contactText}
+    </>
+  );
+
   return (
     <div className={`p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col items-center text-center transition-transform hover:-translate-y-1 duration-300 w-full max-w-sm ${className}`}>
       
@@ -66,13 +79,23 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
       {handle && <p className="text-xs text-slate-500 mb-6">@{handle}</p>}
 
       {/* Action */}
-      <button 
-        onClick={onContactClick}
-        className="w-full py-2.5 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 group"
-      >
-        <HiOutlineMail className="group-hover:text-indigo-400 transition-colors" />
-        {contactText}
-      </button>
+      {contactUrl ? (
+        <Link 
+          href={contactUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full py-2.5 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 group"
+        >
+          <ButtonContent />
+        </Link>
+      ) : (
+        <button 
+          onClick={onContactClick}
+          className="w-full py-2.5 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 group"
+        >
+          <ButtonContent />
+        </button>
+      )}
 
     </div>
   );
