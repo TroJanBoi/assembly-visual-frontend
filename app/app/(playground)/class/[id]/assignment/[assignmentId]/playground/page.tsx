@@ -396,7 +396,6 @@ export default function AssignmentPlaygroundPage() {
 
         // --- Read-Only Submission Load ---
         if (isReadOnly && submissionId) {
-          console.log('[Hybrid Load] Loading Submission (Read-Only)...');
           try {
             const submission = await getSubmissionById(parseInt(submissionId));
             if (submission && submission.item_snapshot) {
@@ -433,18 +432,14 @@ export default function AssignmentPlaygroundPage() {
         }
 
         // Step 1: Try loading from Database
-        console.log('[Hybrid Load] Attempting DB load...');
         const playground = await loadPlaygroundFromDB(numAssignmentId);
 
         if (playground && playground.item) {
           const content = playground.item;
-          console.log('[Hybrid Load] ✓ Loaded from DB');
-
           // Set Playground ID Ref
           const pid = playground.id || (playground.Data as any)?.id;
           if (pid) {
             playgroundIdRef.current = pid;
-            console.log('[Hybrid Load] ✓ Set Playground ID:', pid);
           }
 
           // Restore React Flow state to Zustand
@@ -490,14 +485,11 @@ export default function AssignmentPlaygroundPage() {
         // =========================================================
         // Step 2: DB Not Found -> Explicit Create Logic as requested
         // =========================================================
-        console.log('[Hybrid Load] DB returned 404/Empty. Creating new playground...');
-
         // 2a. Check LocalStorage (Offline Sync Scenario)
         const localData = loadFromLocalStorage(numAssignmentId, userId);
         let initialPayload;
 
         if (localData && localData.cpu_state) {
-          console.log('[Hybrid Load] Found LocalStorage -> Syncing to DB');
           // Use LocalData to seed the new playground
           initialPayload = {
             assignment_id: numAssignmentId,
@@ -530,7 +522,6 @@ export default function AssignmentPlaygroundPage() {
           }
 
         } else {
-          console.log('[Hybrid Load] No LocalStorage -> Clean Start from Assignment');
           // Use Assignment Init to seed
           // Note: CPU State is already correctly set by fetchAssignmentData via buildInitialCPUState
           // So we just need to send that state to DB.
@@ -562,14 +553,12 @@ export default function AssignmentPlaygroundPage() {
 
         // 2b. Call Create API
         try {
-          console.log('[Hybrid Load] Creating Initial Playground Record...', initialPayload);
           const created = await createPlayground(initialPayload) as any;
 
           // Set Playground ID
           const pid = created.id || (created.Data as any)?.id;
           if (pid) {
             playgroundIdRef.current = pid;
-            console.log('[Hybrid Load] ✓ Created Playground ID:', pid);
           }
 
           // Save to LocalStorage to keep sync
@@ -590,8 +579,6 @@ export default function AssignmentPlaygroundPage() {
         }
 
         setPlaygroundLoaded(true);
-        console.log('[Hybrid Load] ✓ Load complete (Created/Synced)');
-
       } catch (e) {
         console.error('[Hybrid Load] Failed:', e);
         setPlaygroundLoaded(true);
@@ -674,7 +661,6 @@ export default function AssignmentPlaygroundPage() {
         const pid = result?.id || result?.Data?.id;
         if (pid && pid !== playgroundIdRef.current) {
           playgroundIdRef.current = pid;
-          console.log('[DB] ✓ Playground ID set:', pid);
         }
       },
     }
@@ -690,8 +676,6 @@ export default function AssignmentPlaygroundPage() {
 
       try {
         const data = JSON.parse(e.newValue) as PlaygroundLocalData;
-        console.log('[Multi-tab] Detected change from another tab, syncing...');
-
         // Reload React Flow state via Zustand
         loadFromSave(
           data.react_flow?.nodes || nodes,
@@ -706,8 +690,6 @@ export default function AssignmentPlaygroundPage() {
             memory: data.cpu_state?.memory || prev.memory,
           }));
         }
-
-        console.log('[Multi-tab] ✓ Synced successfully');
       } catch (err) {
         console.error('[Multi-tab] Failed to parse storage change:', err);
       }
@@ -727,7 +709,6 @@ export default function AssignmentPlaygroundPage() {
   // Dependency is [] so this effect ONLY cleans up on strict unmount
   useEffect(() => {
     return () => {
-      console.log('[Unmount] Triggering immediate save...');
       // Only trigger if data is actually loaded and populated to avoid saving empty state over DB
       if (playgroundLoaded && !isReadOnly) {
         saveImmediatelyRef.current?.();
@@ -738,7 +719,6 @@ export default function AssignmentPlaygroundPage() {
   // Save before browser close/refresh
   useEffect(() => {
     const handleBeforeUnload = () => {
-      console.log('[BeforeUnload] Triggering immediate save...');
       if (playgroundLoaded && !isReadOnly) {
         saveImmediatelyRef.current?.();
       }
@@ -808,8 +788,6 @@ export default function AssignmentPlaygroundPage() {
 
 
   const handleRunTestCase = async (testCase: TestCase): Promise<TestResult> => {
-    console.log("🧪 [DEV] Running Test Case:", testCase);
-
     // 1. Prepare Program
     const nodeMap = new Map<string, number>();
     nodes.forEach((node, index) => {
@@ -856,7 +834,6 @@ export default function AssignmentPlaygroundPage() {
 
       // Debug log (keep for verification)
       if (type === 'MOV') {
-        console.log(`🔍 [DEV] Compiling MOV Node ${node.id}:`, d);
       }
 
       // 1. Jump/Label Instructions
@@ -936,8 +913,6 @@ export default function AssignmentPlaygroundPage() {
   };
 
   const handleRunTestSuite = async (suite: TestSuite): Promise<TestSuiteResult> => {
-    console.log("🧪 [DEV] Running Test Suite:", suite);
-
     // 1. Compiler Logic
     const nodeMap = new Map<string, number>();
     nodes.forEach((node, index) => nodeMap.set(node.id, index));
@@ -1349,8 +1324,6 @@ export default function AssignmentPlaygroundPage() {
       let connectionMade = false;
 
       // --- Debug Log ---
-      console.log(`[AutoConnect] DragStop: ${node.id} (${getInstr(node)})`, { inputHandle, outputHandle });
-
       // Check PREDECESSOR (Other -> This)
       for (const other of nodes) {
         if (other.id === node.id) continue;
@@ -1371,7 +1344,6 @@ export default function AssignmentPlaygroundPage() {
 
         // Debug Log
         if (dist < 100) {
-          console.log(` Checking Predecessor ${other.id} -> ${node.id}: Dist=${dist.toFixed(1)}`);
         }
 
         if (dist < CONNECT_THRESHOLD) {
@@ -1382,7 +1354,6 @@ export default function AssignmentPlaygroundPage() {
           const targetOccupied = edges.some(e => e.target === node.id && e.targetHandle === "in");
 
           if (!exists && !targetOccupied) {
-            console.log(" >> Connecting Predecessor!");
             const newEdge = {
               id: `e${other.id}-${node.id}`,
               source: other.id,
@@ -1400,7 +1371,6 @@ export default function AssignmentPlaygroundPage() {
                 const h = e.sourceHandle;
                 // Remove if handle is source-bottom, out, or null
                 if (h === 'source-bottom' || h === 'out' || !h) {
-                  console.log(`[AutoConnect] Removing conflicting edge from ${other.id}`);
                   return false;
                 }
                 return true;
@@ -1433,7 +1403,6 @@ export default function AssignmentPlaygroundPage() {
 
           // Debug Log
           if (dist < 100) {
-            console.log(` Checking Successor ${node.id} -> ${other.id}: Dist=${dist.toFixed(1)}`);
           }
 
           if (dist < CONNECT_THRESHOLD) {
@@ -1444,7 +1413,6 @@ export default function AssignmentPlaygroundPage() {
             const targetOccupied = edges.some(e => e.target === other.id && e.targetHandle === "in");
 
             if (!exists && !targetOccupied) {
-              console.log(" >> Connecting Successor!");
               const newEdge = {
                 id: `e${node.id}-${other.id}`,
                 source: node.id,
@@ -1462,7 +1430,6 @@ export default function AssignmentPlaygroundPage() {
                   const h = e.sourceHandle;
                   // Remove if handle is source-bottom, out, or null
                   if (h === 'source-bottom' || h === 'out' || !h) {
-                    console.log(`✂️ [AutoConnect] Removing conflicting edge from ${node.id}`);
                     return false;
                   }
                   return true;
@@ -1839,7 +1806,6 @@ export default function AssignmentPlaygroundPage() {
             logs={execIO?.logs ?? []}
             consoleBuffer={execIO?.consoleBuffer ?? ""}
             onConsoleInput={(key: string) => {
-              console.log("⌨️ [Console Input] Key:", JSON.stringify(key), "Code:", key.charCodeAt(0), "waitingForInput:", waitingForInput);
               ioHandlerRef.current.receiveInput(key);
               if (waitingForInput && key === 'Enter') {
                 setWaitingForInput(false);

@@ -40,7 +40,6 @@ export function saveToLocalStorage(
             },
         };
         localStorage.setItem(key, JSON.stringify(payload));
-        console.log(`[LocalStorage] Saved playground ${assignmentId} for user ${userId}`);
     } catch (e: any) {
         if (e.name === 'QuotaExceededError') {
             console.error('[LocalStorage] Quota exceeded! Storage is full. Consider clearing old data.');
@@ -68,7 +67,6 @@ export function loadFromLocalStorage(
 
         // Version Check: Invalidate if version mismatch (forces clean start)
         if (data.meta?.version !== CURRENT_VERSION) {
-            console.log(`[LocalStorage] Version mismatch (Got ${data.meta?.version}, Expected ${CURRENT_VERSION}). Ignoring cache.`);
             return null;
         }
 
@@ -77,8 +75,6 @@ export function loadFromLocalStorage(
             console.warn('[LocalStorage] Invalid schema - missing required fields (react_flow or cpu_state)');
             return null;
         }
-
-        console.log(`[LocalStorage] Loaded playground ${assignmentId} for user ${userId}`);
         return data;
     } catch (e) {
         console.error('[LocalStorage] Load failed:', e);
@@ -93,7 +89,6 @@ export function clearLocalStorage(assignmentId: number, userId: number): void {
     try {
         const key = `playground_${assignmentId}_${userId}`;
         localStorage.removeItem(key);
-        console.log(`[LocalStorage] Cleared playground ${assignmentId} for user ${userId}`);
     } catch (e) {
         console.error('[LocalStorage] Clear failed:', e);
     }
@@ -133,8 +128,6 @@ export function migrateLegacyStorage(
         // Clear old keys
         localStorage.removeItem('asm_variables');
         localStorage.removeItem('asm_memory');
-
-        console.log('[LocalStorage] Migrated legacy storage');
         return migratedData;
     } catch (e) {
         console.error('[LocalStorage] Migration failed:', e);

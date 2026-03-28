@@ -224,12 +224,6 @@ export default function CreateAssignmentPage() {
         condition: conditionData,
         settings: settingsData,
       };
-
-      console.log(
-        "Submitting Payload:",
-        JSON.stringify(mainAssignmentPayload, null, 2),
-      );
-
       // 1. Create Main Assignment
       const createdAssignment = await createMainAssignment(
         id,

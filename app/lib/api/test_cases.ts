@@ -173,7 +173,6 @@ export async function createTestCase(classId: number, assignmentId: number, suit
         init: toBackendInit(testCase.initialState, testCase.isHidden),
         assert: toBackendAssert(testCase.expectedState)
     };
-    console.log('[DEBUG] createTestCase payload:', JSON.stringify(body, null, 2));
     const res = await post<APITestCase>(`/api/v2/classroom/${classId}/assignment/${assignmentId}/test-suite/${suiteId}/test-case/`, body);
     return res.id;
 }

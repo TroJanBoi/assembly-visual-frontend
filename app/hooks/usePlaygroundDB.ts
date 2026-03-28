@@ -32,14 +32,11 @@ export function usePlaygroundDBSave(
 
         const currentData = JSON.stringify(data);
         if (currentData === lastSavedRef.current) {
-            console.log('[DB] No changes to save');
             return;
         }
 
         try {
             isSavingRef.current = true;
-            console.log('[DB] Immediate save triggered');
-
             // Check if playground exists
             const payload = {
                 assignment_id: assignmentId,
@@ -52,27 +49,21 @@ export function usePlaygroundDBSave(
                 const existing = await getMyPlayground(assignmentId);
                 if (existing) {
                     // Update existing
-                    console.log('[DB] Updating existing playground');
                     const result = await updatePlayground(payload);
                     lastSavedRef.current = currentData;
                     if (options.onSave) options.onSave(result);
-                    console.log('[DB] ✓ Immediate save complete (updated)');
                 } else {
                     // Create new
-                    console.log('[DB] Creating new playground');
                     const result = await createPlayground(payload);
                     lastSavedRef.current = currentData;
                     if (options.onSave) options.onSave(result);
-                    console.log('[DB] ✓ Immediate save complete (created)');
                 }
             } catch (fetchErr: any) {
                 // If 404, create new playground
                 if (fetchErr.message?.includes('404') || fetchErr.message?.includes('not found')) {
-                    console.log('[DB] Playground not found, creating new');
                     const result = await createPlayground(payload);
                     lastSavedRef.current = currentData;
                     if (options.onSave) options.onSave(result);
-                    console.log('[DB] ✓ Immediate save complete (created)');
                 } else {
                     throw fetchErr;
                 }
@@ -102,8 +93,6 @@ export function usePlaygroundDBSave(
 
             try {
                 isSavingRef.current = true;
-                console.log('[DB AutoSave] Saving...');
-
                 const payload = {
                     assignment_id: assignmentId,
                     item: data,
@@ -118,13 +107,11 @@ export function usePlaygroundDBSave(
                         const result = await updatePlayground(payload);
                         lastSavedRef.current = currentData;
                         if (options.onSave) options.onSave(result);
-                        console.log('[DB AutoSave] ✓ Saved (updated)');
                     } else {
                         // Create new
                         const result = await createPlayground(payload);
                         lastSavedRef.current = currentData;
                         if (options.onSave) options.onSave(result);
-                        console.log('[DB AutoSave] ✓ Saved (created)');
                     }
                 } catch (fetchErr: any) {
                     // If 404, create new playground
@@ -132,7 +119,6 @@ export function usePlaygroundDBSave(
                         const result = await createPlayground(payload);
                         lastSavedRef.current = currentData;
                         if (options.onSave) options.onSave(result);
-                        console.log('[DB AutoSave] ✓ Saved (created after 404)');
                     } else {
                         throw fetchErr;
                     }
@@ -159,15 +145,11 @@ export async function loadPlaygroundFromDB(
     assignmentId: number
 ): Promise<any | null> {
     try {
-        console.log('[DB] Loading playground for assignment', assignmentId);
         const playground = await getMyPlayground(assignmentId);
 
         if (playground) {
-            console.log('[DB] ✓ Loaded playground from DB');
             return playground;
         }
-
-        console.log('[DB] No playground found in DB');
         return null;
     } catch (e) {
         console.error('[DB] Failed to load playground:', e);

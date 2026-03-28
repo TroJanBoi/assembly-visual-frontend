@@ -45,6 +45,12 @@ Thumbs.db
 *.swp
 *.swo
 .vscode/settings.json
+CPU
+EXEC
+IO
+RES
+STEP
+
 
 # Package manager
 package-lock.json

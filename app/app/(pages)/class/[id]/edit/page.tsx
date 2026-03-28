@@ -148,7 +148,12 @@ export default function EditClassPage() {
                         {selectedBanner ? (
                             <div
                                 className="w-full h-full transition-transform duration-500 group-hover:scale-105"
-                                style={selectedBanner.style}
+                                style={{ 
+                                  backgroundColor: selectedBanner.color,
+                                  backgroundImage: `url(${selectedBanner.imageUrl})`,
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center'
+                                }}
                             />
                         ) : (
                             <div className="w-full h-full bg-gray-100 dark:bg-slate-800 flex flex-col items-center justify-center text-gray-400">

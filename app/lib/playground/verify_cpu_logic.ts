@@ -50,29 +50,20 @@ function executeSUB(cpu: MockCPU, operands: Operand[]): void {
 }
 
 // --- CHECKS ---
-
-console.log("Verifying Logic...");
 const cpu = new MockCPU();
 
 // 1. ADD Overflow: 127 + 1 = 128 (-128)
 cpu.registers['R0'] = 127;
 executeADD(cpu, [{ type: 'Register', value: 'R0' }, { type: 'Immediate', value: '#1' }]);
-console.log(`ADD 127+1 -> R0=${cpu.registers['R0']} (Expected 128), V=${cpu.flags.V} (Expected 1), O=${cpu.flags.O} (Expected 1)`);
-
 if (cpu.flags.V !== 1) console.error("FAIL: ADD Overflow check failed");
 
 // 2. SUB Overflow: -128 - 1 = -129 (+127)
 cpu.registers['R0'] = 128; // -128 in 8-bit unsigned is 128
 executeSUB(cpu, [{ type: 'Register', value: 'R0' }, { type: 'Immediate', value: '#1' }]);
-console.log(`SUB -128-1 -> R0=${cpu.registers['R0']} (Expected 127), V=${cpu.flags.V} (Expected 1), O=${cpu.flags.O} (Expected 0)`);
-
 if (cpu.flags.V !== 1) console.error("FAIL: SUB Overflow check failed");
 
 // 3. Reg-Reg ADD
 cpu.registers['R0'] = 10;
 cpu.registers['R1'] = 20;
 executeADD(cpu, [{ type: 'Register', value: 'R0' }, { type: 'Register', value: 'R1' }]);
-console.log(`ADD R0, R1 -> R0=${cpu.registers['R0']} (Expected 30)`);
 if (cpu.registers['R0'] !== 30) console.error("FAIL: Reg-Reg ADD failed");
-
-console.log("Done.");

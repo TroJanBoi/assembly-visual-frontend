@@ -57,7 +57,6 @@ const AssignmentListItem = ({
   };
 
   const handleDelete = () => {
-    console.log("Delete assignment:", assignment.id);
     // Add confirmation modal logic here
   };
 

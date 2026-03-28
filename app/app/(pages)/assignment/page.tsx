@@ -65,8 +65,8 @@ function TaskCard({ task }: { task: TaskMeResponse }) {
     const dueParsed = task.due_date ? parseISO(task.due_date) : null;
     const isOverdueDate = dueParsed && isValid(dueParsed) && isPast(dueParsed);
 
-    const bannerStyle =
-        CLASS_BANNERS[task.banner_id ?? 0]?.style ?? CLASS_BANNERS[0].style;
+    const banner = CLASS_BANNERS[task.banner_id ?? 0] ?? CLASS_BANNERS[0];
+    const bannerStyle = { backgroundColor: banner.color };
 
     return (
         <div className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col">

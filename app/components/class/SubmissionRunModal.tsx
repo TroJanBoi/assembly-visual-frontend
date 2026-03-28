@@ -109,7 +109,7 @@ export default function SubmissionRunModal({
                 {/* Header Info */}
                 <div className="bg-gray-50 border border-gray-100 rounded-lg p-4 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
                     <div>
-                        <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Evaluating Attempt {submission?.attempt_number}</p>
+                        <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Evaluating Attempt {submission?.attempt_no}</p>
                         <p className="text-base font-semibold text-gray-900 mt-1 flex items-center gap-2">
                             <HiOutlineCode className="w-5 h-5 text-indigo-500" />
                             {testSuites.reduce((acc, ts) => acc + ts.cases.length, 0)} Total Test Cases Available

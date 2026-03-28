@@ -51,10 +51,6 @@ export async function apiFetch<T>(
     }
     // Request log
     // eslint-disable-next-line no-console
-    console.log("[API] ⇢", reqInit.method || "GET", url, {
-      headers: maskAuth(headers),
-      body: bodyPreview,
-    });
   }
 
   const res = await fetch(url, reqInit);
@@ -62,7 +58,6 @@ export async function apiFetch<T>(
 
   if (DEBUG_API) {
     // eslint-disable-next-line no-console
-    console.log("[API] ⇠", res.status, url, text);
   }
 
   let data: any;

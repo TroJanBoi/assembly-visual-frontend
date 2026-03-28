@@ -118,8 +118,6 @@ export async function executeProgram(
         // Initialize CPU
         const cpu = new CPU(initialState);
         cpu.pc = startId;
-        console.log("[executeProgram] Found START at ID:", startId);
-        console.log("[executeProgram] Starting execution loop...");
         logs.push(`Starting execution at instruction ID ${startId}`);
 
         // Execution loop
@@ -139,7 +137,6 @@ export async function executeProgram(
             }
 
             const instruction = currentItem.instruction?.toUpperCase() || '';
-            console.log(`   [Step ${steps}] PC=${cpu.pc} → ${instruction}`);
             logs.push(`[${steps}] PC=${cpu.pc} ${instruction}`);
 
             // Execute instruction
@@ -159,8 +156,6 @@ export async function executeProgram(
                 cpu.halt('Maximum execution steps exceeded (possible infinite loop)');
             }
         }
-
-        console.log(`✅ [executeProgram] Loop finished: ${steps} steps, Halted=${cpu.halted}`);
         logs.push(`Execution completed. Halted=${cpu.halted}, Steps=${steps}`);
 
         const snapshot = ioHandler.getSnapshot();
@@ -177,13 +172,6 @@ export async function executeProgram(
                 ...snapshot
             }
         };
-
-        console.log("📦 [executeProgram] Returning result:");
-        console.log("   - Registers:", finalResult.registers);
-        console.log("   - Flags:", finalResult.flags);
-        console.log("   - Memory items:", Object.keys(finalResult.memory_sparse).length);
-        console.log("   - Halted:", finalResult.halted);
-
         return finalResult;
 
     } catch (err: any) {
@@ -414,11 +402,9 @@ function getOperandValue(cpu: CPU, operand: Operand): number {
 
             // Debug Logging requested by User
             console.group(`🔍 Debugging Fetch: Memory[${addr}]`);
-            console.log('Target Address:', addr);
             // cpu.memory is sparse map in simulation? No, cpu.readMemory accesses cpu.memory array in CPU class?
             // Checking CPU class interface... assuming cpu.getMemorySparse() or similar is available for debug?
             // Or just logging the value found.
-            console.log('Value Found:', rawValue);
             console.groupEnd();
 
             return rawValue;

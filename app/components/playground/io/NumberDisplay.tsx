@@ -73,7 +73,6 @@ export function NumberDisplay({ value }: NumberDisplayProps) {
     const [digit1, digit2] = hexString.split('');
 
     useEffect(() => {
-        console.log(`[HW: 7-Seg] Val: ${safeValue} (0x${hexString})`);
     }, [safeValue, hexString]);
 
     return (
