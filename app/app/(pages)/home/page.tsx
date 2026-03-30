@@ -173,7 +173,7 @@ export default function HomePage() {
               tasks.slice(0, 5).map((task) => (
                 <Link
                   key={task.assignment_id}
-                  href={`/class/${task.class_id}/assignment/${task.assignment_id}`}
+                  href={`/class/${task.class_id}/assignment/${task.assignment_id}/playground`}
                   className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-md hover:border-indigo-300 transition-all group"
                 >
                   <div className="flex items-start gap-4 mb-4 sm:mb-0">
@@ -196,14 +196,28 @@ export default function HomePage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4 w-full sm:w-auto ml-14 sm:ml-0">
-                    <div className="flex items-center gap-1.5 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg whitespace-nowrap">
-                      <HiOutlineClock className="w-4 h-4" />
-                      <span className="font-semibold">
-                        {task.due_date ? new Date(task.due_date).toLocaleDateString() : "No Due Date"}
+                  <div className="flex items-center gap-3 w-full sm:w-auto ml-14 sm:ml-0">
+                    {/* Due Date Badge */}
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-full whitespace-nowrap">
+                      <HiOutlineClock className="w-3.5 h-3.5" />
+                      <span>
+                        {task.due_date
+                          ? new Date(task.due_date).toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "No Due Date"}
                       </span>
                     </div>
-                    <div className="text-sm font-semibold text-slate-500 capitalize px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg whitespace-nowrap">
+                    {/* Status Badge */}
+                    <div className={`text-xs font-semibold capitalize px-3 py-1.5 rounded-full whitespace-nowrap border ${
+                      task.status === "completed"
+                        ? "text-green-700 bg-green-50 border-green-200"
+                        : task.status === "overdue"
+                        ? "text-red-600 bg-red-50 border-red-200"
+                        : "text-slate-500 bg-slate-50 border-slate-200"
+                    }`}>
                       {task.status.replace("_", " ")}
                     </div>
                   </div>

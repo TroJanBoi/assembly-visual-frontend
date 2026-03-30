@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { motion, useScroll, useSpring } from "framer-motion";
 import LandingNav from "@/components/layout/TopNav";
@@ -21,15 +22,6 @@ import InteractiveDemo from "@/components/ui/LandingPage/InteractiveDemo";
 import ProfileCard from "@/components/ui/LandingPage/ProfileCard";
 
 // --- Logic ---
-function checkKey() {
-    if (typeof window !== "undefined") {
-        if (localStorage.getItem("authToken") == null) {
-            window.location.href = "/signin";
-        } else {
-            window.location.href = "/class";
-        }
-    }
-}
 
 // --- Components ---
 
@@ -44,12 +36,31 @@ const Section = ({ children, className = "", id }: { children: React.ReactNode; 
 // --- Main Page ---
 
 export default function Overview() {
+    const router = useRouter();
     const { scrollYProgress } = useScroll();
     const scaleX = useSpring(scrollYProgress, {
         stiffness: 100,
         damping: 30,
         restDelta: 0.001
     });
+
+    // ถ้า login อยู่แล้วให้ redirect ไปหน้า home ทันที
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const token = localStorage.getItem("authToken");
+            if (token) {
+                router.replace("/home");
+            }
+        }
+    }, [router]);
+
+    // helper สำหรับปุ่ม CTA
+    const handleCTA = () => {
+        if (typeof window !== "undefined") {
+            const token = localStorage.getItem("authToken");
+            router.push(token ? "/home" : "/signin");
+        }
+    };
 
     return (
         <div className="w-full h-screen h-[100dvh] overflow-y-scroll snap-y snap-mandatory scroll-smooth bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-indigo-500/30 font-sans">
@@ -127,7 +138,7 @@ export default function Overview() {
                         className="mt-10 flex flex-wrap gap-4 justify-center pointer-events-auto"
                     >
                         <button
-                            onClick={checkKey}
+                            onClick={handleCTA}
                             className="group relative px-8 py-4 rounded-xl bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 transform skew-y-12" />
@@ -136,7 +147,7 @@ export default function Overview() {
                             </span>
                         </button>
                         <button
-                            onClick={checkKey}
+                            onClick={handleCTA}
                             className="px-8 py-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-lg transition-all shadow-sm hover:shadow"
                         >
                             View Examples

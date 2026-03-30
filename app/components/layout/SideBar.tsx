@@ -176,7 +176,7 @@ export default function SideBar({
       {/* Header */}
       <div className="relative flex items-center h-16 px-4 border-b border-gray-100 dark:border-slate-800">
         <Link
-          href="/"
+          href="/home"
           className="flex items-center gap-3 text-gray-900 dark:text-gray-100 hover:text-blue-600 transition-colors duration-150"
         >
           <span

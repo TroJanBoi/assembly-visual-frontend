@@ -63,14 +63,34 @@ export async function getClasses(): Promise<Class[]> {
  * Fetches classes owned by the current user.
  */
 export async function getMyClasses(): Promise<Class[]> {
-  return apiFetch<Class[]>("/api/v2/user/owner/classroom");
+  try {
+    return await apiFetch<Class[]>("/api/v2/user/owner/classroom");
+  } catch (error: any) {
+    if (
+      error?.message?.includes("Failed to retrieve classes") ||
+      error?.message?.includes("failed to retrieve classes")
+    ) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 /**
  * Fetches classes joined by the current user (excluding owned classes).
  */
 export async function getJoinedClasses(): Promise<Class[]> {
-  return apiFetch<Class[]>("/api/v2/user/me/classroom");
+  try {
+    return await apiFetch<Class[]>("/api/v2/user/me/classroom");
+  } catch (error: any) {
+    if (
+      error?.message?.includes("Failed to retrieve classes") ||
+      error?.message?.includes("failed to retrieve classes")
+    ) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function getClassById(id: string | number): Promise<Class> {
