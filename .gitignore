@@ -54,3 +54,26 @@ STEP
 
 # Package manager
 package-lock.json
+
+# Ignored Documentation (as requested)
+API_DOCUMENTATION.md
+api_document.md
+
+# IDE / Editor configurations
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Mock Database / Generated Data
+app/mock/db.json
+app/mock/mock-db.json
+
+# Testing Coverage
+app/coverage/
